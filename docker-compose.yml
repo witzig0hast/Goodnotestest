@@ -11,8 +11,8 @@ services:
       FRONTEND_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
     volumes:
       - goodshare-data:/app/data
-    ports:
-      - "4000:4000"
+    networks:
+      - npm_proxy
 
   frontend:
     build:
@@ -23,8 +23,17 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "3000:3000"
+    networks:
+      - npm_proxy
 
 volumes:
   goodshare-data:
+
+networks:
+  # The Docker network your Nginx Proxy Manager container is already on,
+  # so NPM can reach these two containers by name without publishing any
+  # ports to the host. Find the exact name with `docker network ls`
+  # (often "npm_default" or "proxy") and replace it below.
+  npm_proxy:
+    external: true
+    name: npm_proxy
