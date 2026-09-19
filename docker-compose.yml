@@ -5,7 +5,9 @@ services:
     environment:
       PORT: 4000
       DATABASE_PATH: /app/data/goodshare.sqlite
+      FILES_DIR: /app/data/files
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your .env file}
       FRONTEND_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
     volumes:
       - goodshare-data:/app/data
