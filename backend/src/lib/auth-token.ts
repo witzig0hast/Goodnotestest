@@ -20,3 +20,19 @@ export function verifySessionToken(token: string): SessionPayload | null {
 }
 
 export const SESSION_COOKIE_NAME = "goodshare_session";
+
+export interface ShareUnlockPayload {
+  shareId: string;
+}
+
+export function signShareUnlockToken(payload: ShareUnlockPayload): string {
+  return jwt.sign(payload, config.jwtSecret, { expiresIn: "15m" });
+}
+
+export function verifyShareUnlockToken(token: string): ShareUnlockPayload | null {
+  try {
+    return jwt.verify(token, config.jwtSecret) as ShareUnlockPayload;
+  } catch {
+    return null;
+  }
+}

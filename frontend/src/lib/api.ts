@@ -58,3 +58,97 @@ export function fetchCurrentRepository() {
 export function logout() {
   return request<void>("/api/auth/logout", { method: "POST" });
 }
+
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: "file" | "folder";
+  size?: number;
+  modifiedAt?: string;
+  children?: TreeNode[];
+}
+
+export function fetchTree() {
+  return request<{ tree: TreeNode[] }>("/api/files/tree");
+}
+
+export function downloadFileUrl(path: string): string {
+  return `${API_BASE_URL}/api/files/download?path=${encodeURIComponent(path)}`;
+}
+
+export function downloadZipUrl(path: string): string {
+  return `${API_BASE_URL}/api/files/download-zip?path=${encodeURIComponent(path)}`;
+}
+
+export interface CreateShareLinkResponse {
+  id: string;
+}
+
+export function createShareLink(input: {
+  path: string;
+  password?: string;
+  expiresInDays?: number;
+}) {
+  return request<CreateShareLinkResponse>("/api/share", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface NextcloudStatus {
+  connected: boolean;
+  url: string | null;
+  username: string | null;
+}
+
+export function fetchNextcloudStatus() {
+  return request<NextcloudStatus>("/api/nextcloud");
+}
+
+export function connectNextcloud(input: {
+  url: string;
+  username: string;
+  password: string;
+}) {
+  return request<{ connected: true }>("/api/nextcloud", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function disconnectNextcloud() {
+  return request<void>("/api/nextcloud", { method: "DELETE" });
+}
+
+export interface NextcloudSyncResult {
+  uploaded: number;
+  failed: number;
+}
+
+export function syncNextcloud() {
+  return request<NextcloudSyncResult>("/api/nextcloud/sync", { method: "POST" });
+}
+
+// --- Public share page (no session cookie required) ---
+
+export interface ShareInfo {
+  name: string;
+  type: "file" | "folder";
+  requiresPassword: boolean;
+}
+
+export function fetchShareInfo(id: string) {
+  return request<ShareInfo>(`/api/share/${id}`);
+}
+
+export function unlockShareLink(id: string, password: string) {
+  return request<{ token: string }>(`/api/share/${id}/unlock`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function shareDownloadUrl(id: string, token?: string): string {
+  const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE_URL}/api/share/${id}/download${suffix}`;
+}

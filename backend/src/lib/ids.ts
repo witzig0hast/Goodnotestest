@@ -4,6 +4,10 @@ import { customAlphabet } from "nanoid";
 const UNAMBIGUOUS_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
 export const generateRepositoryId = customAlphabet(UNAMBIGUOUS_ALPHABET, 8);
+export const generateShareLinkId = customAlphabet(
+  UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz",
+  12
+);
 export const generateWebdavUsername = customAlphabet(UNAMBIGUOUS_ALPHABET, 10);
 export const generateWebdavPassword = customAlphabet(
   UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz23456789",

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/PageHeader";
+import { FileBrowser } from "../../components/FileBrowser";
 import { fetchCurrentRepository, logout } from "../../lib/api";
 import styles from "../ui.module.css";
 
@@ -39,18 +41,30 @@ export default function DashboardPage() {
   return (
     <div className={styles.shell}>
       <PageHeader />
-      <main className={styles.main}>
+      <main className={styles.main} style={{ maxWidth: 820 }}>
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Angemeldet</div>
-          <h1 className={styles.title}>{name}</h1>
-          <p className={styles.subtitle}>
-            Hier entsteht als Nächstes die Übersicht deiner Notizen –
-            Ordnerstruktur, Vorschau und Download. Aktuell zeigt diese Seite
-            nur, dass die Anmeldung funktioniert.
-          </p>
-          <button className={styles.buttonSecondary} onClick={handleLogout}>
-            Abmelden
-          </button>
+          <div className={styles.toolbar} style={{ marginBottom: 4 }}>
+            <div>
+              <div className={styles.eyebrow}>Angemeldet</div>
+              <h1 className={styles.title} style={{ marginBottom: 0 }}>
+                {name}
+              </h1>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href="/dashboard/nextcloud" className={styles.smallButton}>
+                Nextcloud-Export
+              </Link>
+              <button className={styles.smallButton} onClick={handleLogout}>
+                Abmelden
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <Suspense fallback={<p className={styles.hint}>Notizen werden geladen …</p>}>
+            <FileBrowser />
+          </Suspense>
         </section>
       </main>
     </div>
