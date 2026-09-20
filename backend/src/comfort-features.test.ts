@@ -1,13 +1,17 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { SMTPServer } from "smtp-server";
+import { simpleParser } from "mailparser";
 import { createClient } from "webdav";
 import { v2 as webdavServer } from "webdav-server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { createApp } from "./app.js";
+
+let fakeSmtp: SMTPServer;
+const receivedEmails: { to: string; subject: string; text: string }[] = [];
 
 let app: ReturnType<typeof createApp>;
 let baseUrl: string;
@@ -17,21 +21,18 @@ let emailCounter = 0;
 
 async function createRepository(name: string) {
   emailCounter += 1;
+  const email = `comfort${emailCounter}@example.com`;
   const res = await fetch(`${baseUrl}/api/repositories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      email: `comfort${emailCounter}@example.com`,
-      password: "sicheres-passwort",
-    }),
+    body: JSON.stringify({ name, email, password: "sicheres-passwort" }),
   });
   const body = (await res.json()) as {
     repositoryId: string;
     webdav: { username: string; password: string };
   };
   const cookie = res.headers.get("set-cookie")!.split(";")[0];
-  return { ...body, cookie };
+  return { ...body, email, cookie };
 }
 
 async function makeTestPdf(text: string): Promise<Uint8Array> {
@@ -44,10 +45,36 @@ async function makeTestPdf(text: string): Promise<Uint8Array> {
 
 beforeAll(async () => {
   tempDir = mkdtempSync(join(tmpdir(), "goodshare-comfort-test-"));
+
+  fakeSmtp = new SMTPServer({
+    disabledCommands: ["AUTH", "STARTTLS"],
+    onData(stream, session, callback) {
+      simpleParser(stream)
+        .then((parsed) => {
+          receivedEmails.push({
+            to: String(parsed.to && "text" in parsed.to ? parsed.to.text : ""),
+            subject: parsed.subject ?? "",
+            text: parsed.text ?? "",
+          });
+          callback();
+        })
+        .catch(callback);
+    },
+  });
+  const smtpPort = await new Promise<number>((resolve) => {
+    fakeSmtp.listen(0, "127.0.0.1", () => {
+      resolve((fakeSmtp.server.address() as AddressInfo).port);
+    });
+  });
+
   process.env.DATABASE_PATH = join(tempDir, "test.sqlite");
   process.env.FILES_DIR = join(tempDir, "files");
   process.env.JWT_SECRET = "test-secret";
   process.env.FRONTEND_ORIGIN = "http://localhost:3000";
+  process.env.SMTP_HOST = "127.0.0.1";
+  process.env.SMTP_PORT = String(smtpPort);
+  process.env.SMTP_SECURE = "false";
+  process.env.SMTP_FROM = "goodshare@example.com";
 
   const module = await import("./app.js");
   app = module.createApp();
@@ -61,6 +88,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise((resolve) => server.close(resolve));
+  await new Promise<void>((resolve) => fakeSmtp.close(() => resolve()));
   rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -167,74 +195,49 @@ describe("favorites", () => {
 });
 
 describe("notification settings", () => {
-  it("saves and reads back ntfy settings", async () => {
+  it("saves and reads back settings", async () => {
     const repo = await createRepository("Notifications Test");
 
     await fetch(`${baseUrl}/api/notifications`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: repo.cookie },
-      body: JSON.stringify({
-        ntfyUrl: "https://ntfy.example.com",
-        ntfyTopic: "goodshare-test",
-        notifyAfterDays: 3,
-      }),
+      body: JSON.stringify({ notifyAfterDays: 3 }),
     });
 
     const res = await fetch(`${baseUrl}/api/notifications`, {
       headers: { Cookie: repo.cookie },
     });
-    expect(await res.json()).toMatchObject({
-      enabled: true,
-      ntfyUrl: "https://ntfy.example.com",
-      ntfyTopic: "goodshare-test",
-      notifyAfterDays: 3,
-    });
+    expect(await res.json()).toMatchObject({ enabled: true, notifyAfterDays: 3 });
   });
 
-  it("sends a real test push to a fake ntfy server", async () => {
-    const received: { title?: string; body?: string }[] = [];
-    const fakeNtfy = createServer((req, res) => {
-      let body = "";
-      req.on("data", (chunk) => (body += chunk));
-      req.on("end", () => {
-        received.push({ title: req.headers.title as string, body });
-        res.writeHead(200);
-        res.end("ok");
-      });
-    });
-    await new Promise<void>((resolve) => fakeNtfy.listen(0, "127.0.0.1", resolve));
-    const port = (fakeNtfy.address() as AddressInfo).port;
-
+  it("sends a real test email via the global SMTP server, to the account's own address", async () => {
+    receivedEmails.length = 0;
     const repo = await createRepository("Test Push");
+
     const res = await fetch(`${baseUrl}/api/notifications/test`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: repo.cookie },
-      body: JSON.stringify({
-        ntfyUrl: `http://127.0.0.1:${port}`,
-        ntfyTopic: "test-topic",
-        notifyAfterDays: 3,
-      }),
+      headers: { Cookie: repo.cookie },
     });
 
     expect(res.status).toBe(200);
-    expect(received).toHaveLength(1);
-    expect(received[0].body).toContain("Testnachricht");
-
-    await new Promise((resolve) => fakeNtfy.close(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 200)); // let the SMTP session finish
+    expect(receivedEmails).toHaveLength(1);
+    expect(receivedEmails[0].to).toContain(repo.email);
+    expect(receivedEmails[0].subject).toContain("Testbenachrichtigung");
   });
 
-  it("reports failure when the ntfy server is unreachable", async () => {
-    const repo = await createRepository("Test Push Fail");
-    const res = await fetch(`${baseUrl}/api/notifications/test`, {
+  it("disables notifications", async () => {
+    const repo = await createRepository("Disable Test");
+    await fetch(`${baseUrl}/api/notifications`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: repo.cookie },
-      body: JSON.stringify({
-        ntfyUrl: "http://127.0.0.1:1", // nothing listens here
-        ntfyTopic: "test-topic",
-        notifyAfterDays: 3,
-      }),
+      body: JSON.stringify({ notifyAfterDays: 3 }),
     });
-    expect(res.status).toBe(400);
+
+    await fetch(`${baseUrl}/api/notifications`, { method: "DELETE", headers: { Cookie: repo.cookie } });
+
+    const res = await fetch(`${baseUrl}/api/notifications`, { headers: { Cookie: repo.cookie } });
+    expect(await res.json()).toMatchObject({ enabled: false });
   });
 });
 

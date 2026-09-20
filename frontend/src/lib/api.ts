@@ -222,12 +222,10 @@ export function pullFromNextcloud() {
   return request<NextcloudPullResult>("/api/nextcloud/pull", { method: "POST" });
 }
 
-// --- Backup-Benachrichtigungen (ntfy) ---
+// --- Backup-Benachrichtigungen (per E-Mail an die Konto-Adresse) ---
 
 export interface NotificationSettings {
   enabled: boolean;
-  ntfyUrl: string | null;
-  ntfyTopic: string | null;
   notifyAfterDays: number | null;
 }
 
@@ -235,11 +233,7 @@ export function fetchNotificationSettings() {
   return request<NotificationSettings>("/api/notifications");
 }
 
-export function saveNotificationSettings(input: {
-  ntfyUrl: string;
-  ntfyTopic: string;
-  notifyAfterDays: number;
-}) {
+export function saveNotificationSettings(input: { notifyAfterDays: number }) {
   return request<{ enabled: true }>("/api/notifications", {
     method: "POST",
     body: JSON.stringify(input),
@@ -250,15 +244,8 @@ export function disableNotifications() {
   return request<void>("/api/notifications", { method: "DELETE" });
 }
 
-export function sendTestNotification(input: {
-  ntfyUrl: string;
-  ntfyTopic: string;
-  notifyAfterDays: number;
-}) {
-  return request<{ sent: true }>("/api/notifications/test", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+export function sendTestNotification() {
+  return request<{ sent: true }>("/api/notifications/test", { method: "POST" });
 }
 
 // --- Public share page (no session cookie required) ---

@@ -22,8 +22,7 @@ db.exec(`
     email TEXT UNIQUE,
     password_hash TEXT,
     webauthn_user_handle TEXT,
-    ntfy_url TEXT,
-    ntfy_topic TEXT,
+    notifications_enabled INTEGER NOT NULL DEFAULT 0,
     notify_after_days INTEGER,
     last_notified_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -84,8 +83,7 @@ for (const [column, definition] of [
   ["email", "TEXT"],
   ["password_hash", "TEXT"],
   ["webauthn_user_handle", "TEXT"],
-  ["ntfy_url", "TEXT"],
-  ["ntfy_topic", "TEXT"],
+  ["notifications_enabled", "INTEGER NOT NULL DEFAULT 0"],
   ["notify_after_days", "INTEGER"],
   ["last_notified_at", "TEXT"],
 ] as const) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sendNtfyMessage } from "../lib/backup-check.js";
+import { SmtpNotConfiguredError, sendNotificationEmail } from "../lib/backup-check.js";
 import { requireSession } from "../middleware/require-session.js";
 import {
   clearNotificationSettings,
@@ -13,8 +13,6 @@ export const notificationsRouter = Router();
 notificationsRouter.use(requireSession);
 
 const settingsSchema = z.object({
-  ntfyUrl: z.string().trim().url(),
-  ntfyTopic: z.string().trim().min(1).max(100),
   notifyAfterDays: z.number().int().min(1).max(90),
 });
 
@@ -25,9 +23,7 @@ notificationsRouter.get("/", (req, res) => {
     return;
   }
   res.json({
-    enabled: Boolean(repo.ntfyUrl && repo.ntfyTopic),
-    ntfyUrl: repo.ntfyUrl,
-    ntfyTopic: repo.ntfyTopic,
+    enabled: repo.notificationsEnabled,
     notifyAfterDays: repo.notifyAfterDays,
   });
 });
@@ -35,7 +31,7 @@ notificationsRouter.get("/", (req, res) => {
 notificationsRouter.post("/", (req, res) => {
   const parsed = settingsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    res.status(400).json({ error: "Bitte ntfy-Adresse, Thema und Anzahl Tage angeben." });
+    res.status(400).json({ error: "Bitte eine gültige Anzahl Tage angeben." });
     return;
   }
 
@@ -49,23 +45,25 @@ notificationsRouter.delete("/", (req, res) => {
 });
 
 notificationsRouter.post("/test", async (req, res) => {
-  const parsed = settingsSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "Bitte ntfy-Adresse und Thema angeben." });
+  const repo = findRepositoryById(req.repositoryId!);
+  if (!repo || !repo.email) {
+    res.status(404).json({ error: "Repository nicht gefunden." });
     return;
   }
 
   try {
-    await sendNtfyMessage(
-      parsed.data.ntfyUrl,
-      parsed.data.ntfyTopic,
-      "Diese Testnachricht bestätigt, dass GoodShare dich hier erreichen kann.",
-      "GoodShare: Testbenachrichtigung"
+    await sendNotificationEmail(
+      repo.email,
+      "GoodShare: Testbenachrichtigung",
+      "Diese Testnachricht bestätigt, dass GoodShare dich per E-Mail erreichen kann."
     );
     res.json({ sent: true });
-  } catch {
-    res.status(400).json({
-      error: "Testnachricht konnte nicht gesendet werden. Bitte Adresse und Thema prüfen.",
+  } catch (err) {
+    res.status(err instanceof SmtpNotConfiguredError ? 501 : 400).json({
+      error:
+        err instanceof SmtpNotConfiguredError
+          ? "Der Betreiber dieses Servers hat noch keinen E-Mail-Versand eingerichtet."
+          : "Testmail konnte nicht gesendet werden.",
     });
   }
 });

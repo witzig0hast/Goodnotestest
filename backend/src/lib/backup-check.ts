@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+import { smtpConfig } from "./config.js";
 import { buildRepositoryTree, flattenFiles } from "./file-tree.js";
 import {
   listRepositoriesWithNotifications,
@@ -7,21 +9,28 @@ import {
 
 const MIN_HOURS_BETWEEN_REMINDERS = 24;
 
-export async function sendNtfyMessage(
-  ntfyUrl: string,
-  ntfyTopic: string,
-  message: string,
-  title: string
-): Promise<void> {
-  const url = `${ntfyUrl.replace(/\/+$/, "")}/${ntfyTopic}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { Title: title, Priority: "default" },
-    body: message,
-  });
-  if (!res.ok) {
-    throw new Error(`ntfy antwortete mit ${res.status}`);
+export class SmtpNotConfiguredError extends Error {}
+
+function transporter() {
+  if (!smtpConfig) {
+    throw new SmtpNotConfiguredError(
+      "SMTP ist auf diesem Server nicht eingerichtet."
+    );
   }
+  return nodemailer.createTransport({
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    auth: smtpConfig.user ? { user: smtpConfig.user, pass: smtpConfig.password } : undefined,
+  });
+}
+
+export async function sendNotificationEmail(
+  to: string,
+  subject: string,
+  text: string
+): Promise<void> {
+  await transporter().sendMail({ from: smtpConfig!.from, to, subject, text });
 }
 
 async function newestFileAge(repositoryId: string): Promise<number | null> {
@@ -38,7 +47,7 @@ async function newestFileAge(repositoryId: string): Promise<number | null> {
 }
 
 async function checkRepository(repo: RepositoryRecord): Promise<void> {
-  if (!repo.ntfyUrl || !repo.ntfyTopic || !repo.notifyAfterDays) return;
+  if (!repo.notificationsEnabled || !repo.notifyAfterDays || !repo.email) return;
 
   const ageInDays = await newestFileAge(repo.id);
   if (ageInDays === null || ageInDays < repo.notifyAfterDays) return;
@@ -50,20 +59,20 @@ async function checkRepository(repo: RepositoryRecord): Promise<void> {
   }
 
   try {
-    await sendNtfyMessage(
-      repo.ntfyUrl,
-      repo.ntfyTopic,
-      `Für „${repo.name}“ ist seit ${Math.floor(ageInDays)} Tagen kein neues GoodNotes-Backup angekommen. Bitte kurz prüfen, ob GoodNotes noch sichert.`,
-      "GoodShare: Backup überfällig"
+    await sendNotificationEmail(
+      repo.email,
+      "GoodShare: Backup überfällig",
+      `Für „${repo.name}“ ist seit ${Math.floor(ageInDays)} Tagen kein neues GoodNotes-Backup angekommen. Bitte kurz prüfen, ob GoodNotes noch sichert.`
     );
     updateLastNotifiedAt(repo.id, new Date().toISOString());
   } catch {
-    // A failed push (e.g. ntfy temporarily unreachable) just gets retried
+    // A failed send (SMTP temporarily unreachable, etc.) just gets retried
     // on the next scheduled check — nothing else to do here.
   }
 }
 
 export async function runBackupChecks(): Promise<void> {
+  if (!smtpConfig) return; // nothing to send with
   const repos = listRepositoriesWithNotifications();
   for (const repo of repos) {
     await checkRepository(repo);

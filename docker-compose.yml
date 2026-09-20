@@ -9,6 +9,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your .env file}
       FRONTEND_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      # Optional: enables backup-email reminders for everyone using this
+      # server. Leave SMTP_HOST unset to disable the feature entirely.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
       - goodshare-data:/app/data
     networks:
