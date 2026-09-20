@@ -19,8 +19,23 @@ db.exec(`
     nextcloud_url TEXT,
     nextcloud_username TEXT,
     nextcloud_password_enc TEXT,
+    email TEXT UNIQUE,
+    password_hash TEXT,
+    webauthn_user_handle TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL,
+    transports TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS webauthn_credentials_repository_id_idx
+    ON webauthn_credentials (repository_id);
 
   CREATE TABLE IF NOT EXISTS share_links (
     id TEXT PRIMARY KEY,
@@ -35,3 +50,30 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS share_links_repository_id_idx
     ON share_links (repository_id);
 `);
+
+// Additive migration for databases created before accounts (email/password/
+// passkeys) existed — CREATE TABLE IF NOT EXISTS above doesn't add columns
+// to an already-existing table, so any new nullable columns go here.
+const existingColumns = new Set(
+  (db.prepare("PRAGMA table_info(repositories)").all() as { name: string }[]).map(
+    (col) => col.name
+  )
+);
+
+for (const [column, definition] of [
+  ["email", "TEXT"],
+  ["password_hash", "TEXT"],
+  ["webauthn_user_handle", "TEXT"],
+] as const) {
+  if (!existingColumns.has(column)) {
+    db.exec(`ALTER TABLE repositories ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+// SQLite can't add a UNIQUE column after the fact, so the constraint is
+// enforced with a separate unique index instead (email may be NULL for
+// repositories created before accounts existed — SQLite allows any number
+// of NULLs in a unique index).
+db.exec(
+  `CREATE UNIQUE INDEX IF NOT EXISTS repositories_email_idx ON repositories (email)`
+);

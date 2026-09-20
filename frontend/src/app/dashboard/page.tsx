@@ -51,6 +51,9 @@ export default function DashboardPage() {
               </h1>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <Link href="/dashboard/sicherheit" className={styles.smallButton}>
+                Sicherheit
+              </Link>
               <Link href="/dashboard/nextcloud" className={styles.smallButton}>
                 Nextcloud-Export
               </Link>

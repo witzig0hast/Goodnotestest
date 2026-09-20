@@ -12,11 +12,18 @@ let baseUrl: string;
 let tempDir: string;
 let server: import("http").Server;
 
+let emailCounter = 0;
+
 async function createRepository(name: string) {
+  emailCounter += 1;
   const res = await fetch(`${baseUrl}/api/repositories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({
+      name,
+      email: `integration${emailCounter}@example.com`,
+      password: "sicheres-passwort",
+    }),
   });
   return (await res.json()) as {
     repositoryId: string;

@@ -19,3 +19,10 @@ export const config = {
   ),
   frontendOrigin: required("FRONTEND_ORIGIN", "http://localhost:3000"),
 };
+
+// Passkeys (WebAuthn) are bound to the domain the browser shows in its
+// address bar while registering/signing in — that's the frontend, not the
+// API host. Derived rather than a separate env var so it can't drift out
+// of sync with FRONTEND_ORIGIN.
+export const webauthnRpId = new URL(config.frontendOrigin).hostname;
+export const webauthnOrigin = config.frontendOrigin;

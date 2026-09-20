@@ -1,3 +1,10 @@
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -32,19 +39,27 @@ export interface CreateRepositoryResponse {
   };
 }
 
-export function createRepository(name: string) {
+export function createRepository(input: { name: string; email: string; password: string }) {
   return request<CreateRepositoryResponse>("/api/repositories", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(input),
   });
 }
 
 export interface SessionResponse {
   repositoryId: string;
   name: string;
+  email: string | null;
 }
 
-export function login(repositoryId: string, pin: string) {
+export function loginWithPassword(email: string, password: string) {
+  return request<SessionResponse>("/api/auth/login-password", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function loginWithCode(repositoryId: string, pin: string) {
   return request<SessionResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ repositoryId, pin }),
@@ -57,6 +72,36 @@ export function fetchCurrentRepository() {
 
 export function logout() {
   return request<void>("/api/auth/logout", { method: "POST" });
+}
+
+// --- Passkeys ---
+
+export function fetchPasskeyRegistrationOptions() {
+  return request<PublicKeyCredentialCreationOptionsJSON>(
+    "/api/auth/webauthn/registration-options"
+  );
+}
+
+export function verifyPasskeyRegistration(response: RegistrationResponseJSON) {
+  return request<{ verified: boolean }>("/api/auth/webauthn/registration-verify", {
+    method: "POST",
+    body: JSON.stringify({ response }),
+  });
+}
+
+export function fetchPasskeyCount() {
+  return request<{ count: number }>("/api/auth/webauthn/credentials");
+}
+
+export function fetchPasskeyLoginOptions() {
+  return request<PublicKeyCredentialRequestOptionsJSON>("/api/auth/webauthn/login-options");
+}
+
+export function verifyPasskeyLogin(response: AuthenticationResponseJSON) {
+  return request<SessionResponse>("/api/auth/webauthn/login-verify", {
+    method: "POST",
+    body: JSON.stringify({ response }),
+  });
 }
 
 export interface TreeNode {

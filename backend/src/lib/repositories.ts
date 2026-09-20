@@ -4,6 +4,7 @@ import { decryptSecret, encryptSecret } from "./crypto.js";
 import {
   generatePin,
   generateRepositoryId,
+  generateWebauthnUserHandle,
   generateWebdavPassword,
   generateWebdavUsername,
 } from "./ids.js";
@@ -18,6 +19,9 @@ export interface RepositoryRecord {
   nextcloudUrl: string | null;
   nextcloudUsername: string | null;
   nextcloudPasswordEnc: string | null;
+  email: string | null;
+  passwordHash: string | null;
+  webauthnUserHandle: string | null;
   createdAt: string;
 }
 
@@ -31,6 +35,7 @@ export interface NewRepositorySecrets {
 
 const PIN_HASH_ROUNDS = 10;
 const WEBDAV_PASSWORD_HASH_ROUNDS = 10;
+const PASSWORD_HASH_ROUNDS = 12;
 
 interface RepositoryRow {
   id: string;
@@ -41,6 +46,9 @@ interface RepositoryRow {
   nextcloud_url: string | null;
   nextcloud_username: string | null;
   nextcloud_password_enc: string | null;
+  email: string | null;
+  password_hash: string | null;
+  webauthn_user_handle: string | null;
   created_at: string;
 }
 
@@ -54,30 +62,49 @@ function toRecord(row: RepositoryRow): RepositoryRecord {
     nextcloudUrl: row.nextcloud_url,
     nextcloudUsername: row.nextcloud_username,
     nextcloudPasswordEnc: row.nextcloud_password_enc,
+    email: row.email,
+    passwordHash: row.password_hash,
+    webauthnUserHandle: row.webauthn_user_handle,
     createdAt: row.created_at,
   };
 }
 
-export function createRepository(name: string): NewRepositorySecrets {
+export function createRepository(input: {
+  name: string;
+  email: string;
+  password: string;
+}): NewRepositorySecrets {
   const id = generateRepositoryId();
   const pin = generatePin();
   const webdavUsername = generateWebdavUsername();
   const webdavPassword = generateWebdavPassword();
+  const webauthnUserHandle = generateWebauthnUserHandle();
 
   const pinHash = bcrypt.hashSync(pin, PIN_HASH_ROUNDS);
   const webdavPasswordHash = bcrypt.hashSync(
     webdavPassword,
     WEBDAV_PASSWORD_HASH_ROUNDS
   );
+  const passwordHash = bcrypt.hashSync(input.password, PASSWORD_HASH_ROUNDS);
 
   db.prepare(
-    `INSERT INTO repositories (id, name, pin_hash, webdav_username, webdav_password_hash)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run(id, name, pinHash, webdavUsername, webdavPasswordHash);
+    `INSERT INTO repositories
+       (id, name, pin_hash, webdav_username, webdav_password_hash, email, password_hash, webauthn_user_handle)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    input.name,
+    pinHash,
+    webdavUsername,
+    webdavPasswordHash,
+    input.email.toLowerCase(),
+    passwordHash,
+    webauthnUserHandle
+  );
 
   ensureRepositoryDir(id);
 
-  return { id, name, pin, webdavUsername, webdavPassword };
+  return { id, name: input.name, pin, webdavUsername, webdavPassword };
 }
 
 export function findRepositoryById(id: string): RepositoryRecord | undefined {
@@ -96,8 +123,34 @@ export function findRepositoryByWebdavUsername(
   return row ? toRecord(row) : undefined;
 }
 
+export function findRepositoryByEmail(email: string): RepositoryRecord | undefined {
+  const row = db
+    .prepare("SELECT * FROM repositories WHERE email = ?")
+    .get(email.toLowerCase()) as RepositoryRow | undefined;
+  return row ? toRecord(row) : undefined;
+}
+
 export function verifyPin(repo: RepositoryRecord, pin: string): boolean {
   return bcrypt.compareSync(pin, repo.pinHash);
+}
+
+export function verifyPassword(repo: RepositoryRecord, password: string): boolean {
+  return Boolean(repo.passwordHash) && bcrypt.compareSync(password, repo.passwordHash!);
+}
+
+/**
+ * Repositories created before passkeys existed don't have a WebAuthn user
+ * handle yet — this lazily assigns one the first time it's needed, so
+ * older accounts can still add a passkey.
+ */
+export function ensureWebauthnUserHandle(repo: RepositoryRecord): string {
+  if (repo.webauthnUserHandle) return repo.webauthnUserHandle;
+  const handle = generateWebauthnUserHandle();
+  db.prepare("UPDATE repositories SET webauthn_user_handle = ? WHERE id = ?").run(
+    handle,
+    repo.id
+  );
+  return handle;
 }
 
 export function setNextcloudConnection(

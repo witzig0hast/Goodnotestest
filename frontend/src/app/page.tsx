@@ -13,13 +13,14 @@ export default function LandingPage() {
             Deine handschriftlichen Notizen, jederzeit griffbereit
           </h1>
           <p className={styles.subtitle}>
-            GoodShare nimmt die automatische Sicherung aus GoodNotes entgegen
-            und macht sie über eine einfache, passwortgeschützte Seite
-            zugänglich – mit exakt derselben Ordnerstruktur wie in der App.
+            GoodNotes sichert sich automatisch hierhin. Du kannst deine
+            Notizen dann jederzeit über eine einfache, geschützte Seite
+            ansehen und herunterladen — in genau der Ordnerstruktur wie in
+            der App.
           </p>
           <div className={styles.actionRowInline}>
             <Link href="/erstellen" className={styles.button}>
-              Neues Repository erstellen
+              Konto erstellen
             </Link>
             <Link href="/login" className={styles.buttonSecondary}>
               Ich habe schon eins
@@ -35,21 +36,22 @@ export default function LandingPage() {
             <div className={styles.step}>
               <div className={styles.stepNumber}>1</div>
               <div className={styles.stepText}>
-                Repository erstellen und die Zugangsdaten notieren.
+                Konto mit E-Mail und Passwort anlegen (dauert eine Minute).
               </div>
             </div>
             <div className={styles.step}>
               <div className={styles.stepNumber}>2</div>
               <div className={styles.stepText}>
-                Diese Zugangsdaten einmalig in GoodNotes unter
+                Die angezeigten Zugangsdaten einmalig in GoodNotes unter
                 Einstellungen&nbsp;→&nbsp;Backup eintragen.
               </div>
             </div>
             <div className={styles.step}>
               <div className={styles.stepNumber}>3</div>
               <div className={styles.stepText}>
-                GoodNotes sichert automatisch – hier kann jeder mit dem PIN
-                die Notizen ansehen und herunterladen.
+                Fertig. GoodNotes sichert ab jetzt automatisch — du kannst
+                dich mit Passwort oder Passkey jederzeit einloggen und deine
+                Notizen ansehen, herunterladen oder teilen.
               </div>
             </div>
           </div>

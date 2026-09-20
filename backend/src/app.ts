@@ -7,6 +7,7 @@ import { filesRouter } from "./routes/files.js";
 import { nextcloudRouter } from "./routes/nextcloud.js";
 import { repositoriesRouter } from "./routes/repositories.js";
 import { shareRouter } from "./routes/share.js";
+import { webauthnRouter } from "./routes/webauthn.js";
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ export function createApp() {
   api.use("/files", filesRouter);
   api.use("/nextcloud", nextcloudRouter);
   api.use("/share", shareRouter);
+  api.use("/auth/webauthn", webauthnRouter);
 
   app.use("/api", api);
 

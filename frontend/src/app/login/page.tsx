@@ -4,22 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
-import { ApiError, login } from "../../lib/api";
+import { ApiError, loginWithPassword } from "../../lib/api";
+import { browserSupportsWebAuthn, loginWithPasskey } from "../../lib/passkeys";
 import styles from "../ui.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [repositoryId, setRepositoryId] = useState("");
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [supportsPasskeys] = useState(() => browserSupportsWebAuthn());
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await login(repositoryId.trim().toUpperCase(), pin.trim());
+      await loginWithPassword(email.trim(), password);
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -32,6 +35,19 @@ export default function LoginPage() {
     }
   }
 
+  async function handlePasskeyLogin() {
+    setPasskeyLoading(true);
+    setError(null);
+    try {
+      await loginWithPasskey();
+      router.push("/dashboard");
+    } catch {
+      setError("Passkey-Anmeldung hat nicht geklappt. Versuch es nochmal oder nutze dein Passwort.");
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
   return (
     <div className={styles.shell}>
       <PageHeader />
@@ -39,10 +55,6 @@ export default function LoginPage() {
         <form className={styles.card} onSubmit={handleSubmit}>
           <div className={styles.eyebrow}>Willkommen zurück</div>
           <h1 className={styles.title}>Anmelden</h1>
-          <p className={styles.subtitle}>
-            Gib die Repository-ID und den 4-stelligen PIN ein, die du bei der
-            Erstellung erhalten hast.
-          </p>
 
           {error && (
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
@@ -50,55 +62,78 @@ export default function LoginPage() {
             </div>
           )}
 
+          {supportsPasskeys && (
+            <>
+              <button
+                type="button"
+                className={styles.button}
+                onClick={handlePasskeyLogin}
+                disabled={passkeyLoading}
+                style={{ width: "100%", marginBottom: 20 }}
+              >
+                {passkeyLoading ? "Wird geprüft …" : "Mit Passkey anmelden"}
+              </button>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  color: "var(--muted)",
+                  fontSize: 13,
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                oder
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              </div>
+            </>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="repositoryId">
-                Repository-ID
+              <label className={styles.label} htmlFor="email">
+                E-Mail-Adresse
               </label>
               <input
-                id="repositoryId"
+                id="email"
+                type="email"
                 className={styles.input}
-                placeholder="z. B. 4F6R3VCM"
-                value={repositoryId}
-                onChange={(e) => setRepositoryId(e.target.value)}
-                autoCapitalize="characters"
-                autoCorrect="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="pin">
-                PIN
+              <label className={styles.label} htmlFor="password">
+                Passwort
               </label>
               <input
-                id="pin"
-                className={styles.pinInput}
-                inputMode="numeric"
-                pattern="\d{4}"
-                maxLength={4}
-                placeholder="••••"
-                value={pin}
-                onChange={(e) =>
-                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                }
+                id="password"
+                type="password"
+                className={styles.input}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
           </div>
 
           <div className={styles.actionRowInline}>
-            <button
-              className={styles.button}
-              type="submit"
-              disabled={loading || pin.length !== 4 || !repositoryId.trim()}
-            >
+            <button className={styles.button} type="submit" disabled={loading}>
               {loading ? "Wird geprüft …" : "Anmelden"}
             </button>
             <Link href="/erstellen" className={styles.buttonSecondary}>
-              Noch kein Repository?
+              Noch kein Konto?
             </Link>
           </div>
+
+          <p className={styles.hint} style={{ marginTop: 20, textAlign: "center" }}>
+            <Link href="/login/code" style={{ color: "var(--accent)", fontWeight: 600 }}>
+              Kein Zugriff auf E-Mail oder Passkey?
+            </Link>
+          </p>
         </form>
       </main>
     </div>
