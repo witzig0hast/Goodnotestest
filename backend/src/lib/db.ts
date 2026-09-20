@@ -22,7 +22,27 @@ db.exec(`
     email TEXT UNIQUE,
     password_hash TEXT,
     webauthn_user_handle TEXT,
+    ntfy_url TEXT,
+    ntfy_topic TEXT,
+    notify_after_days INTEGER,
+    last_notified_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS file_text_index (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    mtime TEXT NOT NULL,
+    text TEXT NOT NULL,
+    indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (repository_id, relative_path)
+  );
+
+  CREATE TABLE IF NOT EXISTS favorites (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (repository_id, relative_path)
   );
 
   CREATE TABLE IF NOT EXISTS webauthn_credentials (
@@ -64,6 +84,10 @@ for (const [column, definition] of [
   ["email", "TEXT"],
   ["password_hash", "TEXT"],
   ["webauthn_user_handle", "TEXT"],
+  ["ntfy_url", "TEXT"],
+  ["ntfy_topic", "TEXT"],
+  ["notify_after_days", "INTEGER"],
+  ["last_notified_at", "TEXT"],
 ] as const) {
   if (!existingColumns.has(column)) {
     db.exec(`ALTER TABLE repositories ADD COLUMN ${column} ${definition}`);

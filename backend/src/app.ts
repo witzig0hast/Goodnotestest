@@ -5,6 +5,7 @@ import { handleWebdavRequest } from "./lib/webdav-server.js";
 import { authRouter } from "./routes/auth.js";
 import { filesRouter } from "./routes/files.js";
 import { nextcloudRouter } from "./routes/nextcloud.js";
+import { notificationsRouter } from "./routes/notifications.js";
 import { repositoriesRouter } from "./routes/repositories.js";
 import { shareRouter } from "./routes/share.js";
 import { webauthnRouter } from "./routes/webauthn.js";
@@ -35,6 +36,7 @@ export function createApp() {
   api.use("/auth", authRouter);
   api.use("/files", filesRouter);
   api.use("/nextcloud", nextcloudRouter);
+  api.use("/notifications", notificationsRouter);
   api.use("/share", shareRouter);
   api.use("/auth/webauthn", webauthnRouter);
 

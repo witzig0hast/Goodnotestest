@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QRCode from "qrcode";
 import { ApiError, createShareLink } from "../lib/api";
 import styles from "../app/ui.module.css";
 
@@ -10,6 +11,7 @@ export function ShareForm({ path, onClose }: { path: string; onClose: () => void
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function handleCreate() {
@@ -21,7 +23,11 @@ export function ShareForm({ path, onClose }: { path: string; onClose: () => void
         password: password.trim() || undefined,
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
       });
-      setLink(`${window.location.origin}/s/${res.id}`);
+      const url = `${window.location.origin}/s/${res.id}`;
+      setLink(url);
+      QRCode.toDataURL(url, { width: 160, margin: 1 })
+        .then(setQrCodeUrl)
+        .catch(() => {});
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Link konnte nicht erstellt werden."
@@ -46,13 +52,30 @@ export function ShareForm({ path, onClose }: { path: string; onClose: () => void
     <div className={styles.sharePanel}>
       {link ? (
         <>
-          <div className={styles.linkResult}>
-            <span style={{ flex: 1 }}>{link}</span>
-            <button className={styles.copyButton} onClick={copyLink}>
-              {copied ? "Kopiert" : "Kopieren"}
-            </button>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+            {qrCodeUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- a data: URL, not an optimizable remote image
+              <img
+                src={qrCodeUrl}
+                alt="QR-Code für den Freigabe-Link"
+                width={120}
+                height={120}
+                style={{ borderRadius: 8, border: "1px solid var(--border)" }}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div className={styles.linkResult}>
+                <span style={{ flex: 1 }}>{link}</span>
+                <button className={styles.copyButton} onClick={copyLink}>
+                  {copied ? "Kopiert" : "Kopieren"}
+                </button>
+              </div>
+              <p className={styles.hint} style={{ marginTop: 8 }}>
+                QR-Code scannen, um den Link direkt auf einem Handy zu öffnen.
+              </p>
+            </div>
           </div>
-          <button className={styles.smallButton} onClick={onClose}>
+          <button className={styles.smallButton} onClick={onClose} style={{ marginTop: 12 }}>
             Fertig
           </button>
         </>

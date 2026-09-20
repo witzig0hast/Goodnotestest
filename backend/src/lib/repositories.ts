@@ -22,6 +22,10 @@ export interface RepositoryRecord {
   email: string | null;
   passwordHash: string | null;
   webauthnUserHandle: string | null;
+  ntfyUrl: string | null;
+  ntfyTopic: string | null;
+  notifyAfterDays: number | null;
+  lastNotifiedAt: string | null;
   createdAt: string;
 }
 
@@ -49,6 +53,10 @@ interface RepositoryRow {
   email: string | null;
   password_hash: string | null;
   webauthn_user_handle: string | null;
+  ntfy_url: string | null;
+  ntfy_topic: string | null;
+  notify_after_days: number | null;
+  last_notified_at: string | null;
   created_at: string;
 }
 
@@ -65,6 +73,10 @@ function toRecord(row: RepositoryRow): RepositoryRecord {
     email: row.email,
     passwordHash: row.password_hash,
     webauthnUserHandle: row.webauthn_user_handle,
+    ntfyUrl: row.ntfy_url,
+    ntfyTopic: row.ntfy_topic,
+    notifyAfterDays: row.notify_after_days,
+    lastNotifiedAt: row.last_notified_at,
     createdAt: row.created_at,
   };
 }
@@ -188,4 +200,37 @@ export function getNextcloudCredentials(
     username: repo.nextcloudUsername,
     password: decryptSecret(repo.nextcloudPasswordEnc),
   };
+}
+
+export function setNotificationSettings(
+  repositoryId: string,
+  settings: { ntfyUrl: string; ntfyTopic: string; notifyAfterDays: number }
+): void {
+  db.prepare(
+    `UPDATE repositories
+     SET ntfy_url = ?, ntfy_topic = ?, notify_after_days = ?, last_notified_at = NULL
+     WHERE id = ?`
+  ).run(settings.ntfyUrl, settings.ntfyTopic, settings.notifyAfterDays, repositoryId);
+}
+
+export function clearNotificationSettings(repositoryId: string): void {
+  db.prepare(
+    `UPDATE repositories
+     SET ntfy_url = NULL, ntfy_topic = NULL, notify_after_days = NULL, last_notified_at = NULL
+     WHERE id = ?`
+  ).run(repositoryId);
+}
+
+export function updateLastNotifiedAt(repositoryId: string, iso: string): void {
+  db.prepare("UPDATE repositories SET last_notified_at = ? WHERE id = ?").run(
+    iso,
+    repositoryId
+  );
+}
+
+export function listRepositoriesWithNotifications(): RepositoryRecord[] {
+  const rows = db
+    .prepare("SELECT * FROM repositories WHERE ntfy_url IS NOT NULL AND ntfy_topic IS NOT NULL")
+    .all() as RepositoryRow[];
+  return rows.map(toRecord);
 }

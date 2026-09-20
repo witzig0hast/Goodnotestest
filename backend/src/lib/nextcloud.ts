@@ -1,7 +1,7 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
-import { createClient, type WebDAVClient } from "webdav";
-import { buildRepositoryTree, type TreeNode } from "./file-tree.js";
+import { createClient, type FileStat, type WebDAVClient } from "webdav";
+import { buildRepositoryTree, flattenFiles } from "./file-tree.js";
 import { resolveSafePath } from "./storage.js";
 
 export interface NextcloudCredentials {
@@ -22,15 +22,6 @@ export async function testNextcloudConnection(
   credentials: NextcloudCredentials
 ): Promise<void> {
   await client(credentials).getDirectoryContents("/");
-}
-
-function flattenFiles(nodes: TreeNode[]): TreeNode[] {
-  const files: TreeNode[] = [];
-  for (const node of nodes) {
-    if (node.type === "file") files.push(node);
-    else if (node.children) files.push(...flattenFiles(node.children));
-  }
-  return files;
 }
 
 export interface SyncResult {
@@ -74,4 +65,78 @@ export async function syncRepositoryToNextcloud(
   }
 
   return { uploaded, failed };
+}
+
+// Depth:infinity PROPFIND (the "deep" option) isn't something every WebDAV
+// server supports equally well, so the remote tree is walked one directory
+// at a time instead — slower, but works the same against any WebDAV server.
+async function listRemoteFilesRecursive(
+  c: WebDAVClient,
+  dir: string
+): Promise<FileStat[]> {
+  const entries = (await c.getDirectoryContents(dir)) as FileStat[];
+  const files: FileStat[] = [];
+
+  for (const entry of entries) {
+    if (entry.type === "directory") {
+      files.push(...(await listRemoteFilesRecursive(c, entry.filename)));
+    } else {
+      files.push(entry);
+    }
+  }
+
+  return files;
+}
+
+export interface PullResult {
+  downloaded: number;
+  failed: number;
+}
+
+/**
+ * Downloads files that exist in the connected Nextcloud but not locally.
+ * Deliberately one-directional and additive only — it never deletes or
+ * overwrites a local file, so there's no way for this to lose data even if
+ * the two sides have diverged.
+ */
+export async function pullMissingFromNextcloud(
+  repositoryId: string,
+  credentials: NextcloudCredentials
+): Promise<PullResult> {
+  const c = client(credentials);
+  const remoteFiles = await listRemoteFilesRecursive(c, "/");
+
+  let downloaded = 0;
+  let failed = 0;
+
+  for (const remoteFile of remoteFiles) {
+    const relativePath = remoteFile.filename.replace(/^\/+/, "");
+    if (!relativePath) continue;
+
+    let absolutePath: string;
+    try {
+      absolutePath = resolveSafePath(repositoryId, relativePath);
+    } catch {
+      failed += 1;
+      continue;
+    }
+
+    try {
+      await fs.access(absolutePath);
+      continue; // already exists locally — never overwrite
+    } catch {
+      // doesn't exist locally yet, proceed to download it
+    }
+
+    try {
+      const content = (await c.getFileContents(remoteFile.filename)) as Buffer;
+      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+      await fs.writeFile(absolutePath, content);
+      downloaded += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { downloaded, failed };
 }

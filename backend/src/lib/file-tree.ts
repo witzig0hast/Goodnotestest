@@ -56,3 +56,25 @@ export async function buildRepositoryTree(repositoryId: string): Promise<TreeNod
     throw err;
   }
 }
+
+/** Same as buildRepositoryTree, but rooted at an already-resolved subfolder. */
+export async function buildTreeAt(
+  absoluteDir: string,
+  relativeDir: string
+): Promise<TreeNode[]> {
+  try {
+    return await readNode(absoluteDir, relativeDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
+  }
+}
+
+export function flattenFiles(nodes: TreeNode[]): TreeNode[] {
+  const files: TreeNode[] = [];
+  for (const node of nodes) {
+    if (node.type === "file") files.push(node);
+    else if (node.children) files.push(...flattenFiles(node.children));
+  }
+  return files;
+}

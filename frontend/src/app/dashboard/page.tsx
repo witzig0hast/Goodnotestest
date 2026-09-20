@@ -50,12 +50,15 @@ export default function DashboardPage() {
                 {name}
               </h1>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Link href="/dashboard/sicherheit" className={styles.smallButton}>
                 Sicherheit
               </Link>
+              <Link href="/dashboard/benachrichtigungen" className={styles.smallButton}>
+                Erinnerung
+              </Link>
               <Link href="/dashboard/nextcloud" className={styles.smallButton}>
-                Nextcloud-Export
+                Nextcloud
               </Link>
               <button className={styles.smallButton} onClick={handleLogout}>
                 Abmelden

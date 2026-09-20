@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   testNextcloudConnection,
   syncRepositoryToNextcloud,
+  pullMissingFromNextcloud,
 } from "../lib/nextcloud.js";
 import { requireSession } from "../middleware/require-session.js";
 import {
@@ -79,5 +80,26 @@ nextcloudRouter.post("/sync", async (req, res) => {
     res.json(result);
   } catch {
     res.status(502).json({ error: "Export zur Nextcloud ist fehlgeschlagen." });
+  }
+});
+
+nextcloudRouter.post("/pull", async (req, res) => {
+  const repo = findRepositoryById(req.repositoryId!);
+  if (!repo) {
+    res.status(404).json({ error: "Repository nicht gefunden." });
+    return;
+  }
+
+  const credentials = getNextcloudCredentials(repo);
+  if (!credentials) {
+    res.status(400).json({ error: "Keine Nextcloud verbunden." });
+    return;
+  }
+
+  try {
+    const result = await pullMissingFromNextcloud(repo.id, credentials);
+    res.json(result);
+  } catch {
+    res.status(502).json({ error: "Abruf von der Nextcloud ist fehlgeschlagen." });
   }
 });

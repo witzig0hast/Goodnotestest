@@ -10,6 +10,7 @@ import {
   disconnectNextcloud,
   fetchCurrentRepository,
   fetchNextcloudStatus,
+  pullFromNextcloud,
   syncNextcloud,
   type NextcloudStatus,
 } from "../../../lib/api";
@@ -31,6 +32,12 @@ export default function NextcloudSettingsPage() {
     null
   );
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ downloaded: number; failed: number } | null>(
+    null
+  );
+  const [pullError, setPullError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentRepository()
@@ -55,6 +62,20 @@ export default function NextcloudSettingsPage() {
       );
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function handlePull() {
+    setPulling(true);
+    setPullError(null);
+    setPullResult(null);
+    try {
+      const result = await pullFromNextcloud();
+      setPullResult(result);
+    } catch (err) {
+      setPullError(err instanceof ApiError ? err.message : "Abruf ist fehlgeschlagen.");
+    } finally {
+      setPulling(false);
     }
   }
 
@@ -135,6 +156,32 @@ export default function NextcloudSettingsPage() {
                   Verbindung trennen
                 </button>
               </div>
+
+              <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
+
+              <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                Von Nextcloud abrufen
+              </h2>
+              <p className={styles.hint} style={{ marginBottom: 12 }}>
+                Holt Dateien, die in deiner Nextcloud liegen, aber hier noch
+                fehlen — z. B. wenn du dort direkt etwas hinzugefügt hast.
+                Bestehende Dateien hier werden dabei nie verändert oder
+                gelöscht.
+              </p>
+              {pullError && (
+                <div className={styles.errorBox} style={{ marginBottom: 12 }}>
+                  {pullError}
+                </div>
+              )}
+              {pullResult && (
+                <div className={styles.sharePanel} style={{ marginBottom: 12 }}>
+                  {pullResult.downloaded} Datei(en) abgeholt
+                  {pullResult.failed > 0 && `, ${pullResult.failed} fehlgeschlagen`}.
+                </div>
+              )}
+              <button className={styles.smallButton} onClick={handlePull} disabled={pulling}>
+                {pulling ? "Wird abgerufen …" : "Jetzt von Nextcloud abrufen"}
+              </button>
             </>
           ) : (
             <form onSubmit={handleConnect}>

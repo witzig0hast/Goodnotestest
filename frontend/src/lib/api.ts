@@ -125,6 +125,45 @@ export function downloadZipUrl(path: string): string {
   return `${API_BASE_URL}/api/files/download-zip?path=${encodeURIComponent(path)}`;
 }
 
+export function downloadPdfUrl(path: string): string {
+  return `${API_BASE_URL}/api/files/download-pdf?path=${encodeURIComponent(path)}`;
+}
+
+export function previewFileUrl(path: string): string {
+  return downloadFileUrl(path);
+}
+
+export interface SearchResult {
+  path: string;
+  name: string;
+  matchedIn: "filename" | "content";
+  snippet?: string;
+}
+
+export function searchFiles(query: string) {
+  return request<{ results: SearchResult[] }>(
+    `/api/files/search?q=${encodeURIComponent(query)}`
+  );
+}
+
+export function fetchFavorites() {
+  return request<{ paths: string[] }>("/api/files/favorites");
+}
+
+export function addFavorite(path: string) {
+  return request<void>("/api/files/favorites", {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  });
+}
+
+export function removeFavorite(path: string) {
+  return request<void>("/api/files/favorites", {
+    method: "DELETE",
+    body: JSON.stringify({ path }),
+  });
+}
+
 export interface CreateShareLinkResponse {
   id: string;
 }
@@ -172,6 +211,54 @@ export interface NextcloudSyncResult {
 
 export function syncNextcloud() {
   return request<NextcloudSyncResult>("/api/nextcloud/sync", { method: "POST" });
+}
+
+export interface NextcloudPullResult {
+  downloaded: number;
+  failed: number;
+}
+
+export function pullFromNextcloud() {
+  return request<NextcloudPullResult>("/api/nextcloud/pull", { method: "POST" });
+}
+
+// --- Backup-Benachrichtigungen (ntfy) ---
+
+export interface NotificationSettings {
+  enabled: boolean;
+  ntfyUrl: string | null;
+  ntfyTopic: string | null;
+  notifyAfterDays: number | null;
+}
+
+export function fetchNotificationSettings() {
+  return request<NotificationSettings>("/api/notifications");
+}
+
+export function saveNotificationSettings(input: {
+  ntfyUrl: string;
+  ntfyTopic: string;
+  notifyAfterDays: number;
+}) {
+  return request<{ enabled: true }>("/api/notifications", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function disableNotifications() {
+  return request<void>("/api/notifications", { method: "DELETE" });
+}
+
+export function sendTestNotification(input: {
+  ntfyUrl: string;
+  ntfyTopic: string;
+  notifyAfterDays: number;
+}) {
+  return request<{ sent: true }>("/api/notifications/test", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // --- Public share page (no session cookie required) ---
