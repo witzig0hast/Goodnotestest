@@ -11,6 +11,7 @@ import {
   fetchCurrentRepository,
   fetchNextcloudStatus,
   pullFromNextcloud,
+  saveNextcloudSyncPath,
   syncNextcloud,
   type NextcloudStatus,
 } from "../../../lib/api";
@@ -39,13 +40,36 @@ export default function NextcloudSettingsPage() {
   );
   const [pullError, setPullError] = useState<string | null>(null);
 
+  const [syncPath, setSyncPath] = useState("");
+  const [syncPathSaving, setSyncPathSaving] = useState(false);
+  const [syncPathSaved, setSyncPathSaved] = useState(false);
+
   useEffect(() => {
     fetchCurrentRepository()
       .then(() => fetchNextcloudStatus())
-      .then(setStatus)
+      .then((res) => {
+        setStatus(res);
+        setSyncPath(res.syncPath ?? "");
+      })
       .catch(() => router.replace("/login"))
       .finally(() => setChecking(false));
   }, [router]);
+
+  async function handleSaveSyncPath(e: React.FormEvent) {
+    e.preventDefault();
+    setSyncPathSaving(true);
+    setSyncPathSaved(false);
+    try {
+      const res = await saveNextcloudSyncPath(syncPath.trim());
+      setStatus((prev) => (prev ? { ...prev, syncPath: res.syncPath } : prev));
+      setSyncPathSaved(true);
+      setTimeout(() => setSyncPathSaved(false), 1500);
+    } catch {
+      // ignore — field simply keeps its current value
+    } finally {
+      setSyncPathSaving(false);
+    }
+  }
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -81,7 +105,7 @@ export default function NextcloudSettingsPage() {
 
   async function handleDisconnect() {
     await disconnectNextcloud().catch(() => {});
-    setStatus({ connected: false, url: null, username: null });
+    setStatus({ connected: false, url: null, username: null, syncPath: null });
     setSyncResult(null);
   }
 
@@ -156,6 +180,29 @@ export default function NextcloudSettingsPage() {
                   Verbindung trennen
                 </button>
               </div>
+
+              <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
+
+              <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                Nur einen bestimmten Ordner abgleichen
+              </h2>
+              <p className={styles.hint} style={{ marginBottom: 12 }}>
+                Leer lassen, um wie bisher alles zu spiegeln — oder einen
+                Ordnernamen eintragen (z. B. „Uni“), um Export und Abruf auf
+                diesen Ordner zu beschränken.
+              </p>
+              <form onSubmit={handleSaveSyncPath} className={styles.actionRowInline}>
+                <input
+                  className={styles.input}
+                  placeholder="Alles (kein bestimmter Ordner)"
+                  value={syncPath}
+                  onChange={(e) => setSyncPath(e.target.value)}
+                  style={{ width: 240 }}
+                />
+                <button className={styles.smallButton} type="submit" disabled={syncPathSaving}>
+                  {syncPathSaving ? "Wird gespeichert …" : syncPathSaved ? "Gespeichert" : "Speichern"}
+                </button>
+              </form>
 
               <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
 

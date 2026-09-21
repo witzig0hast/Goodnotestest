@@ -6,6 +6,7 @@ import {
   clearNotificationSettings,
   findRepositoryById,
   setNotificationSettings,
+  setWeeklyDigestEnabled,
 } from "../lib/repositories.js";
 
 export const notificationsRouter = Router();
@@ -25,6 +26,7 @@ notificationsRouter.get("/", (req, res) => {
   res.json({
     enabled: repo.notificationsEnabled,
     notifyAfterDays: repo.notifyAfterDays,
+    weeklyDigestEnabled: repo.weeklyDigestEnabled,
   });
 });
 
@@ -42,6 +44,18 @@ notificationsRouter.post("/", (req, res) => {
 notificationsRouter.delete("/", (req, res) => {
   clearNotificationSettings(req.repositoryId!);
   res.status(204).end();
+});
+
+const digestSchema = z.object({ enabled: z.boolean() });
+
+notificationsRouter.post("/digest", (req, res) => {
+  const parsed = digestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Ungültige Angabe." });
+    return;
+  }
+  setWeeklyDigestEnabled(req.repositoryId!, parsed.data.enabled);
+  res.json({ weeklyDigestEnabled: parsed.data.enabled });
 });
 
 notificationsRouter.post("/test", async (req, res) => {

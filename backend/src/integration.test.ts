@@ -172,7 +172,7 @@ describe("share links", () => {
     const createRes = await fetch(`${baseUrl}/api/share`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ path: "Freigabe.pdf" }),
+      body: JSON.stringify({ paths: ["Freigabe.pdf"] }),
     });
     const { id } = await createRes.json();
 
@@ -199,7 +199,7 @@ describe("share links", () => {
     const createRes = await fetch(`${baseUrl}/api/share`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ path: "Geheim.pdf", password: "sesam1234" }),
+      body: JSON.stringify({ paths: ["Geheim.pdf"], password: "sesam1234" }),
     });
     const { id } = await createRes.json();
 

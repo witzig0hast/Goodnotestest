@@ -1,13 +1,18 @@
 import nodemailer from "nodemailer";
-import { smtpConfig } from "./config.js";
+import { config, smtpConfig } from "./config.js";
 import { buildRepositoryTree, flattenFiles } from "./file-tree.js";
 import {
   listRepositoriesWithNotifications,
+  listRepositoriesWithWeeklyDigest,
+  updateLastDigestSentAt,
   updateLastNotifiedAt,
   type RepositoryRecord,
 } from "./repositories.js";
+import { createShareLink } from "./share-links.js";
 
 const MIN_HOURS_BETWEEN_REMINDERS = 24;
+const DIGEST_INTERVAL_DAYS = 7;
+const DIGEST_LINK_VALID_DAYS = 7;
 
 export class SmtpNotConfiguredError extends Error {}
 
@@ -71,10 +76,44 @@ async function checkRepository(repo: RepositoryRecord): Promise<void> {
   }
 }
 
+async function sendWeeklyDigest(repo: RepositoryRecord): Promise<void> {
+  if (!repo.weeklyDigestEnabled || !repo.email) return;
+
+  if (repo.lastDigestSentAt) {
+    const daysSinceLastDigest =
+      (Date.now() - new Date(repo.lastDigestSentAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastDigest < DIGEST_INTERVAL_DAYS) return;
+  }
+
+  const tree = await buildRepositoryTree(repo.id);
+  if (flattenFiles(tree).length === 0) return; // nothing to send yet
+
+  try {
+    const link = createShareLink({
+      repositoryId: repo.id,
+      items: [{ relativePath: "", isDirectory: true }],
+      password: null,
+      expiresInDays: DIGEST_LINK_VALID_DAYS,
+    });
+
+    await sendNotificationEmail(
+      repo.email,
+      "GoodShare: dein wöchentliches Backup",
+      `Hier ist dein wöchentlicher Download-Link für „${repo.name}“ — er funktioniert ${DIGEST_LINK_VALID_DAYS} Tage:\n\n${config.frontendOrigin}/s/${link.id}`
+    );
+    updateLastDigestSentAt(repo.id, new Date().toISOString());
+  } catch {
+    // Retried on the next scheduled check.
+  }
+}
+
 export async function runBackupChecks(): Promise<void> {
   if (!smtpConfig) return; // nothing to send with
-  const repos = listRepositoriesWithNotifications();
-  for (const repo of repos) {
+
+  for (const repo of listRepositoriesWithNotifications()) {
     await checkRepository(repo);
+  }
+  for (const repo of listRepositoriesWithWeeklyDigest()) {
+    await sendWeeklyDigest(repo);
   }
 }

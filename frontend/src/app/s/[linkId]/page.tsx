@@ -84,13 +84,25 @@ export default function SharePage() {
         <section className={styles.card}>
           <div className={styles.eyebrow}>Geteilt</div>
           <h1 className={styles.title}>
-            {info.type === "folder" ? "📁" : "📄"} {info.name}
+            {info.type === "folder" ? "📁" : info.type === "bundle" ? "🗂️" : "📄"} {info.name}
           </h1>
           <p className={styles.subtitle}>
             {info.type === "folder"
               ? "Dieser Ordner wurde mit dir geteilt und lässt sich als ZIP-Datei herunterladen."
-              : "Diese Datei wurde mit dir geteilt."}
+              : info.type === "bundle"
+                ? "Diese Objekte wurden mit dir geteilt und lassen sich als ZIP-Datei herunterladen."
+                : "Diese Datei wurde mit dir geteilt."}
           </p>
+
+          {info.type === "bundle" && info.items.length > 0 && (
+            <ul className={styles.hint} style={{ marginBottom: 16, listStyle: "none", padding: 0 }}>
+              {info.items.map((item) => (
+                <li key={item.name}>
+                  {item.type === "folder" ? "📁" : "📄"} {item.name}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {info.requiresPassword && !token && (
             <form onSubmit={handleUnlock} style={{ marginBottom: 20 }}>
@@ -125,7 +137,7 @@ export default function SharePage() {
               href={shareDownloadUrl(linkId, token ?? undefined)}
               style={{ display: "inline-flex" }}
             >
-              {info.type === "folder" ? "Als ZIP herunterladen" : "Herunterladen"}
+              {info.type === "file" ? "Herunterladen" : "Als ZIP herunterladen"}
             </a>
           )}
         </section>

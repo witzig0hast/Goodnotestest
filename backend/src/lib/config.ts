@@ -12,6 +12,8 @@ export const config = {
   port: Number(process.env.PORT ?? 4000),
   databasePath: required("DATABASE_PATH", "./data/goodshare.sqlite"),
   filesDir: required("FILES_DIR", "./data/files"),
+  versionsDir: required("VERSIONS_DIR", "./data/versions"),
+  thumbnailsDir: required("THUMBNAILS_DIR", "./data/thumbnails"),
   jwtSecret: required("JWT_SECRET", "dev-only-secret-change-me"),
   encryptionKey: required(
     "ENCRYPTION_KEY",

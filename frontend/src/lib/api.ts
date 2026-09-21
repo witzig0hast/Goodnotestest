@@ -133,6 +133,61 @@ export function previewFileUrl(path: string): string {
   return downloadFileUrl(path);
 }
 
+export function thumbnailUrl(path: string): string {
+  return `${API_BASE_URL}/api/files/thumbnail?path=${encodeURIComponent(path)}`;
+}
+
+export function downloadZipMultiUrl(paths: string[]): string {
+  const query = paths.map((p) => `paths=${encodeURIComponent(p)}`).join("&");
+  return `${API_BASE_URL}/api/files/download-zip-multi?${query}`;
+}
+
+export function deleteEntry(path: string) {
+  return request<void>("/api/files/delete", {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  });
+}
+
+export function renameEntry(path: string, newName: string) {
+  return request<{ path: string }>("/api/files/rename", {
+    method: "POST",
+    body: JSON.stringify({ path, newName }),
+  });
+}
+
+export interface FileVersion {
+  timestamp: string;
+  size: number;
+}
+
+export function fetchVersions(path: string) {
+  return request<{ versions: FileVersion[] }>(
+    `/api/files/versions?path=${encodeURIComponent(path)}`
+  );
+}
+
+export function versionDownloadUrl(path: string, timestamp: string): string {
+  return `${API_BASE_URL}/api/files/versions/download?path=${encodeURIComponent(path)}&timestamp=${encodeURIComponent(timestamp)}`;
+}
+
+export function restoreVersion(path: string, timestamp: string) {
+  return request<void>("/api/files/versions/restore", {
+    method: "POST",
+    body: JSON.stringify({ path, timestamp }),
+  });
+}
+
+export interface RepositoryStats {
+  totalFiles: number;
+  totalSize: number;
+  lastBackupAt: string | null;
+}
+
+export function fetchStats() {
+  return request<RepositoryStats>("/api/files/stats");
+}
+
 export interface SearchResult {
   path: string;
   name: string;
@@ -169,7 +224,7 @@ export interface CreateShareLinkResponse {
 }
 
 export function createShareLink(input: {
-  path: string;
+  paths: string[];
   password?: string;
   expiresInDays?: number;
 }) {
@@ -179,10 +234,29 @@ export function createShareLink(input: {
   });
 }
 
+export interface MyShareLink {
+  id: string;
+  items: { relativePath: string; isDirectory: boolean }[];
+  requiresPassword: boolean;
+  expiresAt: string | null;
+  expired: boolean;
+  viewCount: number;
+  createdAt: string;
+}
+
+export function fetchMyShareLinks() {
+  return request<{ links: MyShareLink[] }>("/api/share/mine");
+}
+
+export function revokeShareLink(id: string) {
+  return request<void>(`/api/share/${id}`, { method: "DELETE" });
+}
+
 export interface NextcloudStatus {
   connected: boolean;
   url: string | null;
   username: string | null;
+  syncPath: string | null;
 }
 
 export function fetchNextcloudStatus() {
@@ -202,6 +276,13 @@ export function connectNextcloud(input: {
 
 export function disconnectNextcloud() {
   return request<void>("/api/nextcloud", { method: "DELETE" });
+}
+
+export function saveNextcloudSyncPath(syncPath: string) {
+  return request<{ syncPath: string | null }>("/api/nextcloud/sync-path", {
+    method: "POST",
+    body: JSON.stringify({ syncPath }),
+  });
 }
 
 export interface NextcloudSyncResult {
@@ -227,6 +308,7 @@ export function pullFromNextcloud() {
 export interface NotificationSettings {
   enabled: boolean;
   notifyAfterDays: number | null;
+  weeklyDigestEnabled: boolean;
 }
 
 export function fetchNotificationSettings() {
@@ -248,11 +330,19 @@ export function sendTestNotification() {
   return request<{ sent: true }>("/api/notifications/test", { method: "POST" });
 }
 
+export function setWeeklyDigest(enabled: boolean) {
+  return request<{ enabled: boolean }>("/api/notifications/digest", {
+    method: "POST",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 // --- Public share page (no session cookie required) ---
 
 export interface ShareInfo {
   name: string;
-  type: "file" | "folder";
+  type: "file" | "folder" | "bundle";
+  items: { name: string; type: "file" | "folder" }[];
   requiresPassword: boolean;
 }
 

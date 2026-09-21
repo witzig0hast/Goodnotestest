@@ -11,6 +11,7 @@ import {
   findRepositoryById,
   getNextcloudCredentials,
   setNextcloudConnection,
+  setNextcloudSyncPath,
 } from "../lib/repositories.js";
 
 export const nextcloudRouter = Router();
@@ -33,7 +34,20 @@ nextcloudRouter.get("/", (req, res) => {
     connected: Boolean(repo.nextcloudUrl),
     url: repo.nextcloudUrl,
     username: repo.nextcloudUsername,
+    syncPath: repo.nextcloudSyncPath,
   });
+});
+
+const syncPathSchema = z.object({ syncPath: z.string().trim().max(500) });
+
+nextcloudRouter.post("/sync-path", (req, res) => {
+  const parsed = syncPathSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Ungültiger Ordner." });
+    return;
+  }
+  setNextcloudSyncPath(req.repositoryId!, parsed.data.syncPath || null);
+  res.json({ syncPath: parsed.data.syncPath || null });
 });
 
 nextcloudRouter.post("/", async (req, res) => {
@@ -76,7 +90,11 @@ nextcloudRouter.post("/sync", async (req, res) => {
   }
 
   try {
-    const result = await syncRepositoryToNextcloud(repo.id, credentials);
+    const result = await syncRepositoryToNextcloud(
+      repo.id,
+      credentials,
+      repo.nextcloudSyncPath ?? ""
+    );
     res.json(result);
   } catch {
     res.status(502).json({ error: "Export zur Nextcloud ist fehlgeschlagen." });
@@ -97,7 +115,11 @@ nextcloudRouter.post("/pull", async (req, res) => {
   }
 
   try {
-    const result = await pullMissingFromNextcloud(repo.id, credentials);
+    const result = await pullMissingFromNextcloud(
+      repo.id,
+      credentials,
+      repo.nextcloudSyncPath ?? ""
+    );
     res.json(result);
   } catch {
     res.status(502).json({ error: "Abruf von der Nextcloud ist fehlgeschlagen." });

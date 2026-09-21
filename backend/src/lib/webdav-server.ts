@@ -3,6 +3,37 @@ import type { Request, Response } from "express";
 import { v2 as webdav } from "webdav-server";
 import { findRepositoryById } from "./repositories.js";
 import { ensureRepositoryDir } from "./storage.js";
+import { snapshotBeforeOverwrite } from "./versions.js";
+
+/**
+ * Keeps GoodNotes' own habit of just re-uploading a file with the same
+ * name from silently destroying the previous version — every overwrite
+ * gets snapshotted first (see versions.ts) before the write proceeds.
+ */
+class VersioningPhysicalFileSystem extends webdav.PhysicalFileSystem {
+  constructor(
+    private readonly repositoryId: string,
+    rootPath: string
+  ) {
+    super(rootPath);
+  }
+
+  protected _openWriteStream(
+    path: webdav.Path,
+    ctx: webdav.OpenWriteStreamInfo,
+    callback: webdav.ReturnCallback<import("node:stream").Writable>
+  ) {
+    const { realPath } = this.getRealPath(path);
+    const relativePath = path.toString().replace(/^\/+/, "");
+
+    snapshotBeforeOverwrite(this.repositoryId, relativePath, realPath)
+      .catch(() => {
+        // Never block a GoodNotes sync just because we couldn't snapshot
+        // the previous version — the new write should still go through.
+      })
+      .then(() => super._openWriteStream(path, ctx, callback));
+  }
+}
 
 const ANONYMOUS_USER: webdav.IUser = {
   uid: "anonymous",
@@ -59,7 +90,7 @@ function getServerForRepository(repositoryId: string): webdav.WebDAVServer {
       new RepositoryUserManager(repositoryId),
       "GoodShare"
     ),
-    rootFileSystem: new webdav.PhysicalFileSystem(dir),
+    rootFileSystem: new VersioningPhysicalFileSystem(repositoryId, dir),
   });
 
   serverCache.set(repositoryId, server);

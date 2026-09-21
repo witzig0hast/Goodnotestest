@@ -11,6 +11,7 @@ import {
   fetchNotificationSettings,
   saveNotificationSettings,
   sendTestNotification,
+  setWeeklyDigest,
   type NotificationSettings,
   type SessionResponse,
 } from "../../../lib/api";
@@ -27,6 +28,7 @@ export default function BenachrichtigungenPage() {
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testSent, setTestSent] = useState(false);
+  const [digestSaving, setDigestSaving] = useState(false);
 
   useEffect(() => {
     fetchCurrentRepository()
@@ -49,7 +51,11 @@ export default function BenachrichtigungenPage() {
     try {
       const days = Number(notifyAfterDays);
       await saveNotificationSettings({ notifyAfterDays: days });
-      setSettings({ enabled: true, notifyAfterDays: days });
+      setSettings((prev) => ({
+        enabled: true,
+        notifyAfterDays: days,
+        weeklyDigestEnabled: prev?.weeklyDigestEnabled ?? false,
+      }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Speichern ist fehlgeschlagen.");
     } finally {
@@ -75,7 +81,25 @@ export default function BenachrichtigungenPage() {
 
   async function handleDisable() {
     await disableNotifications().catch(() => {});
-    setSettings({ enabled: false, notifyAfterDays: null });
+    setSettings((prev) => ({
+      enabled: false,
+      notifyAfterDays: null,
+      weeklyDigestEnabled: prev?.weeklyDigestEnabled ?? false,
+    }));
+  }
+
+  async function handleToggleDigest() {
+    if (!settings) return;
+    const next = !settings.weeklyDigestEnabled;
+    setDigestSaving(true);
+    try {
+      await setWeeklyDigest(next);
+      setSettings({ ...settings, weeklyDigestEnabled: next });
+    } catch {
+      // ignore — the toggle simply stays at its previous state
+    } finally {
+      setDigestSaving(false);
+    }
   }
 
   if (checking || !settings || !session) {
@@ -159,6 +183,27 @@ export default function BenachrichtigungenPage() {
               )}
             </div>
           </form>
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.eyebrow}>Einstellungen</div>
+          <h1 className={styles.title}>Wöchentlicher Backup-Digest</h1>
+          <p className={styles.subtitle}>
+            Einmal pro Woche einen Link per E-Mail an{" "}
+            <strong>{session.email}</strong> schicken, mit dem du (oder wer
+            auch immer den Link bekommt) alle Notizen als ZIP herunterladen
+            kann — eine einfache zusätzliche Sicherung außerhalb von GoodShare.
+          </p>
+          <button
+            type="button"
+            className={styles.smallButton}
+            onClick={handleToggleDigest}
+            disabled={digestSaving}
+          >
+            {settings.weeklyDigestEnabled
+              ? "Digest deaktivieren"
+              : "Digest aktivieren"}
+          </button>
         </section>
 
         <section className={styles.card}>

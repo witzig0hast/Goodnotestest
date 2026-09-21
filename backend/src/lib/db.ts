@@ -25,7 +25,17 @@ db.exec(`
     notifications_enabled INTEGER NOT NULL DEFAULT 0,
     notify_after_days INTEGER,
     last_notified_at TEXT,
+    weekly_digest_enabled INTEGER NOT NULL DEFAULT 0,
+    last_digest_sent_at TEXT,
+    nextcloud_sync_path TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS thumbnails_meta (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    mtime TEXT NOT NULL,
+    PRIMARY KEY (repository_id, relative_path)
   );
 
   CREATE TABLE IF NOT EXISTS file_text_index (
@@ -63,11 +73,31 @@ db.exec(`
     is_directory INTEGER NOT NULL,
     password_hash TEXT,
     expires_at TEXT,
+    view_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE INDEX IF NOT EXISTS share_links_repository_id_idx
     ON share_links (repository_id);
+
+  CREATE TABLE IF NOT EXISTS share_link_items (
+    share_id TEXT NOT NULL REFERENCES share_links(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    is_directory INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS share_link_items_share_id_idx
+    ON share_link_items (share_id);
+`);
+
+// Every share link used to carry exactly one path directly on the
+// share_links row. Links can now bundle several paths, stored in
+// share_link_items instead — existing rows get backfilled into that table
+// once, the legacy columns stay untouched (and unused) for them.
+db.exec(`
+  INSERT INTO share_link_items (share_id, relative_path, is_directory)
+  SELECT id, relative_path, is_directory FROM share_links
+  WHERE id NOT IN (SELECT share_id FROM share_link_items)
 `);
 
 // Additive migration for databases created before accounts (email/password/
@@ -86,10 +116,22 @@ for (const [column, definition] of [
   ["notifications_enabled", "INTEGER NOT NULL DEFAULT 0"],
   ["notify_after_days", "INTEGER"],
   ["last_notified_at", "TEXT"],
+  ["weekly_digest_enabled", "INTEGER NOT NULL DEFAULT 0"],
+  ["last_digest_sent_at", "TEXT"],
+  ["nextcloud_sync_path", "TEXT"],
 ] as const) {
   if (!existingColumns.has(column)) {
     db.exec(`ALTER TABLE repositories ADD COLUMN ${column} ${definition}`);
   }
+}
+
+const existingShareLinkColumns = new Set(
+  (db.prepare("PRAGMA table_info(share_links)").all() as { name: string }[]).map(
+    (col) => col.name
+  )
+);
+if (!existingShareLinkColumns.has("view_count")) {
+  db.exec("ALTER TABLE share_links ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0");
 }
 
 // SQLite can't add a UNIQUE column after the fact, so the constraint is

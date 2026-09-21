@@ -60,6 +60,12 @@ export default function DashboardPage() {
               <Link href="/dashboard/nextcloud" className={styles.smallButton}>
                 Nextcloud
               </Link>
+              <Link href="/dashboard/freigaben" className={styles.smallButton}>
+                Freigaben
+              </Link>
+              <Link href="/dashboard/kurzbefehl" className={styles.smallButton}>
+                iOS-Kurzbefehl
+              </Link>
               <button className={styles.smallButton} onClick={handleLogout}>
                 Abmelden
               </button>

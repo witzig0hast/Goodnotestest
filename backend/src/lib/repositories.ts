@@ -25,6 +25,9 @@ export interface RepositoryRecord {
   notificationsEnabled: boolean;
   notifyAfterDays: number | null;
   lastNotifiedAt: string | null;
+  weeklyDigestEnabled: boolean;
+  lastDigestSentAt: string | null;
+  nextcloudSyncPath: string | null;
   createdAt: string;
 }
 
@@ -55,6 +58,9 @@ interface RepositoryRow {
   notifications_enabled: number;
   notify_after_days: number | null;
   last_notified_at: string | null;
+  weekly_digest_enabled: number;
+  last_digest_sent_at: string | null;
+  nextcloud_sync_path: string | null;
   created_at: string;
 }
 
@@ -74,6 +80,9 @@ function toRecord(row: RepositoryRow): RepositoryRecord {
     notificationsEnabled: row.notifications_enabled === 1,
     notifyAfterDays: row.notify_after_days,
     lastNotifiedAt: row.last_notified_at,
+    weeklyDigestEnabled: row.weekly_digest_enabled === 1,
+    lastDigestSentAt: row.last_digest_sent_at,
+    nextcloudSyncPath: row.nextcloud_sync_path,
     createdAt: row.created_at,
   };
 }
@@ -232,4 +241,33 @@ export function listRepositoriesWithNotifications(): RepositoryRecord[] {
     )
     .all() as RepositoryRow[];
   return rows.map(toRecord);
+}
+
+export function setWeeklyDigestEnabled(repositoryId: string, enabled: boolean): void {
+  db.prepare(
+    "UPDATE repositories SET weekly_digest_enabled = ?, last_digest_sent_at = NULL WHERE id = ?"
+  ).run(enabled ? 1 : 0, repositoryId);
+}
+
+export function updateLastDigestSentAt(repositoryId: string, iso: string): void {
+  db.prepare("UPDATE repositories SET last_digest_sent_at = ? WHERE id = ?").run(
+    iso,
+    repositoryId
+  );
+}
+
+export function listRepositoriesWithWeeklyDigest(): RepositoryRecord[] {
+  const rows = db
+    .prepare(
+      "SELECT * FROM repositories WHERE weekly_digest_enabled = 1 AND email IS NOT NULL"
+    )
+    .all() as RepositoryRow[];
+  return rows.map(toRecord);
+}
+
+export function setNextcloudSyncPath(repositoryId: string, syncPath: string | null): void {
+  db.prepare("UPDATE repositories SET nextcloud_sync_path = ? WHERE id = ?").run(
+    syncPath && syncPath.trim() ? syncPath.trim() : null,
+    repositoryId
+  );
 }

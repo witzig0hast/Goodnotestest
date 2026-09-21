@@ -5,7 +5,16 @@ import QRCode from "qrcode";
 import { ApiError, createShareLink } from "../lib/api";
 import styles from "../app/ui.module.css";
 
-export function ShareForm({ path, onClose }: { path: string; onClose: () => void }) {
+export function ShareForm({
+  path,
+  paths,
+  onClose,
+}: {
+  path?: string;
+  paths?: string[];
+  onClose: () => void;
+}) {
+  const targetPaths = paths ?? (path ? [path] : []);
   const [password, setPassword] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +28,7 @@ export function ShareForm({ path, onClose }: { path: string; onClose: () => void
     setError(null);
     try {
       const res = await createShareLink({
-        path,
+        paths: targetPaths,
         password: password.trim() || undefined,
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
       });
