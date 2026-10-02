@@ -2,6 +2,7 @@ import cors from "cors";
 import express, { Router } from "express";
 import { config } from "./lib/config.js";
 import { handleWebdavRequest } from "./lib/webdav-server.js";
+import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { filesRouter } from "./routes/files.js";
 import { nextcloudRouter } from "./routes/nextcloud.js";
@@ -46,6 +47,7 @@ export function createApp() {
   api.use("/notifications", notificationsRouter);
   api.use("/share", shareRouter);
   api.use("/auth/webauthn", webauthnRouter);
+  api.use("/admin", adminRouter);
 
   app.use("/api", api);
 

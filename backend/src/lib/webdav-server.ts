@@ -69,6 +69,10 @@ class RepositoryUserManager implements webdav.ITestableUserManager {
       callback(new Error("Falsches Passwort."));
       return;
     }
+    if (repo.approvalStatus !== "approved") {
+      callback(new Error("Konto wartet noch auf Freigabe."));
+      return;
+    }
     callback(null as unknown as Error, {
       uid: repo.id,
       username: repo.webdavUsername,
@@ -102,6 +106,10 @@ export function handleWebdavRequest(req: Request, res: Response) {
   const repo = findRepositoryById(repositoryId);
   if (!repo) {
     res.status(404).send("Repository nicht gefunden.");
+    return;
+  }
+  if (repo.approvalStatus !== "approved") {
+    res.status(403).send("Konto wartet noch auf Freigabe.");
     return;
   }
 

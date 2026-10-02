@@ -13,6 +13,24 @@ let tempDir: string;
 let server: import("http").Server;
 
 let emailCounter = 0;
+let adminCookie: string;
+
+// The first account on a fresh instance is the admin, approved immediately;
+// every one after that stays pending (and its WebDAV credentials won't work)
+// until the admin approves it — bootstrap that admin once and have every
+// createRepository() call approve itself right away.
+async function bootstrapAdmin() {
+  const res = await fetch(`${baseUrl}/api/repositories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Admin",
+      email: "admin@example.com",
+      password: "admin-passwort-123",
+    }),
+  });
+  adminCookie = res.headers.get("set-cookie")!.split(";")[0];
+}
 
 async function createRepository(name: string) {
   emailCounter += 1;
@@ -25,11 +43,21 @@ async function createRepository(name: string) {
       password: "sicheres-passwort",
     }),
   });
-  return (await res.json()) as {
+  const body = (await res.json()) as {
     repositoryId: string;
     pin: string;
+    approvalStatus: "pending" | "approved" | "rejected";
     webdav: { username: string; password: string };
   };
+
+  if (body.approvalStatus === "pending") {
+    await fetch(`${baseUrl}/api/admin/users/${body.repositoryId}/approve`, {
+      method: "POST",
+      headers: { Cookie: adminCookie },
+    });
+  }
+
+  return body;
 }
 
 async function loginCookie(repositoryId: string, pin: string) {
@@ -59,6 +87,8 @@ beforeAll(async () => {
   });
   const port = (server.address() as AddressInfo).port;
   baseUrl = `http://localhost:${port}`;
+
+  await bootstrapAdmin();
 });
 
 afterAll(async () => {

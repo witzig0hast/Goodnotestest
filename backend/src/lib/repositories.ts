@@ -28,8 +28,12 @@ export interface RepositoryRecord {
   weeklyDigestEnabled: boolean;
   lastDigestSentAt: string | null;
   nextcloudSyncPath: string | null;
+  isAdmin: boolean;
+  approvalStatus: ApprovalStatus;
   createdAt: string;
 }
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface NewRepositorySecrets {
   id: string;
@@ -37,6 +41,7 @@ export interface NewRepositorySecrets {
   pin: string;
   webdavUsername: string;
   webdavPassword: string;
+  approvalStatus: ApprovalStatus;
 }
 
 const PIN_HASH_ROUNDS = 10;
@@ -61,6 +66,8 @@ interface RepositoryRow {
   weekly_digest_enabled: number;
   last_digest_sent_at: string | null;
   nextcloud_sync_path: string | null;
+  is_admin: number;
+  approval_status: ApprovalStatus;
   created_at: string;
 }
 
@@ -83,6 +90,8 @@ function toRecord(row: RepositoryRow): RepositoryRecord {
     weeklyDigestEnabled: row.weekly_digest_enabled === 1,
     lastDigestSentAt: row.last_digest_sent_at,
     nextcloudSyncPath: row.nextcloud_sync_path,
+    isAdmin: row.is_admin === 1,
+    approvalStatus: row.approval_status,
     createdAt: row.created_at,
   };
 }
@@ -105,10 +114,21 @@ export function createRepository(input: {
   );
   const passwordHash = bcrypt.hashSync(input.password, PASSWORD_HASH_ROUNDS);
 
+  // The very first account on a fresh instance has no one to approve it, so
+  // it becomes the admin automatically and is approved immediately. Every
+  // account after that needs that admin's sign-off before it can log in or
+  // sync, so one person can't accidentally overwhelm a self-hosted server.
+  const { count } = db.prepare("SELECT COUNT(*) as count FROM repositories").get() as {
+    count: number;
+  };
+  const isFirstEver = count === 0;
+  const isAdmin = isFirstEver;
+  const approvalStatus: ApprovalStatus = isFirstEver ? "approved" : "pending";
+
   db.prepare(
     `INSERT INTO repositories
-       (id, name, pin_hash, webdav_username, webdav_password_hash, email, password_hash, webauthn_user_handle)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, name, pin_hash, webdav_username, webdav_password_hash, email, password_hash, webauthn_user_handle, is_admin, approval_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
@@ -117,12 +137,14 @@ export function createRepository(input: {
     webdavPasswordHash,
     input.email.toLowerCase(),
     passwordHash,
-    webauthnUserHandle
+    webauthnUserHandle,
+    isAdmin ? 1 : 0,
+    approvalStatus
   );
 
   ensureRepositoryDir(id);
 
-  return { id, name: input.name, pin, webdavUsername, webdavPassword };
+  return { id, name: input.name, pin, webdavUsername, webdavPassword, approvalStatus };
 }
 
 export function findRepositoryById(id: string): RepositoryRecord | undefined {
@@ -268,6 +290,20 @@ export function listRepositoriesWithWeeklyDigest(): RepositoryRecord[] {
 export function setNextcloudSyncPath(repositoryId: string, syncPath: string | null): void {
   db.prepare("UPDATE repositories SET nextcloud_sync_path = ? WHERE id = ?").run(
     syncPath && syncPath.trim() ? syncPath.trim() : null,
+    repositoryId
+  );
+}
+
+export function listAllRepositories(): RepositoryRecord[] {
+  const rows = db
+    .prepare("SELECT * FROM repositories ORDER BY created_at ASC")
+    .all() as RepositoryRow[];
+  return rows.map(toRecord);
+}
+
+export function setApprovalStatus(repositoryId: string, status: ApprovalStatus): void {
+  db.prepare("UPDATE repositories SET approval_status = ? WHERE id = ?").run(
+    status,
     repositoryId
   );
 }

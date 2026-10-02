@@ -127,6 +127,16 @@ webauthnRouter.post("/login-verify", async (req, res) => {
     return;
   }
 
+  if (repo.approvalStatus !== "approved") {
+    res.status(403).json({
+      error:
+        repo.approvalStatus === "pending"
+          ? "Deine Anfrage wird noch bearbeitet. Um Überlastung zu vermeiden, muss ein neues Konto erst von einem Menschen geprüft werden, bevor du dich anmelden kannst."
+          : "Dieses Konto wurde nicht freigeschaltet.",
+    });
+    return;
+  }
+
   try {
     const result = await verifyAuthentication(parsed.data.response, expectedChallenge, stored);
     if (!result.verified) {
@@ -136,7 +146,7 @@ webauthnRouter.post("/login-verify", async (req, res) => {
 
     updateCredentialCounter(stored.id, result.authenticationInfo.newCounter);
     issueSession(res, repo.id);
-    res.json({ repositoryId: repo.id, name: repo.name, email: repo.email });
+    res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
   } catch {
     res.status(401).json({ error: "Passkey-Anmeldung fehlgeschlagen." });
   }

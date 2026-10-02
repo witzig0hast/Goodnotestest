@@ -29,6 +29,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
 export interface CreateRepositoryResponse {
   repositoryId: string;
   name: string;
@@ -37,6 +39,7 @@ export interface CreateRepositoryResponse {
     username: string;
     password: string;
   };
+  approvalStatus: ApprovalStatus;
 }
 
 export function createRepository(input: { name: string; email: string; password: string }) {
@@ -50,6 +53,7 @@ export interface SessionResponse {
   repositoryId: string;
   name: string;
   email: string | null;
+  isAdmin: boolean;
 }
 
 export function loginWithPassword(email: string, password: string) {
@@ -360,4 +364,31 @@ export function unlockShareLink(id: string, password: string) {
 export function shareDownloadUrl(id: string, token?: string): string {
   const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
   return `${API_BASE_URL}/api/share/${id}/download${suffix}`;
+}
+
+// --- Admin: approving new accounts ---
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string | null;
+  isAdmin: boolean;
+  approvalStatus: ApprovalStatus;
+  createdAt: string;
+}
+
+export function fetchAdminUsers() {
+  return request<{ users: AdminUser[] }>("/api/admin/users");
+}
+
+export function approveUser(id: string) {
+  return request<{ approvalStatus: ApprovalStatus }>(`/api/admin/users/${id}/approve`, {
+    method: "POST",
+  });
+}
+
+export function rejectUser(id: string) {
+  return request<{ approvalStatus: ApprovalStatus }>(`/api/admin/users/${id}/reject`, {
+    method: "POST",
+  });
 }

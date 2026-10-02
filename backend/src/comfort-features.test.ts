@@ -18,21 +18,55 @@ let baseUrl: string;
 let tempDir: string;
 let server: import("http").Server;
 let emailCounter = 0;
+let adminCookie: string;
+
+// Only the very first account on a fresh instance signs in immediately —
+// every one after that is pending until the admin approves it, so this
+// bootstraps that admin once and has every other createRepository() call
+// approve + log itself in behind the scenes.
+async function bootstrapAdmin() {
+  const res = await fetch(`${baseUrl}/api/repositories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Admin",
+      email: "admin@example.com",
+      password: "admin-passwort-123",
+    }),
+  });
+  adminCookie = res.headers.get("set-cookie")!.split(";")[0];
+}
 
 async function createRepository(name: string) {
   emailCounter += 1;
   const email = `comfort${emailCounter}@example.com`;
+  const password = "sicheres-passwort";
   const res = await fetch(`${baseUrl}/api/repositories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password: "sicheres-passwort" }),
+    body: JSON.stringify({ name, email, password }),
   });
   const body = (await res.json()) as {
     repositoryId: string;
+    approvalStatus: "pending" | "approved" | "rejected";
     webdav: { username: string; password: string };
   };
-  const cookie = res.headers.get("set-cookie")!.split(";")[0];
-  return { ...body, email, cookie };
+
+  let cookie = res.headers.get("set-cookie")?.split(";")[0];
+  if (body.approvalStatus === "pending") {
+    await fetch(`${baseUrl}/api/admin/users/${body.repositoryId}/approve`, {
+      method: "POST",
+      headers: { Cookie: adminCookie },
+    });
+    const login = await fetch(`${baseUrl}/api/auth/login-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    cookie = login.headers.get("set-cookie")!.split(";")[0];
+  }
+
+  return { ...body, email, cookie: cookie! };
 }
 
 async function makeTestPdf(text: string): Promise<Uint8Array> {
@@ -84,6 +118,8 @@ beforeAll(async () => {
   });
   const port = (server.address() as AddressInfo).port;
   baseUrl = `http://localhost:${port}`;
+
+  await bootstrapAdmin();
 });
 
 afterAll(async () => {

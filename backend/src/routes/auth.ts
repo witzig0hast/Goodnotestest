@@ -6,10 +6,21 @@ import {
   findRepositoryById,
   verifyPassword,
   verifyPin,
+  type RepositoryRecord,
 } from "../lib/repositories.js";
 import { requireSession } from "../middleware/require-session.js";
 
 export const authRouter = Router();
+
+const PENDING_MESSAGE =
+  "Deine Anfrage wird noch bearbeitet. Um Überlastung zu vermeiden, muss ein neues Konto erst von einem Menschen geprüft werden, bevor du dich anmelden kannst.";
+const REJECTED_MESSAGE = "Dieses Konto wurde nicht freigeschaltet.";
+
+function approvalErrorFor(repo: RepositoryRecord): string | null {
+  if (repo.approvalStatus === "pending") return PENDING_MESSAGE;
+  if (repo.approvalStatus === "rejected") return REJECTED_MESSAGE;
+  return null;
+}
 
 const codeLoginSchema = z.object({
   repositoryId: z.string().trim().min(1),
@@ -36,8 +47,14 @@ authRouter.post("/login", (req, res) => {
     return;
   }
 
+  const approvalError = approvalErrorFor(repo);
+  if (approvalError) {
+    res.status(403).json({ error: approvalError });
+    return;
+  }
+
   issueSession(res, repo.id);
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
 });
 
 const passwordLoginSchema = z.object({
@@ -60,8 +77,14 @@ authRouter.post("/login-password", (req, res) => {
     return;
   }
 
+  const approvalError = approvalErrorFor(repo);
+  if (approvalError) {
+    res.status(403).json({ error: approvalError });
+    return;
+  }
+
   issueSession(res, repo.id);
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -75,5 +98,5 @@ authRouter.get("/me", requireSession, (req, res) => {
     res.status(401).json({ error: "Nicht angemeldet." });
     return;
   }
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
 });

@@ -11,11 +11,15 @@ import styles from "../ui.module.css";
 export default function DashboardPage() {
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     fetchCurrentRepository()
-      .then((session) => setName(session.name))
+      .then((session) => {
+        setName(session.name);
+        setIsAdmin(session.isAdmin);
+      })
       .catch(() => router.replace("/login"))
       .finally(() => setChecking(false));
   }, [router]);
@@ -66,6 +70,11 @@ export default function DashboardPage() {
               <Link href="/dashboard/kurzbefehl" className={styles.smallButton}>
                 iOS-Kurzbefehl
               </Link>
+              {isAdmin && (
+                <Link href="/dashboard/admin" className={styles.smallButtonAccent}>
+                  Admin
+                </Link>
+              )}
               <button className={styles.smallButton} onClick={handleLogout}>
                 Abmelden
               </button>

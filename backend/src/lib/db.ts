@@ -28,6 +28,8 @@ db.exec(`
     weekly_digest_enabled INTEGER NOT NULL DEFAULT 0,
     last_digest_sent_at TEXT,
     nextcloud_sync_path TEXT,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    approval_status TEXT NOT NULL DEFAULT 'approved',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -119,10 +121,24 @@ for (const [column, definition] of [
   ["weekly_digest_enabled", "INTEGER NOT NULL DEFAULT 0"],
   ["last_digest_sent_at", "TEXT"],
   ["nextcloud_sync_path", "TEXT"],
+  ["is_admin", "INTEGER NOT NULL DEFAULT 0"],
+  ["approval_status", "TEXT NOT NULL DEFAULT 'approved'"],
 ] as const) {
   if (!existingColumns.has(column)) {
     db.exec(`ALTER TABLE repositories ADD COLUMN ${column} ${definition}`);
   }
+}
+
+// Every existing installation needs exactly one admin to approve new
+// sign-ups — the account that registered first (by creation time) is
+// promoted automatically the first time this runs, so upgrading never
+// locks an existing single-user setup out of its own admin page.
+const hasAdmin = db.prepare("SELECT 1 FROM repositories WHERE is_admin = 1 LIMIT 1").get();
+if (!hasAdmin) {
+  db.exec(`
+    UPDATE repositories SET is_admin = 1, approval_status = 'approved'
+    WHERE id = (SELECT id FROM repositories ORDER BY created_at ASC, rowid ASC LIMIT 1)
+  `);
 }
 
 const existingShareLinkColumns = new Set(

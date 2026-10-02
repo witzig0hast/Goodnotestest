@@ -12,11 +12,29 @@ function cookiesFrom(res: { headers: Record<string, unknown> }): string[] {
 
 let app: ReturnType<typeof createApp>;
 let tempDir: string;
+let adminCookie: string;
 
+// Only the very first account on a fresh instance signs in immediately —
+// every one after that is pending until the admin approves it, so this
+// bootstraps that admin once and has every other createAndLogin() call
+// approve + log itself in behind the scenes.
 async function createAndLogin() {
+  const email = `${Date.now()}-${Math.random()}@example.com`;
+  const password = "sicheres-passwort";
   const res = await request(app)
     .post("/api/repositories")
-    .send({ name: "Passkey Test", email: `${Date.now()}@example.com`, password: "sicheres-passwort" });
+    .send({ name: "Passkey Test", email, password });
+
+  if (res.body.approvalStatus === "pending") {
+    await request(app)
+      .post(`/api/admin/users/${res.body.repositoryId}/approve`)
+      .set("Cookie", adminCookie);
+    const login = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email, password });
+    return { repositoryId: res.body.repositoryId as string, cookie: login.headers["set-cookie"]![0] };
+  }
+
   const cookie = res.headers["set-cookie"]![0];
   return { repositoryId: res.body.repositoryId as string, cookie };
 }
@@ -29,6 +47,11 @@ beforeAll(async () => {
 
   const module = await import("./app.js");
   app = module.createApp();
+
+  const bootstrap = await request(app)
+    .post("/api/repositories")
+    .send({ name: "Admin", email: "admin@example.com", password: "admin-passwort-123" });
+  adminCookie = bootstrap.headers["set-cookie"]![0];
 });
 
 afterAll(() => {

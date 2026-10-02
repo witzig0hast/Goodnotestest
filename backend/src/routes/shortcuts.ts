@@ -31,6 +31,7 @@ function authenticate(req: express.Request): { repositoryId: string } | null {
 
   const repo = findRepositoryByWebdavUsername(username);
   if (!repo || !bcrypt.compareSync(password, repo.webdavPasswordHash)) return null;
+  if (repo.approvalStatus !== "approved") return null;
 
   return { repositoryId: repo.id };
 }

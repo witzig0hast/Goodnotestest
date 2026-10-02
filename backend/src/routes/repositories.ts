@@ -27,8 +27,12 @@ repositoriesRouter.post("/", (req, res) => {
 
   // The PIN and WebDAV password are only ever readable here, right after
   // creation — only their hashes are stored, so this is the one chance
-  // to show them to the person setting this up.
-  issueSession(res, secrets.id);
+  // to show them to the person setting this up. A pending account doesn't
+  // get signed in yet (and its WebDAV credentials won't work either) until
+  // the admin approves it — see requireSession and webdav-server.ts.
+  if (secrets.approvalStatus === "approved") {
+    issueSession(res, secrets.id);
+  }
 
   res.status(201).json({
     repositoryId: secrets.id,
@@ -38,5 +42,6 @@ repositoriesRouter.post("/", (req, res) => {
       username: secrets.webdavUsername,
       password: secrets.webdavPassword,
     },
+    approvalStatus: secrets.approvalStatus,
   });
 });

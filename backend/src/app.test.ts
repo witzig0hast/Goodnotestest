@@ -8,16 +8,40 @@ import type { createApp } from "./app.js";
 let app: ReturnType<typeof createApp>;
 let tempDir: string;
 let emailCounter = 0;
+let adminCookie: string;
+let adminRepositoryId: string;
+let bootstrapResponse: request.Response;
 
 function uniqueEmail() {
   emailCounter += 1;
   return `praxis${emailCounter}@example.com`;
 }
 
+// Every account after the very first one on an instance needs the admin's
+// approval before it can log in (see the "admin bootstrap & approval
+// workflow" tests below) — this helper hides that behind the scenes so the
+// rest of the suite can keep assuming "create an account, get a working
+// cookie back" like before.
 async function createTestRepository(overrides: Partial<Record<string, unknown>> = {}) {
-  return request(app)
-    .post("/api/repositories")
-    .send({ name: "Praxis Musterfrau", email: uniqueEmail(), password: "sicheres-passwort", ...overrides });
+  const payload = {
+    name: "Praxis Musterfrau",
+    email: uniqueEmail(),
+    password: "sicheres-passwort",
+    ...overrides,
+  };
+  const res = await request(app).post("/api/repositories").send(payload);
+
+  if (res.status === 201 && res.body.approvalStatus === "pending") {
+    await request(app)
+      .post(`/api/admin/users/${res.body.repositoryId}/approve`)
+      .set("Cookie", adminCookie);
+    const login = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email: payload.email, password: payload.password });
+    res.headers["set-cookie"] = login.headers["set-cookie"];
+  }
+
+  return res;
 }
 
 beforeAll(async () => {
@@ -28,6 +52,15 @@ beforeAll(async () => {
 
   const module = await import("./app.js");
   app = module.createApp();
+
+  // The very first account ever created becomes the admin automatically —
+  // bootstrap it once here so every other test can approve the accounts it
+  // creates through createTestRepository above.
+  bootstrapResponse = await request(app)
+    .post("/api/repositories")
+    .send({ name: "Admin", email: "admin@example.com", password: "admin-passwort-123" });
+  adminRepositoryId = bootstrapResponse.body.repositoryId;
+  adminCookie = bootstrapResponse.headers["set-cookie"][0];
 });
 
 afterAll(() => {
@@ -45,7 +78,7 @@ describe("repositories + account creation", () => {
     expect(res.body.webdav.password).toBeTruthy();
   });
 
-  it("signs the account in immediately after creation", async () => {
+  it("signs the account in once approved (immediately, for the very first account on the instance)", async () => {
     const res = await createTestRepository();
     const cookie = res.headers["set-cookie"]?.[0];
     expect(cookie).toContain("goodshare_session=");
@@ -165,5 +198,89 @@ describe("session", () => {
 
     const clearedCookie = logout.headers["set-cookie"]?.[0];
     expect(clearedCookie).toContain("goodshare_session=;");
+  });
+});
+
+describe("admin bootstrap & approval workflow", () => {
+  it("makes the very first account on the instance an admin, approved and signed in immediately", () => {
+    expect(bootstrapResponse.status).toBe(201);
+    expect(bootstrapResponse.body.approvalStatus).toBe("approved");
+    expect(bootstrapResponse.headers["set-cookie"][0]).toContain("goodshare_session=");
+  });
+
+  it("leaves every later account pending, with no session cookie, until the admin approves it", async () => {
+    const email = uniqueEmail();
+    const res = await request(app)
+      .post("/api/repositories")
+      .send({ name: "Neuling", email, password: "neues-passwort-123" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.approvalStatus).toBe("pending");
+    expect(res.headers["set-cookie"]).toBeUndefined();
+
+    const loginAttempt = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email, password: "neues-passwort-123" });
+    expect(loginAttempt.status).toBe(403);
+    expect(loginAttempt.body.error).toMatch(/noch bearbeitet/);
+
+    const approve = await request(app)
+      .post(`/api/admin/users/${res.body.repositoryId}/approve`)
+      .set("Cookie", adminCookie);
+    expect(approve.status).toBe(200);
+
+    const loginAfterApproval = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email, password: "neues-passwort-123" });
+    expect(loginAfterApproval.status).toBe(200);
+    expect(loginAfterApproval.headers["set-cookie"]?.[0]).toContain("goodshare_session=");
+  });
+
+  it("blocks login for a rejected account, with a different message than pending", async () => {
+    const email = uniqueEmail();
+    const created = await request(app)
+      .post("/api/repositories")
+      .send({ name: "Abgelehnt", email, password: "noch-ein-passwort-123" });
+
+    const reject = await request(app)
+      .post(`/api/admin/users/${created.body.repositoryId}/reject`)
+      .set("Cookie", adminCookie);
+    expect(reject.status).toBe(200);
+
+    const loginAttempt = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email, password: "noch-ein-passwort-123" });
+    expect(loginAttempt.status).toBe(403);
+    expect(loginAttempt.body.error).not.toMatch(/noch bearbeitet/);
+  });
+
+  it("refuses to let a non-admin account approve or reject anyone", async () => {
+    const approvedAccount = await createTestRepository();
+    const approvedCookie = approvedAccount.headers["set-cookie"]![0];
+
+    const target = await request(app)
+      .post("/api/repositories")
+      .send({ name: "Noch jemand", email: uniqueEmail(), password: "irgendein-passwort-1" });
+
+    const approveAttempt = await request(app)
+      .post(`/api/admin/users/${target.body.repositoryId}/approve`)
+      .set("Cookie", approvedCookie);
+    expect(approveAttempt.status).toBe(403);
+  });
+
+  it("won't let the admin account be rejected", async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${adminRepositoryId}/reject`)
+      .set("Cookie", adminCookie);
+    expect(res.status).toBe(400);
+  });
+
+  it("lists every account with its approval status for the admin", async () => {
+    const res = await request(app).get("/api/admin/users").set("Cookie", adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.users)).toBe(true);
+    expect(res.body.users.find((u: { id: string }) => u.id === adminRepositoryId)?.isAdmin).toBe(
+      true
+    );
   });
 });

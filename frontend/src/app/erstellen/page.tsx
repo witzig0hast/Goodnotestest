@@ -66,19 +66,33 @@ export default function ErstellenPage() {
     const webdavUrl = `${
       process.env.NEXT_PUBLIC_WEBDAV_URL ?? "http://localhost:4000"
     }/webdav/${result.repositoryId}`;
+    const isPending = result.approvalStatus === "pending";
 
     return (
       <div className={styles.shell}>
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <div className={styles.eyebrow}>Fertig eingerichtet</div>
-            <h1 className={styles.title}>„{result.name}“ ist bereit</h1>
-            <p className={styles.subtitle}>
-              Du bist schon angemeldet. Für GoodNotes brauchst du noch die
-              WebDAV-Zugangsdaten unten — trag sie einmal ein, dann läuft
-              alles automatisch.
-            </p>
+            <div className={styles.eyebrow}>
+              {isPending ? "Fast geschafft" : "Fertig eingerichtet"}
+            </div>
+            <h1 className={styles.title}>„{result.name}“ ist angelegt</h1>
+            {isPending ? (
+              <div className={styles.warningBox} style={{ marginBottom: 16 }}>
+                Deine Anfrage wird noch bearbeitet. Um Überlastung zu
+                vermeiden, muss ein neues Konto erst von einem Menschen
+                geprüft werden, bevor du dich anmelden oder mit GoodNotes
+                synchronisieren kannst. Trag die Zugangsdaten unten trotzdem
+                schon mal ein — sie funktionieren automatisch, sobald dein
+                Konto freigeschaltet wurde.
+              </div>
+            ) : (
+              <p className={styles.subtitle}>
+                Du bist schon angemeldet. Für GoodNotes brauchst du noch die
+                WebDAV-Zugangsdaten unten — trag sie einmal ein, dann läuft
+                alles automatisch.
+              </p>
+            )}
 
             <div className={styles.secretGrid}>
               <div className={styles.secretItem}>
@@ -153,7 +167,7 @@ export default function ErstellenPage() {
             </div>
           </section>
 
-          {browserSupportsWebAuthn() && (
+          {!isPending && browserSupportsWebAuthn() && (
             <section className={styles.card}>
               <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
                 Schneller anmelden mit Passkey
@@ -220,9 +234,15 @@ export default function ErstellenPage() {
 
           <section className={styles.card}>
             <div className={styles.actionRowInline}>
-              <Link href="/dashboard" className={styles.button}>
-                Zu meinen Notizen
-              </Link>
+              {isPending ? (
+                <Link href="/login" className={styles.button}>
+                  Zur Anmeldung
+                </Link>
+              ) : (
+                <Link href="/dashboard" className={styles.button}>
+                  Zu meinen Notizen
+                </Link>
+              )}
             </div>
           </section>
         </main>
