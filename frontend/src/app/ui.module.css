@@ -134,7 +134,7 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px;
-  animation: fadeInUp 0.35s ease both;
+  animation: fadeInUp 0.35s ease backwards;
 }
 
 .eyebrow {
@@ -253,7 +253,7 @@
   padding: 12px 14px;
   font-size: 14px;
   font-weight: 500;
-  animation: slideDownFade 0.25s ease both;
+  animation: slideDownFade 0.25s ease backwards;
 }
 
 .hint {
@@ -354,7 +354,7 @@
   padding: 14px 16px;
   font-size: 14px;
   font-weight: 500;
-  animation: slideDownFade 0.25s ease both;
+  animation: slideDownFade 0.25s ease backwards;
 }
 
 .footerNote {
@@ -531,7 +531,7 @@
   text-align: center;
   padding: 40px 20px;
   color: var(--muted);
-  animation: fadeIn 0.3s ease both;
+  animation: fadeIn 0.3s ease backwards;
 }
 
 .sharePanel {
@@ -542,7 +542,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  animation: scaleIn 0.2s ease both;
+  animation: scaleIn 0.2s ease backwards;
 }
 
 .sharePanelRow {
@@ -608,7 +608,7 @@
   cursor: pointer;
   position: relative;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-  animation: fadeIn 0.25s ease both;
+  animation: fadeIn 0.25s ease backwards;
 }
 
 .gridItem:hover {
@@ -658,7 +658,7 @@
   justify-content: center;
   z-index: 100;
   padding: 20px;
-  animation: fadeIn 0.2s ease both;
+  animation: fadeIn 0.2s ease backwards;
 }
 
 .modalBox {
@@ -669,7 +669,7 @@
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
-  animation: scaleIn 0.2s ease both;
+  animation: scaleIn 0.2s ease backwards;
 }
 
 .statsTiles {
@@ -703,7 +703,7 @@
   gap: 10px;
   color: var(--muted);
   font-size: 13px;
-  animation: fadeIn 0.2s ease both;
+  animation: fadeIn 0.2s ease backwards;
 }
 
 .spinner {
@@ -717,7 +717,7 @@
 }
 
 .announcementBar {
-  animation: slideDownFade 0.25s ease both;
+  animation: slideDownFade 0.25s ease backwards;
 }
 
 .announcementBarLeaving {
@@ -736,7 +736,7 @@
   min-width: 190px;
   z-index: 20;
   overflow: hidden;
-  animation: scaleIn 0.15s ease both;
+  animation: scaleIn 0.15s ease backwards;
 }
 
 .menuItem {
