@@ -75,7 +75,10 @@ export function ShareForm({
             <div style={{ flex: 1, minWidth: 200 }}>
               <div className={styles.linkResult}>
                 <span style={{ flex: 1 }}>{link}</span>
-                <button className={styles.copyButton} onClick={copyLink}>
+                <button
+                  className={copied ? styles.copyButtonCopied : styles.copyButton}
+                  onClick={copyLink}
+                >
                   {copied ? "Kopiert" : "Kopieren"}
                 </button>
               </div>

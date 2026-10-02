@@ -15,6 +15,7 @@ export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () =
         justifyContent: "center",
         zIndex: 100,
         padding: 24,
+        animation: "fadeIn 0.2s ease both",
       }}
     >
       <div
@@ -29,6 +30,7 @@ export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () =
           flexDirection: "column",
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          animation: "scaleIn 0.2s ease both",
         }}
       >
         <div

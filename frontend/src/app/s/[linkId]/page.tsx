@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
+import { LoadingState } from "../../../components/LoadingState";
 import {
   ApiError,
   fetchShareInfo,
@@ -68,7 +69,7 @@ export default function SharePage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <p className={styles.hint}>Wird geladen …</p>
+            <LoadingState />
           </section>
         </main>
       </div>

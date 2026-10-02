@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { fetchAnnouncements, type Announcement } from "../lib/api";
+import styles from "../app/ui.module.css";
 
 const DISMISSED_KEY = "goodshare_dismissed_announcements";
+const EXIT_ANIMATION_MS = 200;
 
 function readDismissed(): Set<string> {
   try {
@@ -26,6 +28,7 @@ function rememberDismissed(ids: Set<string>) {
 export function AnnouncementBanner() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [leaving, setLeaving] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setDismissed(readDismissed());
@@ -38,12 +41,22 @@ export function AnnouncementBanner() {
   if (visible.length === 0) return null;
 
   function dismiss(id: string) {
-    setDismissed((current) => {
-      const next = new Set(current);
-      next.add(id);
-      rememberDismissed(next);
-      return next;
-    });
+    // Play the slide-up/fade-out first, then actually drop it from state —
+    // an instant removal would just make the banner pop out of existence.
+    setLeaving((current) => new Set(current).add(id));
+    setTimeout(() => {
+      setDismissed((current) => {
+        const next = new Set(current);
+        next.add(id);
+        rememberDismissed(next);
+        return next;
+      });
+      setLeaving((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }, EXIT_ANIMATION_MS);
   }
 
   return (
@@ -51,6 +64,7 @@ export function AnnouncementBanner() {
       {visible.map((a) => (
         <div
           key={a.id}
+          className={leaving.has(a.id) ? styles.announcementBarLeaving : styles.announcementBar}
           style={{
             display: "flex",
             alignItems: "center",
@@ -74,6 +88,7 @@ export function AnnouncementBanner() {
               fontSize: 16,
               lineHeight: 1,
               padding: 4,
+              transition: "transform 0.1s ease",
             }}
           >
             ×

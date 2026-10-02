@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
+import { LoadingState } from "../../../components/LoadingState";
 import {
   ApiError,
   fetchCurrentRepository,
@@ -67,7 +68,7 @@ export default function FreigabenPage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <p className={styles.hint}>Wird geladen …</p>
+            <LoadingState />
           </section>
         </main>
       </div>

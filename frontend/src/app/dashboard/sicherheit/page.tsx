@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
+import { LoadingState } from "../../../components/LoadingState";
 import { fetchCurrentRepository, fetchPasskeyCount, type SessionResponse } from "../../../lib/api";
 import { browserSupportsWebAuthn, registerPasskey } from "../../../lib/passkeys";
 import styles from "../../ui.module.css";
@@ -44,7 +45,7 @@ export default function SicherheitPage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <p className={styles.hint}>Wird geladen …</p>
+            <LoadingState />
           </section>
         </main>
       </div>

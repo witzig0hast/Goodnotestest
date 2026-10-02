@@ -102,7 +102,9 @@ export default function ErstellenPage() {
                 <div className={styles.secretValue}>
                   <span>{webdavUrl}</span>
                   <button
-                    className={styles.copyButton}
+                    className={
+                      copiedField === "webdavUrl" ? styles.copyButtonCopied : styles.copyButton
+                    }
                     onClick={() => copy("webdavUrl", webdavUrl)}
                   >
                     {copiedField === "webdavUrl" ? "Kopiert" : "Kopieren"}
@@ -115,7 +117,9 @@ export default function ErstellenPage() {
                 <div className={styles.secretValue}>
                   <span>{result.webdav.username}</span>
                   <button
-                    className={styles.copyButton}
+                    className={
+                      copiedField === "webdavUser" ? styles.copyButtonCopied : styles.copyButton
+                    }
                     onClick={() => copy("webdavUser", result.webdav.username)}
                   >
                     {copiedField === "webdavUser" ? "Kopiert" : "Kopieren"}
@@ -128,7 +132,11 @@ export default function ErstellenPage() {
                 <div className={styles.secretValue}>
                   <span>{result.webdav.password}</span>
                   <button
-                    className={styles.copyButton}
+                    className={
+                      copiedField === "webdavPassword"
+                        ? styles.copyButtonCopied
+                        : styles.copyButton
+                    }
                     onClick={() =>
                       copy("webdavPassword", result.webdav.password)
                     }
@@ -218,7 +226,7 @@ export default function ErstellenPage() {
                 <div className={styles.secretValue}>
                   <span>{result.repositoryId}</span>
                   <button
-                    className={styles.copyButton}
+                    className={copiedField === "id" ? styles.copyButtonCopied : styles.copyButton}
                     onClick={() => copy("id", result.repositoryId)}
                   >
                     {copiedField === "id" ? "Kopiert" : "Kopieren"}

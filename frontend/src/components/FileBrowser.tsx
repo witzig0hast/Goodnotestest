@@ -27,6 +27,7 @@ import {
 } from "../lib/api";
 import { formatDate, formatFileSize } from "../lib/format";
 import { PdfPreviewModal } from "./PdfPreviewModal";
+import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
 import styles from "../app/ui.module.css";
 
@@ -409,7 +410,7 @@ export function FileBrowser() {
   }
 
   if (!tree) {
-    return <p className={styles.hint}>Notizen werden geladen …</p>;
+    return <LoadingState text="Notizen werden geladen …" />;
   }
 
   const searchBar = (
@@ -472,7 +473,7 @@ export function FileBrowser() {
           automatisch aufbewahrt.
         </p>
         {versions === null ? (
-          <p className={styles.hint}>Wird geladen …</p>
+          <LoadingState />
         ) : versions.length === 0 ? (
           <p className={styles.hint}>Für diese Datei gibt es noch keine älteren Versionen.</p>
         ) : (

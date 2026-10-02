@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
+import { LoadingState } from "../../../components/LoadingState";
 import styles from "../../ui.module.css";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -27,7 +28,7 @@ export default function KurzbefehlPage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <p className={styles.hint}>Wird geladen …</p>
+            <LoadingState />
           </section>
         </main>
       </div>
