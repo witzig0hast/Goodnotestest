@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
 
@@ -55,4 +55,18 @@ export function resolveThumbnailPath(repositoryId: string, relativePath: string)
 /** A filesystem-safe name for a single path segment (no slashes, no ".."). */
 export function isValidSegmentName(name: string): boolean {
   return name.length > 0 && !name.includes("/") && !name.includes("\\") && name !== "." && name !== "..";
+}
+
+/**
+ * Removes every on-disk trace of a deleted account: its files, version
+ * history, and cached thumbnails. The database row itself is deleted
+ * separately (see repositories.ts#deleteRepository) — this only cleans up
+ * what SQLite doesn't track.
+ */
+export async function removeAllRepositoryData(repositoryId: string): Promise<void> {
+  await Promise.all([
+    fs.rm(repositoryDir(repositoryId), { recursive: true, force: true }),
+    fs.rm(repositoryVersionsDir(repositoryId), { recursive: true, force: true }),
+    fs.rm(repositoryThumbnailsDir(repositoryId), { recursive: true, force: true }),
+  ]);
 }

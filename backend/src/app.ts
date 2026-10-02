@@ -9,7 +9,7 @@ import { authRouter } from "./routes/auth.js";
 import { filesRouter } from "./routes/files.js";
 import { nextcloudRouter } from "./routes/nextcloud.js";
 import { notificationsRouter } from "./routes/notifications.js";
-import { quickShareLimiter, registrationLimiter } from "./middleware/rate-limit.js";
+import { quickShareLimiter } from "./middleware/rate-limit.js";
 import { repositoriesRouter } from "./routes/repositories.js";
 import { shareRouter } from "./routes/share.js";
 import { shortcutsRouter } from "./routes/shortcuts.js";
@@ -63,7 +63,7 @@ export function createApp() {
     res.json({ status: "ok" });
   });
 
-  api.use("/repositories", registrationLimiter, repositoriesRouter);
+  api.use("/repositories", repositoriesRouter);
   api.use("/auth", authRouter);
   api.use("/files", filesRouter);
   api.use("/nextcloud", nextcloudRouter);

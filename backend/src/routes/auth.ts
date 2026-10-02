@@ -55,7 +55,7 @@ authRouter.post("/login", pinLoginLimiter, (req, res) => {
   }
 
   issueSession(res, repo.id);
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin, webdavUsername: repo.webdavUsername });
 });
 
 const passwordLoginSchema = z.object({
@@ -85,7 +85,7 @@ authRouter.post("/login-password", loginLimiter, (req, res) => {
   }
 
   issueSession(res, repo.id);
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin, webdavUsername: repo.webdavUsername });
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -99,5 +99,5 @@ authRouter.get("/me", requireSession, (req, res) => {
     res.status(401).json({ error: "Nicht angemeldet." });
     return;
   }
-  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
+  res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin, webdavUsername: repo.webdavUsername });
 });

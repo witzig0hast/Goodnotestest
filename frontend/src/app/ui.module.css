@@ -291,6 +291,33 @@
   word-break: break-all;
 }
 
+.onlyOnceItem {
+  border: 1.5px dashed var(--danger);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.onlyOnceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+}
+
+.dangerZone {
+  border: 1.5px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
 .pinBig {
   font-size: 36px;
   font-weight: 700;
@@ -696,4 +723,32 @@
 .announcementBarLeaving {
   animation: slideUpFadeOut 0.2s ease both;
   overflow: hidden;
+}
+
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  min-width: 190px;
+  z-index: 20;
+  overflow: hidden;
+  animation: scaleIn 0.15s ease both;
+}
+
+.menuItem {
+  display: block;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  transition: background-color 0.1s ease;
+}
+
+.menuItem:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }

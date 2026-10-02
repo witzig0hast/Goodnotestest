@@ -54,6 +54,7 @@ export interface SessionResponse {
   name: string;
   email: string | null;
   isAdmin: boolean;
+  webdavUsername: string;
 }
 
 export function loginWithPassword(email: string, password: string) {
@@ -76,6 +77,28 @@ export function fetchCurrentRepository() {
 
 export function logout() {
   return request<void>("/api/auth/logout", { method: "POST" });
+}
+
+// --- Account self-service: viewing WebDAV info again, regenerating
+// credentials that can only ever be shown once, and account deletion ---
+
+export function regenerateWebdavPassword() {
+  return request<{ username: string; password: string }>("/api/repositories/webdav/regenerate", {
+    method: "POST",
+  });
+}
+
+export function regeneratePin() {
+  return request<{ repositoryId: string; pin: string }>("/api/repositories/pin/regenerate", {
+    method: "POST",
+  });
+}
+
+export function deleteAccount(password: string) {
+  return request<void>("/api/repositories/me", {
+    method: "DELETE",
+    body: JSON.stringify({ password }),
+  });
 }
 
 // --- Passkeys ---

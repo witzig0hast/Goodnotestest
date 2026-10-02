@@ -307,3 +307,38 @@ export function setApprovalStatus(repositoryId: string, status: ApprovalStatus):
     repositoryId
   );
 }
+
+/**
+ * The WebDAV password is only ever shown once, right after it's generated
+ * — only its hash is stored. This is the only way to get a usable one
+ * again if it's been lost: issue a brand new one (the old one stops
+ * working immediately).
+ */
+export function regenerateWebdavPassword(repositoryId: string): string {
+  const webdavPassword = generateWebdavPassword();
+  const webdavPasswordHash = bcrypt.hashSync(webdavPassword, WEBDAV_PASSWORD_HASH_ROUNDS);
+  db.prepare("UPDATE repositories SET webdav_password_hash = ? WHERE id = ?").run(
+    webdavPasswordHash,
+    repositoryId
+  );
+  return webdavPassword;
+}
+
+/** Same idea as regenerateWebdavPassword, for the backup-login PIN. */
+export function regeneratePin(repositoryId: string): string {
+  const pin = generatePin();
+  const pinHash = bcrypt.hashSync(pin, PIN_HASH_ROUNDS);
+  db.prepare("UPDATE repositories SET pin_hash = ? WHERE id = ?").run(pinHash, repositoryId);
+  return pin;
+}
+
+/**
+ * Permanently deletes the account's database row — every other table
+ * referencing it (favorites, share links, passkeys, …) cascades via its
+ * own ON DELETE CASCADE foreign key, so this is the only DB call needed.
+ * The caller is still responsible for removing the on-disk files/versions/
+ * thumbnails directories (see storage.ts), which aren't tracked in SQLite.
+ */
+export function deleteRepository(repositoryId: string): void {
+  db.prepare("DELETE FROM repositories WHERE id = ?").run(repositoryId);
+}

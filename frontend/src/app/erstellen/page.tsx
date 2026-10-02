@@ -127,8 +127,11 @@ export default function ErstellenPage() {
                 </div>
               </div>
 
-              <div className={styles.secretItem}>
-                <span className={styles.secretLabel}>WebDAV-Passwort</span>
+              <div className={`${styles.secretItem} ${styles.onlyOnceItem}`}>
+                <span className={styles.secretLabel}>
+                  WebDAV-Passwort
+                  <span className={styles.onlyOnceBadge}>Nur jetzt sichtbar</span>
+                </span>
                 <div className={styles.secretValue}>
                   <span>{result.webdav.password}</span>
                   <button
@@ -144,6 +147,11 @@ export default function ErstellenPage() {
                     {copiedField === "webdavPassword" ? "Kopiert" : "Kopieren"}
                   </button>
                 </div>
+                <span className={styles.hint} style={{ marginTop: 4 }}>
+                  Jetzt notieren — unter „WebDAV-Zugang“ in den Einstellungen
+                  lässt sich bei Bedarf jederzeit ein neues erzeugen, dieses
+                  hier aber nie wieder anzeigen.
+                </span>
               </div>
             </div>
           </section>
@@ -217,8 +225,10 @@ export default function ErstellenPage() {
             </h2>
             <p className={styles.hint} style={{ marginBottom: 16 }}>
               Falls du E-Mail, Passwort und Passkey mal nicht zur Hand hast,
-              kommst du mit diesen zwei Angaben trotzdem rein. Notier sie dir
-              sicher, z. B. in deinem Passwortmanager.
+              kommst du mit diesen zwei Angaben trotzdem rein. Die
+              Konto-Kennung findest du jederzeit wieder unter „Sicherheit“ —
+              den Notfall-Code aber nur jetzt. Notier ihn dir sicher, z. B.
+              in deinem Passwortmanager.
             </p>
             <div className={styles.secretGrid}>
               <div className={styles.secretItem}>
@@ -233,8 +243,11 @@ export default function ErstellenPage() {
                   </button>
                 </div>
               </div>
-              <div className={styles.secretItem}>
-                <span className={styles.secretLabel}>Notfall-Code</span>
+              <div className={`${styles.secretItem} ${styles.onlyOnceItem}`}>
+                <span className={styles.secretLabel}>
+                  Notfall-Code
+                  <span className={styles.onlyOnceBadge}>Nur jetzt sichtbar</span>
+                </span>
                 <div className={styles.pinBig}>{result.pin}</div>
               </div>
             </div>

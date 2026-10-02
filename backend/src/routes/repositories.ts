@@ -1,7 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { issueSession } from "../lib/auth-token.js";
-import { createRepository, findRepositoryByEmail } from "../lib/repositories.js";
+import { clearSession, issueSession } from "../lib/auth-token.js";
+import {
+  createRepository,
+  deleteRepository,
+  findRepositoryByEmail,
+  findRepositoryById,
+  regeneratePin,
+  regenerateWebdavPassword,
+  verifyPassword,
+} from "../lib/repositories.js";
+import { removeAllRepositoryData } from "../lib/storage.js";
+import { requireSession } from "../middleware/require-session.js";
+import { registrationLimiter } from "../middleware/rate-limit.js";
 
 export const repositoriesRouter = Router();
 
@@ -11,7 +22,7 @@ const createRepositorySchema = z.object({
   password: z.string().min(8, "Das Passwort muss mindestens 8 Zeichen haben."),
 });
 
-repositoriesRouter.post("/", (req, res) => {
+repositoriesRouter.post("/", registrationLimiter, (req, res) => {
   const parsed = createRepositorySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Ungültige Angaben." });
@@ -44,4 +55,64 @@ repositoriesRouter.post("/", (req, res) => {
     },
     approvalStatus: secrets.approvalStatus,
   });
+});
+
+// Only the hash is stored, so a lost WebDAV password can't be recovered —
+// this issues a fresh one instead (the old one stops working immediately).
+// Session-protected: this is a "manage my own account" action, not part of
+// the public registration flow above, so it isn't behind that rate limit.
+repositoriesRouter.post("/webdav/regenerate", requireSession, (req, res) => {
+  const repo = findRepositoryById(req.repositoryId!);
+  if (!repo) {
+    res.status(404).json({ error: "Konto nicht gefunden." });
+    return;
+  }
+  const password = regenerateWebdavPassword(repo.id);
+  res.json({ username: repo.webdavUsername, password });
+});
+
+// Same idea as above, for the repository-ID + 4-digit backup code.
+repositoriesRouter.post("/pin/regenerate", requireSession, (req, res) => {
+  const repo = findRepositoryById(req.repositoryId!);
+  if (!repo) {
+    res.status(404).json({ error: "Konto nicht gefunden." });
+    return;
+  }
+  const pin = regeneratePin(repo.id);
+  res.json({ repositoryId: repo.id, pin });
+});
+
+const deleteAccountSchema = z.object({ password: z.string().min(1) });
+
+repositoriesRouter.delete("/me", requireSession, async (req, res) => {
+  const repo = findRepositoryById(req.repositoryId!);
+  if (!repo) {
+    res.status(404).json({ error: "Konto nicht gefunden." });
+    return;
+  }
+
+  // The admin deleting themself would leave the instance with no one able
+  // to approve new accounts — block it rather than risk that dead end.
+  if (repo.isAdmin) {
+    res.status(400).json({
+      error:
+        "Der Administrator kann sein Konto nicht selbst löschen, solange es keinen anderen Administrator gibt.",
+    });
+    return;
+  }
+
+  const parsed = deleteAccountSchema.safeParse(req.body ?? {});
+  if (!parsed.success || !verifyPassword(repo, parsed.data.password)) {
+    res.status(401).json({ error: "Falsches Passwort." });
+    return;
+  }
+
+  deleteRepository(repo.id);
+  await removeAllRepositoryData(repo.id).catch(() => {
+    // The account is already gone from the database at this point — a
+    // leftover directory on disk is a cleanup nuisance, not a reason to
+    // tell the person their deletion failed.
+  });
+  clearSession(res);
+  res.status(204).end();
 });

@@ -352,3 +352,94 @@ describe("site announcements", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("account self-service", () => {
+  it("regenerates the WebDAV password, invalidating the old one immediately", async () => {
+    const repo = await createTestRepository();
+    const cookie = repo.headers["set-cookie"]![0];
+    const { username, password: oldPassword } = repo.body.webdav;
+
+    const okWithOld = await request(app)
+      .put(`/webdav/${repo.body.repositoryId}/probe.pdf`)
+      .auth(username, oldPassword)
+      .send(Buffer.from("alt"));
+    expect(okWithOld.status).toBeLessThan(300);
+
+    const regen = await request(app)
+      .post("/api/repositories/webdav/regenerate")
+      .set("Cookie", cookie);
+    expect(regen.status).toBe(200);
+    expect(regen.body.username).toBe(username);
+    expect(regen.body.password).not.toBe(oldPassword);
+
+    const failsWithOld = await request(app)
+      .put(`/webdav/${repo.body.repositoryId}/probe2.pdf`)
+      .auth(username, oldPassword)
+      .send(Buffer.from("alt"));
+    expect(failsWithOld.status).toBe(401);
+
+    const worksWithNew = await request(app)
+      .put(`/webdav/${repo.body.repositoryId}/probe3.pdf`)
+      .auth(username, regen.body.password)
+      .send(Buffer.from("neu"));
+    expect(worksWithNew.status).toBeLessThan(300);
+  });
+
+  it("regenerates the backup PIN, invalidating the old one immediately", async () => {
+    const repo = await createTestRepository();
+    const cookie = repo.headers["set-cookie"]![0];
+    const repositoryId = repo.body.repositoryId as string;
+    const oldPin = repo.body.pin as string;
+
+    const regen = await request(app)
+      .post("/api/repositories/pin/regenerate")
+      .set("Cookie", cookie);
+    expect(regen.status).toBe(200);
+    expect(regen.body.pin).not.toBe(oldPin);
+
+    const failsWithOld = await request(app)
+      .post("/api/auth/login")
+      .send({ repositoryId, pin: oldPin });
+    expect(failsWithOld.status).toBe(401);
+
+    const worksWithNew = await request(app)
+      .post("/api/auth/login")
+      .send({ repositoryId, pin: regen.body.pin });
+    expect(worksWithNew.status).toBe(200);
+  });
+
+  it("lets a non-admin account delete itself after confirming its password, and clears the session", async () => {
+    const email = uniqueEmail();
+    const password = "lösch-mich-passwort";
+    const repo = await createTestRepository({ email, password });
+    const cookie = repo.headers["set-cookie"]![0];
+
+    const wrongPassword = await request(app)
+      .delete("/api/repositories/me")
+      .set("Cookie", cookie)
+      .send({ password: "falsches-passwort" });
+    expect(wrongPassword.status).toBe(401);
+
+    const del = await request(app)
+      .delete("/api/repositories/me")
+      .set("Cookie", cookie)
+      .send({ password });
+    expect(del.status).toBe(204);
+
+    const loginAfterDelete = await request(app)
+      .post("/api/auth/login-password")
+      .send({ email, password });
+    expect(loginAfterDelete.status).toBe(401);
+
+    const meWithOldCookie = await request(app).get("/api/auth/me").set("Cookie", cookie);
+    expect(meWithOldCookie.status).toBe(401);
+  });
+
+  it("refuses to let the admin delete their own account", async () => {
+    const res = await request(app)
+      .delete("/api/repositories/me")
+      .set("Cookie", adminCookie)
+      .send({ password: "admin-passwort-123" });
+    expect(res.status).toBe(400);
+  });
+});

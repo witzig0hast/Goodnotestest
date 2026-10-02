@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/PageHeader";
 import { LoadingState } from "../../components/LoadingState";
 import { FileBrowser } from "../../components/FileBrowser";
+import { SettingsMenu } from "../../components/SettingsMenu";
 import { fetchCurrentRepository, logout } from "../../lib/api";
 import styles from "../ui.module.css";
 
@@ -56,21 +57,7 @@ export default function DashboardPage() {
               </h1>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Link href="/dashboard/sicherheit" className={styles.smallButton}>
-                Sicherheit
-              </Link>
-              <Link href="/dashboard/benachrichtigungen" className={styles.smallButton}>
-                Erinnerung
-              </Link>
-              <Link href="/dashboard/nextcloud" className={styles.smallButton}>
-                Nextcloud
-              </Link>
-              <Link href="/dashboard/freigaben" className={styles.smallButton}>
-                Freigaben
-              </Link>
-              <Link href="/dashboard/kurzbefehl" className={styles.smallButton}>
-                iOS-Kurzbefehl
-              </Link>
+              <SettingsMenu />
               {isAdmin && (
                 <Link href="/dashboard/admin" className={styles.smallButtonAccent}>
                   Admin
@@ -84,7 +71,7 @@ export default function DashboardPage() {
         </section>
 
         <section className={styles.card}>
-          <Suspense fallback={<p className={styles.hint}>Notizen werden geladen …</p>}>
+          <Suspense fallback={<LoadingState text="Notizen werden geladen …" />}>
             <FileBrowser />
           </Suspense>
         </section>

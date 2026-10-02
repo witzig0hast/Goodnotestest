@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
+import { SettingsMenu } from "../../../components/SettingsMenu";
 import {
   ApiError,
   connectNextcloud,
@@ -294,6 +295,7 @@ export default function NextcloudSettingsPage() {
           <Link href="/dashboard" className={styles.buttonSecondary}>
             Zurück zu meinen Notizen
           </Link>
+          <div style={{ marginTop: 12 }}><SettingsMenu /></div>
         </section>
       </main>
     </div>

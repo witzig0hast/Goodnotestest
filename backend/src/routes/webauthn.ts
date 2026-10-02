@@ -147,7 +147,13 @@ webauthnRouter.post("/login-verify", loginLimiter, async (req, res) => {
 
     updateCredentialCounter(stored.id, result.authenticationInfo.newCounter);
     issueSession(res, repo.id);
-    res.json({ repositoryId: repo.id, name: repo.name, email: repo.email, isAdmin: repo.isAdmin });
+    res.json({
+      repositoryId: repo.id,
+      name: repo.name,
+      email: repo.email,
+      isAdmin: repo.isAdmin,
+      webdavUsername: repo.webdavUsername,
+    });
   } catch {
     res.status(401).json({ error: "Passkey-Anmeldung fehlgeschlagen." });
   }
