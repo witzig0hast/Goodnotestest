@@ -16,6 +16,7 @@ import {
   verifyRegistration,
 } from "../lib/webauthn.js";
 import { requireSession } from "../middleware/require-session.js";
+import { loginLimiter } from "../middleware/rate-limit.js";
 
 export const webauthnRouter = Router();
 
@@ -105,7 +106,7 @@ webauthnRouter.get("/login-options", async (_req, res) => {
 
 const loginVerifySchema = z.object({ response: z.any() });
 
-webauthnRouter.post("/login-verify", async (req, res) => {
+webauthnRouter.post("/login-verify", loginLimiter, async (req, res) => {
   const parsed = loginVerifySchema.safeParse(req.body ?? {});
   const expectedChallenge = readChallengeCookie(req, LOGIN_CHALLENGE_COOKIE);
 

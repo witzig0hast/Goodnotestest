@@ -39,6 +39,11 @@ export const viewport: Viewport = {
   themeColor: "#2f5d50",
 };
 
+// A nonce-based CSP (see proxy.ts) needs a fresh nonce per request, which
+// only exists for dynamically rendered pages — static generation happens
+// once at build time, before any request (and its nonce) exists.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {

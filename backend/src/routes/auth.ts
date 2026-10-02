@@ -9,6 +9,7 @@ import {
   type RepositoryRecord,
 } from "../lib/repositories.js";
 import { requireSession } from "../middleware/require-session.js";
+import { loginLimiter, pinLoginLimiter } from "../middleware/rate-limit.js";
 
 export const authRouter = Router();
 
@@ -30,7 +31,7 @@ const codeLoginSchema = z.object({
 // The original login method (repository ID + PIN), kept for repositories
 // created before accounts existed and as a fallback if someone loses
 // access to their email/passkey.
-authRouter.post("/login", (req, res) => {
+authRouter.post("/login", pinLoginLimiter, (req, res) => {
   const parsed = codeLoginSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Bitte Repository-ID und Code angeben." });
@@ -62,7 +63,7 @@ const passwordLoginSchema = z.object({
   password: z.string().min(1),
 });
 
-authRouter.post("/login-password", (req, res) => {
+authRouter.post("/login-password", loginLimiter, (req, res) => {
   const parsed = passwordLoginSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Bitte E-Mail und Passwort angeben." });

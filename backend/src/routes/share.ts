@@ -4,6 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import { signShareUnlockToken, verifyShareUnlockToken } from "../lib/auth-token.js";
 import { requireSession } from "../middleware/require-session.js";
+import { shareUnlockLimiter } from "../middleware/rate-limit.js";
 import {
   createShareLink,
   deleteShareLink,
@@ -109,7 +110,7 @@ shareRouter.get("/:id", (req, res) => {
 
 const unlockSchema = z.object({ password: z.string().min(1) });
 
-shareRouter.post("/:id/unlock", (req, res) => {
+shareRouter.post("/:id/unlock", shareUnlockLimiter, (req, res) => {
   const link = findShareLinkById(req.params.id);
   if (!link || isShareLinkExpired(link)) {
     res.status(404).json({ error: "Dieser Link ist ungültig oder abgelaufen." });

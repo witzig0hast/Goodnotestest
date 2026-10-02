@@ -9,6 +9,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your .env file}
       FRONTEND_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      NODE_ENV: production
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       # Optional: enables backup-email reminders for everyone using this
       # server. Leave SMTP_HOST unset to disable the feature entirely.
       SMTP_HOST: ${SMTP_HOST:-}
