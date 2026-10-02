@@ -3,6 +3,7 @@ import express, { Router } from "express";
 import { config } from "./lib/config.js";
 import { handleWebdavRequest } from "./lib/webdav-server.js";
 import { adminRouter } from "./routes/admin.js";
+import { publicAnnouncementsRouter } from "./routes/announcements-public.js";
 import { authRouter } from "./routes/auth.js";
 import { filesRouter } from "./routes/files.js";
 import { nextcloudRouter } from "./routes/nextcloud.js";
@@ -48,6 +49,7 @@ export function createApp() {
   api.use("/share", shareRouter);
   api.use("/auth/webauthn", webauthnRouter);
   api.use("/admin", adminRouter);
+  api.use("/announcements", publicAnnouncementsRouter);
 
   app.use("/api", api);
 

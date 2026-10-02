@@ -7,10 +7,14 @@ import { PageHeader } from "../../../components/PageHeader";
 import {
   ApiError,
   approveUser,
+  createAnnouncement,
+  deleteAnnouncement,
+  fetchAdminAnnouncements,
   fetchAdminUsers,
   fetchCurrentRepository,
   rejectUser,
   type AdminUser,
+  type Announcement,
 } from "../../../lib/api";
 import { formatDate } from "../../../lib/format";
 import styles from "../../ui.module.css";
@@ -28,12 +32,51 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
+  const [newMessage, setNewMessage] = useState("");
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   function load() {
     fetchAdminUsers()
       .then((res) => setUsers(res.users))
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Konten konnten nicht geladen werden.")
       );
+    fetchAdminAnnouncements()
+      .then((res) => setAnnouncements(res.announcements))
+      .catch(() => setAnnouncements([]));
+  }
+
+  async function handleCreateAnnouncement(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    setCreating(true);
+    setAnnouncementError(null);
+    try {
+      const created = await createAnnouncement(newMessage.trim());
+      setAnnouncements((current) => [created, ...(current ?? [])]);
+      setNewMessage("");
+    } catch (err) {
+      setAnnouncementError(
+        err instanceof ApiError ? err.message : "Nachricht konnte nicht erstellt werden."
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDeleteAnnouncement(id: string) {
+    setDeletingId(id);
+    try {
+      await deleteAnnouncement(id);
+      setAnnouncements((current) => current?.filter((a) => a.id !== id) ?? null);
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   useEffect(() => {
@@ -141,6 +184,59 @@ export default function AdminPage() {
                       disabled={busyId === user.id}
                     >
                       Ablehnen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.eyebrow}>Verwaltung</div>
+          <h1 className={styles.title}>Hinweise für alle Besucher</h1>
+          <p className={styles.subtitle}>
+            Nachrichten hier erscheinen oben auf jeder Seite, auch für Leute,
+            die noch nicht angemeldet sind — z. B. für eine angekündigte
+            Wartung oder einen rechtlichen Hinweis. Jede Person kann eine
+            Nachricht für sich ausblenden; sie verschwindet erst für alle,
+            wenn du sie hier löschst.
+          </p>
+
+          {announcementError && <div className={styles.errorBox}>{announcementError}</div>}
+
+          <form onSubmit={handleCreateAnnouncement} className={styles.actionRowInline} style={{ marginBottom: 20 }}>
+            <input
+              className={styles.input}
+              placeholder="z. B. Am Samstag ist der Server kurz offline (Wartung)."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              maxLength={500}
+              style={{ flex: 1, minWidth: 240 }}
+            />
+            <button className={styles.button} type="submit" disabled={creating}>
+              {creating ? "Wird erstellt …" : "Veröffentlichen"}
+            </button>
+          </form>
+
+          {!announcements || announcements.length === 0 ? (
+            <div className={styles.emptyState}>Aktuell ist keine Nachricht veröffentlicht.</div>
+          ) : (
+            <div className={styles.fileList}>
+              {announcements.map((a) => (
+                <div className={styles.fileRow} key={a.id}>
+                  <div className={styles.fileIcon}>📣</div>
+                  <div className={styles.fileMain}>
+                    <span className={styles.fileNameText}>{a.message}</span>
+                    <span className={styles.fileMeta}>seit {formatDate(a.createdAt)}</span>
+                  </div>
+                  <div className={styles.fileActions}>
+                    <button
+                      className={styles.smallButton}
+                      onClick={() => handleDeleteAnnouncement(a.id)}
+                      disabled={deletingId === a.id}
+                    >
+                      Löschen
                     </button>
                   </div>
                 </div>

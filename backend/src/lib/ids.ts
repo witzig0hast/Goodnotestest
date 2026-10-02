@@ -16,6 +16,10 @@ export const generateWebdavPassword = customAlphabet(
   UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz23456789",
   24
 );
+export const generateAnnouncementId = customAlphabet(
+  UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz",
+  12
+);
 
 /** A stable per-account handle WebAuthn needs, unrelated to any PII. */
 export function generateWebauthnUserHandle(): string {

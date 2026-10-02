@@ -90,6 +90,12 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS share_link_items_share_id_idx
     ON share_link_items (share_id);
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id TEXT PRIMARY KEY,
+    message TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Every share link used to carry exactly one path directly on the

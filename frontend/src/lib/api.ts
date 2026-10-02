@@ -392,3 +392,30 @@ export function rejectUser(id: string) {
     method: "POST",
   });
 }
+
+// --- Site announcements (disclaimers/notices shown to everyone) ---
+
+export interface Announcement {
+  id: string;
+  message: string;
+  createdAt: string;
+}
+
+export function fetchAnnouncements() {
+  return request<{ announcements: Announcement[] }>("/api/announcements");
+}
+
+export function fetchAdminAnnouncements() {
+  return request<{ announcements: Announcement[] }>("/api/admin/announcements");
+}
+
+export function createAnnouncement(message: string) {
+  return request<Announcement>("/api/admin/announcements", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function deleteAnnouncement(id: string) {
+  return request<void>(`/api/admin/announcements/${id}`, { method: "DELETE" });
+}

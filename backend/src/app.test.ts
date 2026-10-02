@@ -284,3 +284,71 @@ describe("admin bootstrap & approval workflow", () => {
     );
   });
 });
+
+describe("site announcements", () => {
+  it("lets the admin create an announcement that anyone can read without logging in", async () => {
+    const create = await request(app)
+      .post("/api/admin/announcements")
+      .set("Cookie", adminCookie)
+      .send({ message: "Am Samstag ist der Server kurz offline (Wartung)." });
+    expect(create.status).toBe(201);
+    expect(create.body.id).toBeTruthy();
+
+    const publicList = await request(app).get("/api/announcements");
+    expect(publicList.status).toBe(200);
+    expect(publicList.body.announcements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: create.body.id,
+          message: "Am Samstag ist der Server kurz offline (Wartung).",
+        }),
+      ])
+    );
+  });
+
+  it("refuses to let a non-admin create or delete an announcement", async () => {
+    const nonAdmin = await createTestRepository();
+    const nonAdminCookie = nonAdmin.headers["set-cookie"]![0];
+
+    const create = await request(app)
+      .post("/api/admin/announcements")
+      .set("Cookie", nonAdminCookie)
+      .send({ message: "Sollte nicht gehen." });
+    expect(create.status).toBe(403);
+
+    const createdByAdmin = await request(app)
+      .post("/api/admin/announcements")
+      .set("Cookie", adminCookie)
+      .send({ message: "Nur vom Admin löschbar." });
+
+    const deleteAttempt = await request(app)
+      .delete(`/api/admin/announcements/${createdByAdmin.body.id}`)
+      .set("Cookie", nonAdminCookie);
+    expect(deleteAttempt.status).toBe(403);
+  });
+
+  it("removes an announcement from the public list once the admin deletes it", async () => {
+    const created = await request(app)
+      .post("/api/admin/announcements")
+      .set("Cookie", adminCookie)
+      .send({ message: "Wird gleich wieder gelöscht." });
+
+    const del = await request(app)
+      .delete(`/api/admin/announcements/${created.body.id}`)
+      .set("Cookie", adminCookie);
+    expect(del.status).toBe(204);
+
+    const publicList = await request(app).get("/api/announcements");
+    expect(publicList.body.announcements.some((a: { id: string }) => a.id === created.body.id)).toBe(
+      false
+    );
+  });
+
+  it("rejects an empty announcement message", async () => {
+    const res = await request(app)
+      .post("/api/admin/announcements")
+      .set("Cookie", adminCookie)
+      .send({ message: "" });
+    expect(res.status).toBe(400);
+  });
+});
