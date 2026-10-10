@@ -20,6 +20,10 @@ export const generateAnnouncementId = customAlphabet(
   UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz",
   12
 );
+export const generateOidcIdentityId = customAlphabet(
+  UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz",
+  12
+);
 
 /** A stable per-account handle WebAuthn needs, unrelated to any PII. */
 export function generateWebauthnUserHandle(): string {

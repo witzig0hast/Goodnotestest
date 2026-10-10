@@ -11,6 +11,12 @@ services:
       FRONTEND_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
       NODE_ENV: production
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      # Optional: SSO via an external OpenID Connect provider (e.g.
+      # Authentik). Leave OIDC_ISSUER_URL unset to disable entirely.
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_PROVIDER_NAME: ${OIDC_PROVIDER_NAME:-Authentik}
       # Optional: enables backup-email reminders for everyone using this
       # server. Leave SMTP_HOST unset to disable the feature entirely.
       SMTP_HOST: ${SMTP_HOST:-}

@@ -13,6 +13,7 @@ import { quickShareLimiter } from "./middleware/rate-limit.js";
 import { repositoriesRouter } from "./routes/repositories.js";
 import { shareRouter } from "./routes/share.js";
 import { shortcutsRouter } from "./routes/shortcuts.js";
+import { ssoRouter } from "./routes/sso.js";
 import { webauthnRouter } from "./routes/webauthn.js";
 
 export function createApp() {
@@ -70,6 +71,7 @@ export function createApp() {
   api.use("/notifications", notificationsRouter);
   api.use("/share", shareRouter);
   api.use("/auth/webauthn", webauthnRouter);
+  api.use("/auth/sso", ssoRouter);
   api.use("/admin", adminRouter);
   api.use("/announcements", publicAnnouncementsRouter);
 

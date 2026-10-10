@@ -1,21 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
-import { ApiError, loginWithPassword } from "../../lib/api";
+import { ApiError, fetchSsoStatus, loginWithPassword, ssoStartUrl } from "../../lib/api";
 import { browserSupportsWebAuthn, loginWithPasskey } from "../../lib/passkeys";
 import styles from "../ui.module.css";
 
-export default function LoginPage() {
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  invalid_state: "Die Anmeldung ist abgelaufen oder wurde unterbrochen. Bitte nochmal versuchen.",
+  pending: "Dein Konto wird noch geprüft. Du kannst dich anmelden, sobald es freigeschaltet ist.",
+  not_configured: "Diese Anmeldemethode ist auf diesem Server nicht eingerichtet.",
+  failed: "Die Anmeldung über den Single-Sign-On-Dienst hat nicht geklappt. Bitte nochmal versuchen.",
+};
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supportsPasskeys] = useState(() => browserSupportsWebAuthn());
+  const [sso, setSso] = useState<{ enabled: boolean; providerName?: string } | null>(null);
+
+  useEffect(() => {
+    fetchSsoStatus()
+      .then(setSso)
+      .catch(() => setSso({ enabled: false }));
+  }, []);
+
+  useEffect(() => {
+    const ssoError = searchParams.get("sso_error");
+    if (ssoError) {
+      setError(SSO_ERROR_MESSAGES[ssoError] ?? SSO_ERROR_MESSAGES.failed);
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +82,32 @@ export default function LoginPage() {
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
               {error}
             </div>
+          )}
+
+          {sso?.enabled && (
+            <>
+              <a
+                href={ssoStartUrl}
+                className={styles.button}
+                style={{ width: "100%", marginBottom: 20, display: "block", textAlign: "center" }}
+              >
+                Mit {sso.providerName ?? "SSO"} anmelden
+              </a>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  color: "var(--muted)",
+                  fontSize: 13,
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                oder
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              </div>
+            </>
           )}
 
           {supportsPasskeys && (
@@ -137,5 +185,13 @@ export default function LoginPage() {
         </form>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   );
 }

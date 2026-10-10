@@ -96,6 +96,20 @@ db.exec(`
     message TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS oidc_identities (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS oidc_identities_provider_subject_idx
+    ON oidc_identities (provider, subject);
+
+  CREATE INDEX IF NOT EXISTS oidc_identities_repository_id_idx
+    ON oidc_identities (repository_id);
 `);
 
 // Every share link used to carry exactly one path directly on the

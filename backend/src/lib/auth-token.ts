@@ -1,4 +1,4 @@
-import { serialize } from "cookie";
+import { parse, serialize } from "cookie";
 import type { Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "./config.js";
@@ -69,6 +69,58 @@ export function verifyChallengeToken(token: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+export interface SsoFlowPayload {
+  state: string;
+  nonce: string;
+  codeVerifier: string;
+  redirectUri: string;
+}
+
+const SSO_FLOW_COOKIE_NAME = "goodshare_sso_flow";
+const SSO_FLOW_TTL_SECONDS = 10 * 60; // the whole redirect round-trip to the IdP and back
+
+/**
+ * Holds the SSO handshake's state/nonce/PKCE verifier between the
+ * redirect to the identity provider and the callback — signed so it can't
+ * be tampered with, short-lived since it's only needed for one round trip.
+ */
+export function issueSsoFlowCookie(res: Response, payload: SsoFlowPayload): void {
+  const token = jwt.sign(payload, config.jwtSecret, { expiresIn: SSO_FLOW_TTL_SECONDS });
+  res.setHeader(
+    "Set-Cookie",
+    serialize(SSO_FLOW_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/api/auth/sso",
+      maxAge: SSO_FLOW_TTL_SECONDS,
+    })
+  );
+}
+
+export function readSsoFlowCookie(cookieHeader: string | undefined): SsoFlowPayload | null {
+  const token = parse(cookieHeader ?? "")[SSO_FLOW_COOKIE_NAME];
+  if (!token) return null;
+  try {
+    return jwt.verify(token, config.jwtSecret) as SsoFlowPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSsoFlowCookie(res: Response): void {
+  res.setHeader(
+    "Set-Cookie",
+    serialize(SSO_FLOW_COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/api/auth/sso",
+      maxAge: 0,
+    })
+  );
 }
 
 export interface ShareUnlockPayload {

@@ -86,3 +86,16 @@ export const smtpConfig = process.env.SMTP_HOST
 // of sync with FRONTEND_ORIGIN.
 export const webauthnRpId = new URL(config.frontendOrigin).hostname;
 export const webauthnOrigin = config.frontendOrigin;
+
+// SSO via an external OpenID Connect provider (e.g. Authentik) is optional,
+// server-wide configuration — set once by whoever hosts GoodShare, just
+// like SMTP above. Left null when OIDC_ISSUER_URL is unset, so the feature
+// (and its login button) simply doesn't exist until it's configured.
+export const oidcConfig = process.env.OIDC_ISSUER_URL
+  ? {
+      issuerUrl: process.env.OIDC_ISSUER_URL.replace(/\/+$/, ""),
+      clientId: required("OIDC_CLIENT_ID"),
+      clientSecret: required("OIDC_CLIENT_SECRET"),
+      providerName: process.env.OIDC_PROVIDER_NAME ?? "Authentik",
+    }
+  : null;

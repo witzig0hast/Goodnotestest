@@ -49,6 +49,20 @@ export function createRepository(input: { name: string; email: string; password:
   });
 }
 
+// A plain full-page link, not a fetch() call: the browser needs to
+// actually navigate to the backend so it can redirect on to the identity
+// provider and back.
+export const ssoStartUrl = `${API_BASE_URL}/api/auth/sso/start`;
+
+export interface SsoStatus {
+  enabled: boolean;
+  providerName?: string;
+}
+
+export function fetchSsoStatus() {
+  return request<SsoStatus>("/api/auth/sso/status");
+}
+
 export interface SessionResponse {
   repositoryId: string;
   name: string;

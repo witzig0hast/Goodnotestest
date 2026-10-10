@@ -3,6 +3,7 @@ import { db } from "./db.js";
 import { decryptSecret, encryptSecret } from "./crypto.js";
 import {
   generatePin,
+  generateOidcIdentityId,
   generateRepositoryId,
   generateWebauthnUserHandle,
   generateWebdavPassword,
@@ -341,4 +342,82 @@ export function regeneratePin(repositoryId: string): string {
  */
 export function deleteRepository(repositoryId: string): void {
   db.prepare("DELETE FROM repositories WHERE id = ?").run(repositoryId);
+}
+
+/**
+ * Looks up the account linked to an external SSO identity (e.g. the
+ * "sub" claim from an Authentik id_token). One (provider, subject) pair
+ * can only ever point at one repository.
+ */
+export function findRepositoryBySsoSubject(
+  provider: string,
+  subject: string
+): RepositoryRecord | undefined {
+  const row = db
+    .prepare(
+      `SELECT repositories.* FROM repositories
+       JOIN oidc_identities ON oidc_identities.repository_id = repositories.id
+       WHERE oidc_identities.provider = ? AND oidc_identities.subject = ?`
+    )
+    .get(provider, subject) as RepositoryRow | undefined;
+  return row ? toRecord(row) : undefined;
+}
+
+/** Links an external SSO identity to an already-existing account. */
+export function linkSsoIdentity(
+  repositoryId: string,
+  provider: string,
+  subject: string
+): void {
+  db.prepare(
+    `INSERT INTO oidc_identities (id, repository_id, provider, subject) VALUES (?, ?, ?, ?)`
+  ).run(generateOidcIdentityId(), repositoryId, provider, subject);
+}
+
+/**
+ * Provisions a brand new account the first time someone signs in via SSO
+ * with no matching identity or email on file. The external identity
+ * provider (e.g. Authentik) already gated who can get this far, so —
+ * unlike the normal email/password sign-up — this account is approved
+ * immediately rather than left "pending" for an admin to review.
+ */
+export function createRepositoryViaSso(input: {
+  name: string;
+  email: string | null;
+  provider: string;
+  subject: string;
+}): RepositoryRecord {
+  const id = generateRepositoryId();
+  const pin = generatePin();
+  const webdavUsername = generateWebdavUsername();
+  const webdavPassword = generateWebdavPassword();
+  const webauthnUserHandle = generateWebauthnUserHandle();
+
+  const pinHash = bcrypt.hashSync(pin, PIN_HASH_ROUNDS);
+  const webdavPasswordHash = bcrypt.hashSync(webdavPassword, WEBDAV_PASSWORD_HASH_ROUNDS);
+
+  const { count } = db.prepare("SELECT COUNT(*) as count FROM repositories").get() as {
+    count: number;
+  };
+  const isAdmin = count === 0;
+
+  db.prepare(
+    `INSERT INTO repositories
+       (id, name, pin_hash, webdav_username, webdav_password_hash, email, webauthn_user_handle, is_admin, approval_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved')`
+  ).run(
+    id,
+    input.name,
+    pinHash,
+    webdavUsername,
+    webdavPasswordHash,
+    input.email ? input.email.toLowerCase() : null,
+    webauthnUserHandle,
+    isAdmin ? 1 : 0
+  );
+
+  ensureRepositoryDir(id);
+  linkSsoIdentity(id, input.provider, input.subject);
+
+  return findRepositoryById(id)!;
 }

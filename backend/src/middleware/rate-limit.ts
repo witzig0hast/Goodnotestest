@@ -62,6 +62,19 @@ export const registrationLimiter = rateLimit({
   skip: skipInTests,
 });
 
+// Starting (and completing) the SSO handshake shares the same login-sized
+// budget — there's no password to guess here, but a flood of started
+// flows would still hammer the identity provider's discovery/token
+// endpoints for nothing.
+export const ssoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: config.rateLimits.loginMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: TOO_MANY_REQUESTS_MESSAGE,
+  skip: skipInTests,
+});
+
 // The iOS Shortcut endpoint authenticates with the WebDAV password (high
 // entropy, so brute-forcing it isn't realistic) — this limiter is about
 // capping abuse/flooding rather than credential stuffing.
