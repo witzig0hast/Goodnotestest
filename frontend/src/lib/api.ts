@@ -53,6 +53,7 @@ export function createRepository(input: { name: string; email: string; password:
 // actually navigate to the backend so it can redirect on to the identity
 // provider and back.
 export const ssoStartUrl = `${API_BASE_URL}/api/auth/sso/start`;
+export const ssoLinkStartUrl = `${API_BASE_URL}/api/auth/sso/link/start`;
 
 export interface SsoStatus {
   enabled: boolean;
@@ -69,6 +70,7 @@ export interface SessionResponse {
   email: string | null;
   isAdmin: boolean;
   webdavUsername: string;
+  hasPassword: boolean;
 }
 
 export function loginWithPassword(email: string, password: string) {
@@ -108,10 +110,10 @@ export function regeneratePin() {
   });
 }
 
-export function deleteAccount(password: string) {
+export function deleteAccount(password?: string) {
   return request<void>("/api/repositories/me", {
     method: "DELETE",
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(password ? { password } : {}),
   });
 }
 

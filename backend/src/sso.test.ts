@@ -295,4 +295,127 @@ describe("SSO login via an OpenID Connect provider (Authentik-style)", () => {
     expect(location).toContain("/login?sso_error=invalid_state");
     expect(res.headers.get("set-cookie") ?? "").not.toContain("goodshare_session=");
   });
+
+  describe("linking SSO onto an already-signed-in account", () => {
+    async function createPasswordAccount() {
+      const email = `link-target-${Math.random().toString(36).slice(2)}@example.com`;
+      const password = "sicheres-passwort";
+      const res = await fetch(`${baseUrl}/api/repositories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Link Target", email, password }),
+      });
+      const body = await res.json();
+      await fetch(`${baseUrl}/api/admin/users/${body.repositoryId}/approve`, {
+        method: "POST",
+        headers: { Cookie: adminCookie },
+      });
+      const login = await fetch(`${baseUrl}/api/auth/login-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      return {
+        repositoryId: body.repositoryId as string,
+        cookie: login.headers.get("set-cookie")!.split(";")[0],
+      };
+    }
+
+    async function startLinkFlow(sessionCookie: string) {
+      const res = await fetch(`${baseUrl}/api/auth/sso/link/start`, {
+        headers: { Cookie: sessionCookie },
+        redirect: "manual",
+      });
+      expect(res.status).toBe(302);
+      const location = new URL(res.headers.get("location")!);
+      const flowCookie = res.headers.get("set-cookie")!.split(";")[0];
+      return {
+        state: location.searchParams.get("state")!,
+        nonce: location.searchParams.get("nonce")!,
+        flowCookie,
+      };
+    }
+
+    it("links a brand new SSO identity onto the signed-in account, and logging in again reaches it", async () => {
+      const account = await createPasswordAccount();
+      const { state, nonce, flowCookie } = await startLinkFlow(account.cookie);
+      const sub = `link-subject-${Math.random().toString(36).slice(2)}`;
+      const code = `code-${Math.random().toString(36).slice(2)}`;
+      idp.registerCode(code, { sub, email: null, name: null, nonce });
+
+      const callback = await fetch(
+        `${baseUrl}/api/auth/sso/callback?code=${code}&state=${state}`,
+        { headers: { Cookie: flowCookie }, redirect: "manual" }
+      );
+      expect(callback.status).toBe(302);
+      expect(callback.headers.get("location")).toBe(
+        "http://localhost:3000/dashboard/sicherheit?sso_linked=1"
+      );
+
+      // The link flow shouldn't touch the existing session — it's still the
+      // same one issued at password login, and now an ordinary SSO login
+      // with that subject reaches the very same account.
+      const normalLogin = await completeSsoFlow({ sub, email: null, name: null });
+      const sessionCookie = normalLogin.headers.get("set-cookie")!.split(";")[0];
+      const me = await (
+        await fetch(`${baseUrl}/api/auth/me`, { headers: { Cookie: sessionCookie } })
+      ).json();
+      expect(me.repositoryId).toBe(account.repositoryId);
+    });
+
+    it("refuses to link an SSO identity that's already linked to a different account", async () => {
+      const alreadyLinkedElsewhere = await completeSsoFlow({
+        sub: "already-linked-subject",
+        email: null,
+        name: "Someone Else",
+      });
+      const otherCookie = alreadyLinkedElsewhere.headers.get("set-cookie")!.split(";")[0];
+      const otherMe = await (
+        await fetch(`${baseUrl}/api/auth/me`, { headers: { Cookie: otherCookie } })
+      ).json();
+
+      const account = await createPasswordAccount();
+      const { state, nonce, flowCookie } = await startLinkFlow(account.cookie);
+      const code = `code-${Math.random().toString(36).slice(2)}`;
+      idp.registerCode(code, {
+        sub: "already-linked-subject",
+        email: null,
+        name: null,
+        nonce,
+      });
+
+      const callback = await fetch(
+        `${baseUrl}/api/auth/sso/callback?code=${code}&state=${state}`,
+        { headers: { Cookie: flowCookie }, redirect: "manual" }
+      );
+      expect(callback.status).toBe(302);
+      expect(callback.headers.get("location")).toBe(
+        "http://localhost:3000/dashboard/sicherheit?sso_link_error=already_linked"
+      );
+
+      // The other account's login still works and is unaffected.
+      expect(otherMe.repositoryId).not.toBe(account.repositoryId);
+    });
+  });
+
+  describe("deleting an SSO-only account", () => {
+    it("lets an account created via SSO (with no password) delete itself without a password", async () => {
+      const login = await completeSsoFlow({
+        sub: `delete-me-${Math.random().toString(36).slice(2)}`,
+        email: null,
+        name: "Will Delete Self",
+      });
+      const sessionCookie = login.headers.get("set-cookie")!.split(";")[0];
+
+      const del = await fetch(`${baseUrl}/api/repositories/me`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Cookie: sessionCookie },
+        body: JSON.stringify({}),
+      });
+      expect(del.status).toBe(204);
+
+      const me = await fetch(`${baseUrl}/api/auth/me`, { headers: { Cookie: sessionCookie } });
+      expect(me.status).toBe(401);
+    });
+  });
 });

@@ -76,6 +76,12 @@ export interface SsoFlowPayload {
   nonce: string;
   codeVerifier: string;
   redirectUri: string;
+  // Set only when this flow was started from an already-signed-in session
+  // to link SSO onto an existing account, rather than to log in — the
+  // callback trusts this (it's inside the signed cookie) instead of
+  // re-reading the session cookie, since the callback is a cross-site
+  // redirect from the identity provider.
+  linkRepositoryId?: string;
 }
 
 const SSO_FLOW_COOKIE_NAME = "goodshare_sso_flow";

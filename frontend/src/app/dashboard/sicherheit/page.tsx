@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
 import { SettingsMenu } from "../../../components/SettingsMenu";
@@ -11,15 +11,24 @@ import {
   deleteAccount,
   fetchCurrentRepository,
   fetchPasskeyCount,
+  fetchSsoStatus,
   logout,
   regeneratePin,
+  ssoLinkStartUrl,
   type SessionResponse,
 } from "../../../lib/api";
 import { browserSupportsWebAuthn, registerPasskey } from "../../../lib/passkeys";
 import styles from "../../ui.module.css";
 
-export default function SicherheitPage() {
+const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
+  already_linked: "Diese Anmeldung ist bereits mit einem anderen Konto verknüpft.",
+  invalid_state: "Die Verknüpfung ist abgelaufen oder wurde unterbrochen. Bitte nochmal versuchen.",
+  failed: "Die Verknüpfung hat nicht geklappt. Bitte nochmal versuchen.",
+};
+
+function SicherheitPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [passkeyCount, setPasskeyCount] = useState<number | null>(null);
@@ -33,6 +42,10 @@ export default function SicherheitPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [sso, setSso] = useState<{ enabled: boolean; providerName?: string } | null>(null);
+  const [ssoLinkMessage, setSsoLinkMessage] = useState<string | null>(null);
+  const [ssoLinkError, setSsoLinkError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchCurrentRepository()
       .then((res) => {
@@ -42,7 +55,20 @@ export default function SicherheitPage() {
       .then((res) => setPasskeyCount(res.count))
       .catch(() => router.replace("/login"))
       .finally(() => setChecking(false));
+    fetchSsoStatus()
+      .then(setSso)
+      .catch(() => setSso({ enabled: false }));
   }, [router]);
+
+  useEffect(() => {
+    if (searchParams.get("sso_linked")) {
+      setSsoLinkMessage("Verknüpfung erfolgreich — du kannst dich ab jetzt auch darüber anmelden.");
+    }
+    const linkError = searchParams.get("sso_link_error");
+    if (linkError) {
+      setSsoLinkError(SSO_LINK_ERROR_MESSAGES[linkError] ?? SSO_LINK_ERROR_MESSAGES.failed);
+    }
+  }, [searchParams]);
 
   async function handleAddPasskey() {
     setStatus("loading");
@@ -167,6 +193,35 @@ export default function SicherheitPage() {
           )}
         </section>
 
+        {sso?.enabled && (
+          <section className={styles.card}>
+            <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
+              Single Sign-On ({sso.providerName ?? "SSO"})
+            </h2>
+            <p className={styles.hint} style={{ marginBottom: 16 }}>
+              Verknüpfe dein Konto mit {sso.providerName ?? "deinem SSO-Dienst"}, um dich
+              künftig auch darüber anmelden zu können.
+            </p>
+
+            {ssoLinkMessage && (
+              <div className={styles.statusBadge} style={{ marginBottom: 16 }}>
+                <span className={styles.statusDot} />
+                {ssoLinkMessage}
+              </div>
+            )}
+
+            {ssoLinkError && (
+              <div className={styles.errorBox} style={{ marginBottom: 16 }}>
+                {ssoLinkError}
+              </div>
+            )}
+
+            <a href={ssoLinkStartUrl} className={styles.buttonSecondary}>
+              Mit {sso.providerName ?? "SSO"} verknüpfen
+            </a>
+          </section>
+        )}
+
         <section className={styles.card}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
             Notfall-Zugang
@@ -239,19 +294,26 @@ export default function SicherheitPage() {
                   {deleteError}
                 </div>
               )}
-              <div className={styles.field} style={{ marginBottom: 16, maxWidth: 320 }}>
-                <label className={styles.label} htmlFor="deletePassword">
-                  Passwort zur Bestätigung
-                </label>
-                <input
-                  id="deletePassword"
-                  className={styles.input}
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  required
-                />
-              </div>
+              {session.hasPassword ? (
+                <div className={styles.field} style={{ marginBottom: 16, maxWidth: 320 }}>
+                  <label className={styles.label} htmlFor="deletePassword">
+                    Passwort zur Bestätigung
+                  </label>
+                  <input
+                    id="deletePassword"
+                    className={styles.input}
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    required
+                  />
+                </div>
+              ) : (
+                <p className={styles.hint} style={{ marginBottom: 16 }}>
+                  Dieses Konto hat kein Passwort (angelegt über SSO) — zum
+                  Löschen reicht die Bestätigung unten.
+                </p>
+              )}
               <button
                 type="submit"
                 className={styles.smallButton}
@@ -265,5 +327,13 @@ export default function SicherheitPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function SicherheitPage() {
+  return (
+    <Suspense fallback={null}>
+      <SicherheitPageInner />
+    </Suspense>
   );
 }

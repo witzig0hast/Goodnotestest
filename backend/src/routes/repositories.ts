@@ -101,10 +101,16 @@ repositoriesRouter.delete("/me", requireSession, async (req, res) => {
     return;
   }
 
-  const parsed = deleteAccountSchema.safeParse(req.body ?? {});
-  if (!parsed.success || !verifyPassword(repo, parsed.data.password)) {
-    res.status(401).json({ error: "Falsches Passwort." });
-    return;
+  // Accounts created via SSO (and never given a password) have nothing to
+  // confirm with — deletion only needs the session itself, exactly like
+  // every other "manage my own account" action. Accounts that do have a
+  // password still have to re-enter it, same as before.
+  if (repo.passwordHash !== null) {
+    const parsed = deleteAccountSchema.safeParse(req.body ?? {});
+    if (!parsed.success || !verifyPassword(repo, parsed.data.password)) {
+      res.status(401).json({ error: "Falsches Passwort." });
+      return;
+    }
   }
 
   deleteRepository(repo.id);

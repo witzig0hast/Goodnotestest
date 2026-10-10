@@ -2,7 +2,7 @@ import { parse, serialize } from "cookie";
 import { Router } from "express";
 import { z } from "zod";
 import { issueSession, signChallengeToken, verifyChallengeToken } from "../lib/auth-token.js";
-import { findRepositoryById } from "../lib/repositories.js";
+import { findRepositoryById, toSessionJson } from "../lib/repositories.js";
 import {
   findCredentialById,
   listCredentialsForRepository,
@@ -147,13 +147,7 @@ webauthnRouter.post("/login-verify", loginLimiter, async (req, res) => {
 
     updateCredentialCounter(stored.id, result.authenticationInfo.newCounter);
     issueSession(res, repo.id);
-    res.json({
-      repositoryId: repo.id,
-      name: repo.name,
-      email: repo.email,
-      isAdmin: repo.isAdmin,
-      webdavUsername: repo.webdavUsername,
-    });
+    res.json(toSessionJson(repo));
   } catch {
     res.status(401).json({ error: "Passkey-Anmeldung fehlgeschlagen." });
   }

@@ -148,6 +148,22 @@ export function createRepository(input: {
   return { id, name: input.name, pin, webdavUsername, webdavPassword, approvalStatus };
 }
 
+/**
+ * The session JSON shape returned after every login method and by /me —
+ * centralized so the fields (notably hasPassword, used to decide whether
+ * the account-deletion form needs a password) can't drift between routes.
+ */
+export function toSessionJson(repo: RepositoryRecord) {
+  return {
+    repositoryId: repo.id,
+    name: repo.name,
+    email: repo.email,
+    isAdmin: repo.isAdmin,
+    webdavUsername: repo.webdavUsername,
+    hasPassword: repo.passwordHash !== null,
+  };
+}
+
 export function findRepositoryById(id: string): RepositoryRecord | undefined {
   const row = db
     .prepare("SELECT * FROM repositories WHERE id = ?")
