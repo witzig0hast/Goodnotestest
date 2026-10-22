@@ -86,55 +86,159 @@
 }
 
 .shell {
+  --content-width: 640px;
   min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 48px 20px 64px;
+  padding: 28px 20px 64px;
+}
+
+.shellWide {
+  composes: shell;
+  --content-width: 880px;
 }
 
 .header {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-width);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 30;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 40px;
+  border-radius: 10px;
 }
 
 .logoMark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: var(--accent);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, #3f7a69 100%);
+  box-shadow: 0 4px 12px var(--glow-1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  font-family: var(--font-heading), Georgia, serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 18px;
+  transform: rotate(-4deg);
+  transition: transform 0.2s ease;
+}
+
+.logo:hover .logoMark {
+  transform: rotate(0deg) scale(1.04);
 }
 
 .logoText {
-  font-weight: 600;
+  font-weight: 650;
   font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navLink:hover {
+  background: var(--surface-glass);
+  color: var(--foreground);
+}
+
+.navLinkActive {
+  composes: navLink;
+  background: var(--surface-glass);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.navLabel {
+  display: inline;
+}
+
+@media (max-width: 560px) {
+  .navLabel {
+    display: none;
+  }
+  .navLink {
+    padding: 8px 10px;
+  }
 }
 
 .main {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-width);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .card {
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px;
   animation: fadeInUp 0.35s ease backwards;
+}
+
+.main > .card:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.main > .card:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.main > .card:nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 18px 14px 48px;
+  }
+  .card {
+    padding: 22px 18px;
+  }
+  .header {
+    margin-bottom: 20px;
+  }
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 650;
+  margin-bottom: 4px;
 }
 
 .eyebrow {
@@ -148,7 +252,7 @@
 
 .title {
   font-family: var(--font-heading), Georgia, serif;
-  font-size: 28px;
+  font-size: clamp(24px, 5vw, 30px);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -229,13 +333,15 @@
   border-radius: 10px;
   padding: 12px 14px;
   font-size: 16px;
-  background: var(--background);
+  background: var(--surface);
   color: var(--foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .pinInput {
@@ -467,14 +573,27 @@
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  background: var(--surface);
+  /* not overflow: hidden — the ⋯ menus open beyond the list's edges;
+     the first/last rows round their own corners instead. */
+}
+
+.fileList > :first-child {
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+}
+
+.fileList > :last-child {
+  border-bottom-left-radius: 11px;
+  border-bottom-right-radius: 11px;
 }
 
 .fileRow {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
+  min-height: 64px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   transition: background-color 0.15s ease;
@@ -488,11 +607,26 @@
   border-bottom: none;
 }
 
+.fileRow:focus-within {
+  position: relative;
+  z-index: 2;
+}
+
 .fileIcon {
-  font-size: 20px;
-  width: 28px;
-  text-align: center;
+  font-size: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.fileIconFolder {
+  composes: fileIcon;
+  background: rgba(214, 170, 92, 0.18);
 }
 
 .fileMain {
@@ -523,8 +657,155 @@
 
 .fileActions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+.iconButton {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 17px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.iconButton:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.iconButtonActive {
+  composes: iconButton;
+  color: #c8932f;
+}
+
+.hideOnMobile {
+  display: inline-flex;
+}
+
+@media (max-width: 560px) {
+  .hideOnMobile {
+    display: none;
+  }
+  .fileRow {
+    padding: 10px 10px;
+    gap: 10px;
+  }
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.menuItemDanger {
+  composes: menuItem;
+  color: var(--danger);
+}
+
+.menuItemDanger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  gap: 2px;
+}
+
+.segmentedItem {
+  border: none;
+  background: none;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.segmentedItemActive {
+  composes: segmentedItem;
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.chipRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chipActive {
+  composes: chip;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.chipActive:hover {
+  color: white;
+}
+
+.searchField {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchField .input {
+  width: 100%;
+  padding-left: 40px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 15px;
 }
 
 .emptyState {
@@ -663,7 +944,8 @@
 
 .modalBox {
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
   padding: 24px;
   max-width: 480px;
   width: 100%;
@@ -673,23 +955,38 @@
 }
 
 .statsTiles {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  flex-wrap: wrap;
   margin-bottom: 20px;
 }
 
 .statTile {
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .statTileValue {
   font-size: 20px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .statsTiles {
+    gap: 8px;
+  }
+  .statTile {
+    padding: 10px 10px;
+  }
+  .statTileValue {
+    font-size: 15px;
+  }
 }
 
 .statTileLabel {
@@ -731,17 +1028,27 @@
   right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  min-width: 190px;
-  z-index: 20;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  min-width: 210px;
+  z-index: 40;
   overflow: hidden;
+  padding: 4px;
+  transform-origin: top right;
   animation: scaleIn 0.15s ease backwards;
 }
 
 .menuItem {
-  display: block;
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 9px 12px;
   font-size: 14px;
   font-weight: 500;
   color: var(--foreground);
@@ -750,5 +1057,292 @@
 
 .menuItem:hover {
   background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.menuIcon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.menuHeading {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- Landing page --- */
+
+.hero {
+  text-align: center;
+  padding: 24px 0 8px;
+  animation: fadeInUp 0.4s ease backwards;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.heroTitle {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: clamp(32px, 7vw, 50px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+}
+
+.heroAccent {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.heroSubtitle {
+  color: var(--muted);
+  font-size: clamp(15px, 2.4vw, 18px);
+  max-width: 540px;
+  margin: 0 auto 28px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.featureCard {
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow);
+  animation: fadeInUp 0.4s ease backwards;
+}
+
+.featureIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: var(--accent-soft);
+  margin-bottom: 12px;
+}
+
+.featureTitle {
+  font-weight: 650;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.featureText {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* --- Onboarding: welcome tour + getting-started checklist --- */
+
+.tourBox {
+  composes: modalBox;
+  max-width: 460px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tourArt {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  background:
+    radial-gradient(circle at 30% 20%, var(--glow-2), transparent 60%),
+    radial-gradient(circle at 70% 80%, var(--glow-1), transparent 60%),
+    var(--accent-soft);
+}
+
+.tourArt span {
+  animation: popIn 0.35s ease backwards;
+}
+
+.tourBody {
+  padding: 24px 28px 8px;
+}
+
+.tourStepLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.tourTitle {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tourText {
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.tourFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 28px 24px;
+}
+
+.tourDots {
+  display: flex;
+  gap: 6px;
+}
+
+.tourDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.tourDotActive {
+  composes: tourDot;
+  width: 20px;
+  background: var(--accent);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+a.checklistItem:hover,
+button.checklistItem:hover {
+  background: var(--accent-soft);
+}
+
+button.checklistItem {
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.checkCircleDone {
+  composes: checkCircle;
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: popIn 0.3s ease;
+}
+
+.checklistText {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.checklistTextDone {
+  composes: checklistText;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checklistArrow {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.emptyIllustration {
+  font-size: 46px;
+  margin-bottom: 12px;
+  animation: popIn 0.4s ease backwards;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: -6px;
+  transition: color 0.15s ease;
+  align-self: flex-start;
+}
+
+.backLink:hover {
   color: var(--accent);
 }

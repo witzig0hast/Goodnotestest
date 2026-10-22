@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   addFavorite,
@@ -26,7 +27,9 @@ import {
   type TreeNode,
 } from "../lib/api";
 import { formatDate, formatFileSize } from "../lib/format";
+import { ActionMenu, type ActionMenuItem } from "./ActionMenu";
 import { PdfPreviewModal } from "./PdfPreviewModal";
+import { openTour } from "./WelcomeTour";
 import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
 import styles from "../app/ui.module.css";
@@ -255,13 +258,76 @@ export function FileBrowser() {
     }
   }
 
+  function openFile(node: { name: string; path: string }) {
+    if (isPdf(node.name)) setPreviewPath(node.path);
+    else window.location.assign(downloadFileUrl(node.path));
+  }
+
+  function renderRenameInput(path: string) {
+    return (
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          className={styles.input}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitRename(path);
+            if (e.key === "Escape") setRenamingPath(null);
+          }}
+          autoFocus
+          style={{ flex: 1, minWidth: 140, padding: "7px 10px", fontSize: 15 }}
+        />
+        <button
+          className={styles.smallButtonAccent}
+          onClick={() => submitRename(path)}
+          disabled={busyPath === path}
+        >
+          Speichern
+        </button>
+        <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
+          Abbrechen
+        </button>
+      </div>
+    );
+  }
+
+  function favoriteButton(path: string) {
+    const isFav = favorites.has(path);
+    return (
+      <button
+        className={isFav ? styles.iconButtonActive : styles.iconButton}
+        onClick={() => toggleFavorite(path)}
+        title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
+        aria-label={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
+      >
+        {isFav ? "★" : "☆"}
+      </button>
+    );
+  }
+
   function renderFileRow(
     node: { name: string; path: string; size?: number; modifiedAt?: string },
     options: { snippet?: string; selectable?: boolean } = {}
   ) {
-    const isFav = favorites.has(node.path);
     const isRenaming = renamingPath === node.path;
     const isBusy = busyPath === node.path;
+    const menuItems: (ActionMenuItem | "divider")[] = [
+      ...(isPdf(node.name)
+        ? [{ label: "Ansehen", icon: "👁", onClick: () => setPreviewPath(node.path) }]
+        : []),
+      { label: "Herunterladen", icon: "⬇", href: downloadFileUrl(node.path) },
+      { label: "Teilen", icon: "📤", onClick: () => toggleShare(node.path) },
+      { label: "Ältere Versionen", icon: "🕓", onClick: () => openVersions(node.path) },
+      { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      "divider",
+      {
+        label: "Löschen",
+        icon: "🗑",
+        danger: true,
+        disabled: isBusy,
+        onClick: () => handleDelete(node.path, false),
+      },
+    ];
     return (
       <Fragment key={node.path}>
         <div className={styles.fileRow}>
@@ -270,89 +336,100 @@ export function FileBrowser() {
               type="checkbox"
               checked={selected.has(node.path)}
               onChange={() => toggleSelect(node.path)}
+              aria-label={`${node.name} auswählen`}
             />
           )}
-          <div className={styles.fileIcon}>📄</div>
-          <div className={styles.fileMain}>
-            {isRenaming ? (
-              <input
-                className={styles.input}
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitRename(node.path);
-                  if (e.key === "Escape") setRenamingPath(null);
-                }}
-                autoFocus
-                style={{ maxWidth: 260 }}
-              />
-            ) : (
-              <span className={styles.fileNameText}>{node.name}</span>
-            )}
-            <span className={styles.fileMeta}>
-              {mode !== "browse" ? `${node.path} · ` : ""}
-              {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
-              {node.modifiedAt ? formatDate(node.modifiedAt) : ""}
-            </span>
-            {options.snippet && (
-              <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
-                „…{options.snippet}…“
+          <div className={styles.fileIcon}>{isPdf(node.name) ? "📄" : "📎"}</div>
+          {isRenaming ? (
+            <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
+          ) : (
+            <div
+              className={styles.fileMainClickable}
+              onClick={() => openFile(node)}
+              title={isPdf(node.name) ? "Ansehen" : "Herunterladen"}
+            >
+              <span className={styles.fileNameText}>{node.name.replace(/\.pdf$/i, "")}</span>
+              <span className={styles.fileMeta}>
+                {mode !== "browse" ? `${node.path} · ` : ""}
+                {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
+                {node.modifiedAt ? formatDate(node.modifiedAt) : ""}
               </span>
-            )}
+              {options.snippet && (
+                <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
+                  „…{options.snippet}…“
+                </span>
+              )}
+            </div>
+          )}
+          {!isRenaming && (
+            <div className={styles.fileActions}>
+              {favoriteButton(node.path)}
+              <button
+                className={`${styles.smallButton} ${styles.hideOnMobile}`}
+                onClick={() => toggleShare(node.path)}
+              >
+                Teilen
+              </button>
+              <ActionMenu items={menuItems} />
+            </div>
+          )}
+        </div>
+        {activeSharePath === node.path && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
           </div>
-          <div className={styles.fileActions}>
-            {isRenaming ? (
-              <>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => submitRename(node.path)}
-                  disabled={isBusy}
-                >
-                  Speichern
-                </button>
-                <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
-                  Abbrechen
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => toggleFavorite(node.path)}
-                  title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
-                >
-                  {isFav ? "★" : "☆"}
-                </button>
-                {isPdf(node.name) && (
-                  <button className={styles.smallButton} onClick={() => setPreviewPath(node.path)}>
-                    Vorschau
-                  </button>
-                )}
-                <a className={styles.smallButton} href={downloadFileUrl(node.path)}>
-                  Herunterladen
-                </a>
-                <button className={styles.smallButton} onClick={() => toggleShare(node.path)}>
-                  Teilen
-                </button>
-                <button className={styles.smallButton} onClick={() => openVersions(node.path)}>
-                  Verlauf
-                </button>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => startRename(node.path, node.name)}
-                >
-                  Umbenennen
-                </button>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => handleDelete(node.path, false)}
-                  disabled={isBusy}
-                >
-                  Löschen
-                </button>
-              </>
-            )}
-          </div>
+        )}
+      </Fragment>
+    );
+  }
+
+  function renderFolderRow(node: TreeNode) {
+    const isRenaming = renamingPath === node.path;
+    const isBusy = busyPath === node.path;
+    const count = node.children?.length ?? 0;
+    const menuItems: (ActionMenuItem | "divider")[] = [
+      { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(node.path) },
+      { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(node.path) },
+      { label: "Ordner teilen", icon: "📤", onClick: () => toggleShare(node.path) },
+      { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      "divider",
+      {
+        label: "Löschen",
+        icon: "🗑",
+        danger: true,
+        disabled: isBusy,
+        onClick: () => handleDelete(node.path, true),
+      },
+    ];
+    return (
+      <Fragment key={node.path}>
+        <div className={styles.fileRow}>
+          <input
+            type="checkbox"
+            checked={selected.has(node.path)}
+            onChange={() => toggleSelect(node.path)}
+            aria-label={`${node.name} auswählen`}
+          />
+          <div className={styles.fileIconFolder}>📁</div>
+          {isRenaming ? (
+            <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
+          ) : (
+            <div
+              className={styles.fileMainClickable}
+              onClick={() => navigateTo([...segments, node.name])}
+            >
+              <span className={styles.fileNameText}>{node.name}</span>
+              <span className={styles.fileMeta}>
+                {count} {count === 1 ? "Eintrag" : "Einträge"}
+              </span>
+            </div>
+          )}
+          {!isRenaming && (
+            <div className={styles.fileActions}>
+              {favoriteButton(node.path)}
+              <ActionMenu items={menuItems} />
+            </div>
+          )}
         </div>
         {activeSharePath === node.path && (
           <div style={{ padding: "0 16px 16px" }}>
@@ -370,7 +447,7 @@ export function FileBrowser() {
         className={styles.gridItem}
         onClick={() => {
           if (node.type === "folder") navigateTo([...segments, node.name]);
-          else if (isPdf(node.name)) setPreviewPath(node.path);
+          else openFile(node);
         }}
       >
         {selectable && (
@@ -380,6 +457,7 @@ export function FileBrowser() {
             checked={selected.has(node.path)}
             onClick={(e) => e.stopPropagation()}
             onChange={() => toggleSelect(node.path)}
+            aria-label={`${node.name} auswählen`}
           />
         )}
         <div className={styles.gridThumb}>
@@ -399,7 +477,7 @@ export function FileBrowser() {
           )}
         </div>
         <span className={styles.gridName} title={node.name}>
-          {node.name}
+          {node.name.replace(/\.pdf$/i, "")}
         </span>
       </div>
     );
@@ -414,46 +492,66 @@ export function FileBrowser() {
   }
 
   const searchBar = (
-    <form
-      onSubmit={handleSearchSubmit}
-      style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}
-    >
-      <input
-        className={styles.input}
-        placeholder="Suchen (Dateiname oder Inhalt) …"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{ flex: 1, minWidth: 180 }}
-      />
-      <button className={styles.smallButton} type="submit" disabled={searching}>
-        {searching ? "Sucht …" : "Suchen"}
-      </button>
-      <button
-        type="button"
-        className={mode === "favorites" ? styles.smallButtonAccent : styles.smallButton}
-        onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
+    <>
+      <form
+        onSubmit={handleSearchSubmit}
+        style={{ display: "flex", gap: 8, marginBottom: 12 }}
+        role="search"
       >
-        ★ Favoriten
-      </button>
-      <button
-        type="button"
-        className={mode === "recent" ? styles.smallButtonAccent : styles.smallButton}
-        onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
-      >
-        🕓 Neu (7 Tage)
-      </button>
-    </form>
+        <div className={styles.searchField}>
+          <span className={styles.searchIcon}>🔎</span>
+          <input
+            className={styles.input}
+            placeholder="Notizen durchsuchen …"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Notizen durchsuchen"
+          />
+        </div>
+        <button
+          className={styles.button}
+          type="submit"
+          disabled={searching || !searchQuery.trim()}
+          style={{ padding: "0 18px" }}
+        >
+          {searching ? "Sucht …" : "Suchen"}
+        </button>
+      </form>
+      <div className={styles.chipRow}>
+        <button
+          type="button"
+          className={mode === "browse" ? styles.chipActive : styles.chip}
+          onClick={() => navigateTo(segments)}
+        >
+          📒 Alle Notizen
+        </button>
+        <button
+          type="button"
+          className={mode === "favorites" ? styles.chipActive : styles.chip}
+          onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
+        >
+          ★ Favoriten
+        </button>
+        <button
+          type="button"
+          className={mode === "recent" ? styles.chipActive : styles.chip}
+          onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
+        >
+          🕓 Neu (7 Tage)
+        </button>
+      </div>
+    </>
   );
 
   const statsBar = stats && mode === "browse" && segments.length === 0 && (
     <div className={styles.statsTiles}>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{stats.totalFiles}</div>
-        <div className={styles.statTileLabel}>Dateien</div>
+        <div className={styles.statTileLabel}>Notizen</div>
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{formatFileSize(stats.totalSize)}</div>
-        <div className={styles.statTileLabel}>Gesamtgröße</div>
+        <div className={styles.statTileLabel}>Speicher</div>
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>
@@ -467,10 +565,10 @@ export function FileBrowser() {
   const versionsModal = versionsPath && (
     <div className={styles.modalOverlay} onClick={() => setVersionsPath(null)}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Versionsverlauf</h2>
+        <h2 className={styles.sectionTitle}>Ältere Versionen</h2>
         <p className={styles.hint} style={{ marginBottom: 16 }}>
-          {versionsPath} — die letzten Versionen vor einem Überschreiben werden
-          automatisch aufbewahrt.
+          {versionsPath} — bevor GoodNotes eine Notiz überschreibt, wird die
+          vorherige Fassung automatisch aufbewahrt.
         </p>
         {versions === null ? (
           <LoadingState />
@@ -487,10 +585,12 @@ export function FileBrowser() {
                 </div>
                 <div className={styles.fileActions}>
                   <a
-                    className={styles.smallButton}
+                    className={styles.iconButton}
                     href={versionDownloadUrl(versionsPath, v.timestamp)}
+                    title="Herunterladen"
+                    aria-label="Herunterladen"
                   >
-                    Herunterladen
+                    ⬇
                   </a>
                   <button
                     className={styles.smallButton}
@@ -515,6 +615,13 @@ export function FileBrowser() {
     </div>
   );
 
+  const overlays = (
+    <>
+      {previewPath && <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />}
+      {versionsModal}
+    </>
+  );
+
   if (mode === "search") {
     return (
       <div>
@@ -523,21 +630,18 @@ export function FileBrowser() {
           <div className={styles.hint}>
             {searchResults?.length ?? 0} Treffer für „{searchQuery}“
           </div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
         </div>
         {searchResults && searchResults.length > 0 ? (
           <div className={styles.fileList}>
             {searchResults.map((r) => renderFileRow(r, { snippet: r.snippet }))}
           </div>
         ) : (
-          <div className={styles.emptyState}>Keine Treffer.</div>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}>🔍</div>
+            Nichts gefunden. Versuch es mit einem anderen Wort.
+          </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-        )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
@@ -549,21 +653,16 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>{favoriteFiles.length} Favoriten</div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
         </div>
         {favoriteFiles.length > 0 ? (
           <div className={styles.fileList}>{favoriteFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
-            Noch keine Favoriten — markiere Dateien mit dem Stern.
+            <div className={styles.emptyIllustration}>⭐</div>
+            Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.
           </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-        )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
@@ -578,38 +677,42 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {recentFiles.length} {recentFiles.length === 1 ? "Datei" : "Dateien"} der letzten 7 Tage
+            {recentFiles.length} {recentFiles.length === 1 ? "Notiz" : "Notizen"} der letzten 7 Tage
           </div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
         </div>
         {recentFiles.length > 0 ? (
           <div className={styles.fileList}>{recentFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}>🌙</div>
             In den letzten 7 Tagen ist nichts Neues dazugekommen.
           </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-        )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
 
   if (tree.length === 0) {
     return (
-      <div className={styles.emptyState}>
-        <p style={{ marginBottom: 8, fontWeight: 600, color: "var(--foreground)" }}>
-          Hier ist noch nichts angekommen.
+      <div className={styles.emptyState} style={{ padding: "24px 8px" }}>
+        <div className={styles.emptyIllustration}>📭</div>
+        <h2 className={styles.sectionTitle} style={{ color: "var(--foreground)", marginBottom: 8 }}>
+          Noch keine Notizen da
+        </h2>
+        <p className={styles.hint} style={{ maxWidth: 440, margin: "0 auto 20px" }}>
+          Sobald GoodNotes sein erstes Backup hierher geschickt hat, erscheinen
+          deine Notizbücher automatisch auf dieser Seite. Dafür musst du GoodNotes
+          einmalig mit deinem Konto verbinden — das dauert etwa zwei Minuten.
         </p>
-        <p className={styles.hint}>
-          Richte in GoodNotes unter Einstellungen → Backup → WebDAV die Zugangsdaten
-          von der Erstellungs-Seite ein und tippe auf „Jetzt sichern“ — deine Notizen
-          erscheinen hier automatisch.
-        </p>
+        <div className={styles.heroActions}>
+          <Link href="/dashboard/webdav" className={styles.button}>
+            GoodNotes jetzt verbinden
+          </Link>
+          <button type="button" className={styles.buttonSecondary} onClick={openTour}>
+            Wie funktioniert das?
+          </button>
+        </div>
       </div>
     );
   }
@@ -633,7 +736,7 @@ export function FileBrowser() {
     <div>
       {searchBar}
       {statsBar}
-      <div className={styles.breadcrumb}>
+      <div className={styles.breadcrumb} style={{ marginBottom: 12 }}>
         <span className={styles.breadcrumbLink} onClick={() => navigateTo([])}>
           Meine Notizen
         </span>
@@ -641,7 +744,7 @@ export function FileBrowser() {
           const isLast = index === segments.length - 1;
           return (
             <span key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span>/</span>
+              <span>›</span>
               {isLast ? (
                 <span className={styles.breadcrumbCurrent}>{segment}</span>
               ) : (
@@ -657,68 +760,82 @@ export function FileBrowser() {
         })}
       </div>
 
-      <div className={styles.toolbar}>
-        <div className={styles.hint}>
-          {children.length} {children.length === 1 ? "Eintrag" : "Einträge"}
+      <div className={styles.toolbar} style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div className={styles.segmented} role="group" aria-label="Sortierung">
+            <button
+              className={sortBy === "name" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => {
+                if (sortBy === "name") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                else {
+                  setSortBy("name");
+                  setSortDir("asc");
+                }
+              }}
+            >
+              Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+            </button>
+            <button
+              className={sortBy === "date" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => {
+                if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                else {
+                  setSortBy("date");
+                  setSortDir("desc");
+                }
+              }}
+            >
+              Datum {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+            </button>
+          </div>
+          <div className={styles.segmented} role="group" aria-label="Ansicht">
+            <button
+              className={viewMode === "list" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => setViewMode("list")}
+              title="Liste"
+            >
+              ☰ Liste
+            </button>
+            <button
+              className={viewMode === "grid" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => setViewMode("grid")}
+              title="Raster mit Vorschaubildern"
+            >
+              ▦ Raster
+            </button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            className={styles.smallButton}
-            onClick={() => {
-              if (sortBy === "name") setSortDir(sortDir === "asc" ? "desc" : "asc");
-              else {
-                setSortBy("name");
-                setSortDir("asc");
-              }
-            }}
-          >
-            Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-          </button>
-          <button
-            className={styles.smallButton}
-            onClick={() => {
-              if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
-              else {
-                setSortBy("date");
-                setSortDir("desc");
-              }
-            }}
-          >
-            Datum {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-          </button>
-          <button
-            className={styles.smallButton}
-            onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-          >
-            {viewMode === "list" ? "Rasteransicht" : "Listenansicht"}
-          </button>
-          <a className={styles.smallButtonAccent} href={downloadZipUrl(currentPath)}>
-            Als ZIP herunterladen
-          </a>
-          <a className={styles.smallButton} href={downloadPdfUrl(currentPath)}>
-            Als eine PDF
-          </a>
-          <button className={styles.smallButton} onClick={() => toggleShare(currentPath || ".")}>
-            Diesen Ordner teilen
-          </button>
-        </div>
+        <ActionMenu
+          trigger={<>⬇ Exportieren ▾</>}
+          items={[
+            { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(currentPath) },
+            { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(currentPath) },
+            {
+              label: segments.length ? "Ordner teilen" : "Alles teilen",
+              icon: "📤",
+              onClick: () => toggleShare(currentPath || "."),
+            },
+          ]}
+        />
       </div>
 
       {selected.size > 0 && (
-        <div className={styles.toolbar} style={{ background: "var(--accent-soft)", borderRadius: 8, padding: 10 }}>
-          <div className={styles.hint}>{selected.size} ausgewählt</div>
+        <div className={styles.toolbar} style={{ background: "var(--accent-soft)", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+          <div className={styles.hint} style={{ fontWeight: 600, color: "var(--accent)" }}>
+            {selected.size} ausgewählt
+          </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <a
               className={styles.smallButtonAccent}
               href={downloadZipMultiUrl(Array.from(selected))}
             >
-              Auswahl als ZIP
+              Als ZIP
             </a>
             <button className={styles.smallButton} onClick={() => setBulkSharing(true)}>
-              Auswahl teilen
+              Teilen
             </button>
             <button className={styles.smallButton} onClick={() => setSelected(new Set())}>
-              Auswahl aufheben
+              Aufheben
             </button>
           </div>
         </div>
@@ -737,117 +854,25 @@ export function FileBrowser() {
       )}
 
       {children.length === 0 ? (
-        <div className={styles.emptyState}>Dieser Ordner ist leer.</div>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIllustration}>🗂</div>
+          Dieser Ordner ist leer.
+        </div>
       ) : viewMode === "grid" ? (
         <div className={styles.gridList}>
           {children.map((node) => renderGridItem(node, true))}
         </div>
       ) : (
         <div className={styles.fileList}>
-          {children.map((node) => {
-            if (node.type === "file") return renderFileRow(node, { selectable: true });
-
-            const isFav = favorites.has(node.path);
-            const isRenaming = renamingPath === node.path;
-            const isBusy = busyPath === node.path;
-            return (
-              <Fragment key={node.path}>
-                <div className={styles.fileRow}>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(node.path)}
-                    onChange={() => toggleSelect(node.path)}
-                  />
-                  <div className={styles.fileIcon}>📁</div>
-                  {isRenaming ? (
-                    <div className={styles.fileMain}>
-                      <input
-                        className={styles.input}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") submitRename(node.path);
-                          if (e.key === "Escape") setRenamingPath(null);
-                        }}
-                        autoFocus
-                        style={{ maxWidth: 260 }}
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={styles.fileMainClickable}
-                      onClick={() => navigateTo([...segments, node.name])}
-                    >
-                      <span className={styles.fileNameText}>{node.name}</span>
-                      <span className={styles.fileMeta}>
-                        {node.children?.length ?? 0} Einträge
-                      </span>
-                    </div>
-                  )}
-                  <div className={styles.fileActions}>
-                    {isRenaming ? (
-                      <>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => submitRename(node.path)}
-                          disabled={isBusy}
-                        >
-                          Speichern
-                        </button>
-                        <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
-                          Abbrechen
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => toggleFavorite(node.path)}
-                          title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
-                        >
-                          {isFav ? "★" : "☆"}
-                        </button>
-                        <a className={styles.smallButton} href={downloadZipUrl(node.path)}>
-                          Als ZIP
-                        </a>
-                        <a className={styles.smallButton} href={downloadPdfUrl(node.path)}>
-                          Als PDF
-                        </a>
-                        <button className={styles.smallButton} onClick={() => toggleShare(node.path)}>
-                          Teilen
-                        </button>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => startRename(node.path, node.name)}
-                        >
-                          Umbenennen
-                        </button>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => handleDelete(node.path, true)}
-                          disabled={isBusy}
-                        >
-                          Löschen
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {activeSharePath === node.path && (
-                  <div style={{ padding: "0 16px 16px" }}>
-                    <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
+          {children.map((node) =>
+            node.type === "file"
+              ? renderFileRow(node, { selectable: true })
+              : renderFolderRow(node)
+          )}
         </div>
       )}
 
-      {previewPath && (
-        <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-      )}
-      {versionsModal}
+      {overlays}
     </div>
   );
 }

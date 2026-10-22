@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
-import { SettingsMenu } from "../../../components/SettingsMenu";
 import {
   ApiError,
   disableNotifications,
@@ -107,8 +106,11 @@ export default function BenachrichtigungenPage() {
   if (checking || !settings || !session) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            ← Zurück zu meinen Notizen
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -119,8 +121,11 @@ export default function BenachrichtigungenPage() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          ← Zurück zu meinen Notizen
+        </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Einstellungen</div>
           <h1 className={styles.title}>Backup-Erinnerung</h1>
@@ -208,12 +213,6 @@ export default function BenachrichtigungenPage() {
           </button>
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-          <div style={{ marginTop: 12 }}><SettingsMenu /></div>
-        </section>
       </main>
     </div>
   );

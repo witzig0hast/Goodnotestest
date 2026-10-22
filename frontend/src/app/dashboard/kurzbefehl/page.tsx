@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
-import { SettingsMenu } from "../../../components/SettingsMenu";
 import styles from "../../ui.module.css";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -26,8 +25,11 @@ export default function KurzbefehlPage() {
   if (checking) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            ← Zurück zu meinen Notizen
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -38,8 +40,11 @@ export default function KurzbefehlPage() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          ← Zurück zu meinen Notizen
+        </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Anleitung</div>
           <h1 className={styles.title}>Einzelne Datei per iOS-Kurzbefehl teilen</h1>
@@ -139,12 +144,6 @@ export default function KurzbefehlPage() {
           </div>
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-          <div style={{ marginTop: 12 }}><SettingsMenu /></div>
-        </section>
       </main>
     </div>
   );

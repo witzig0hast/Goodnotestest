@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
-import { SettingsMenu } from "../../../components/SettingsMenu";
 import {
   ApiError,
   fetchCurrentRepository,
@@ -66,8 +65,11 @@ export default function WebdavPage() {
   if (checking || !session) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            ← Zurück zu meinen Notizen
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -82,11 +84,14 @@ export default function WebdavPage() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          ← Zurück zu meinen Notizen
+        </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>WebDAV-Zugang</h1>
+          <h1 className={styles.title}>GoodNotes verbinden</h1>
           <p className={styles.subtitle}>
             Diese Angaben brauchst du, um GoodNotes auf einem (weiteren)
             Gerät einzurichten — jederzeit hier nachzuschlagen, nicht nur
@@ -200,14 +205,6 @@ export default function WebdavPage() {
           )}
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-          <div style={{ marginTop: 12 }}>
-            <SettingsMenu />
-          </div>
-        </section>
       </main>
     </div>
   );

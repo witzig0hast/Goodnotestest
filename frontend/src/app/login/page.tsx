@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
@@ -15,6 +15,8 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
   failed: "Die Anmeldung über den Single-Sign-On-Dienst hat nicht geklappt. Bitte nochmal versuchen.",
 };
 
+const noopSubscribe = () => () => {};
+
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,7 +25,15 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [supportsPasskeys] = useState(() => browserSupportsWebAuthn());
+  // The server render has no WebAuthn — reading it via an external store
+  // with a `false` server snapshot keeps the first client render identical
+  // to the server HTML (computing it in useState caused a hydration error
+  // on every visit to this page).
+  const supportsPasskeys = useSyncExternalStore(
+    noopSubscribe,
+    browserSupportsWebAuthn,
+    () => false
+  );
   const [sso, setSso] = useState<{ enabled: boolean; providerName?: string } | null>(null);
 
   useEffect(() => {
@@ -146,7 +156,9 @@ function LoginPageInner() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 className={styles.input}
+                placeholder="du@beispiel.de"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -160,6 +172,7 @@ function LoginPageInner() {
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 className={styles.input}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

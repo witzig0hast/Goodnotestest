@@ -87,7 +87,7 @@ export function ShareForm({
               </p>
             </div>
           </div>
-          <button className={styles.smallButton} onClick={onClose} style={{ marginTop: 12 }}>
+          <button className={styles.smallButtonAccent} onClick={onClose} style={{ marginTop: 12, alignSelf: "flex-start" }}>
             Fertig
           </button>
         </>

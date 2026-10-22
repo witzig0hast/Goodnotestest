@@ -1,6 +1,7 @@
 "use client";
 
 import { previewFileUrl } from "../lib/api";
+import styles from "../app/ui.module.css";
 
 export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () => void }) {
   return (
@@ -42,21 +43,43 @@ export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () =
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <strong style={{ fontSize: 14 }}>{path.split("/").pop()}</strong>
-          <button
-            onClick={onClose}
+          <strong
             style={{
-              background: "none",
-              border: "none",
-              fontSize: 20,
-              cursor: "pointer",
-              color: "var(--muted)",
-              lineHeight: 1,
+              fontSize: 14,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
-            aria-label="Schließen"
           >
-            ×
-          </button>
+            {path.split("/").pop()}
+          </strong>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {/* Mobile browsers (iOS Safari especially) often only render the
+                first page of an embedded PDF — a full tab shows all of it. */}
+            <a
+              href={previewFileUrl(path)}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.smallButton}
+            >
+              In neuem Tab öffnen
+            </a>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 20,
+                cursor: "pointer",
+                color: "var(--muted)",
+                lineHeight: 1,
+              }}
+              aria-label="Schließen"
+            >
+              ×
+            </button>
+          </div>
         </div>
         <object
           data={previewFileUrl(path)}
@@ -65,7 +88,12 @@ export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () =
         >
           <p style={{ padding: 20 }}>
             Vorschau wird von diesem Browser nicht unterstützt.{" "}
-            <a href={previewFileUrl(path)} target="_blank" rel="noreferrer">
+            <a
+              href={previewFileUrl(path)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}
+            >
               Datei stattdessen öffnen
             </a>
             .

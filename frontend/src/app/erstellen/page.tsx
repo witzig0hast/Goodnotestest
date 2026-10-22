@@ -148,7 +148,7 @@ export default function ErstellenPage() {
                   </button>
                 </div>
                 <span className={styles.hint} style={{ marginTop: 4 }}>
-                  Jetzt notieren — unter „WebDAV-Zugang“ in den Einstellungen
+                  Jetzt notieren — unter Einstellungen → „GoodNotes verbinden“
                   lässt sich bei Bedarf jederzeit ein neues erzeugen, dieses
                   hier aber nie wieder anzeigen.
                 </span>
@@ -287,7 +287,7 @@ export default function ErstellenPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="name">
-                Name (z. B. deine Praxis)
+                Wie soll dein Konto heißen? (optional)
               </label>
               <input
                 id="name"
@@ -306,6 +306,7 @@ export default function ErstellenPage() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 className={styles.input}
                 placeholder="du@beispiel.de"
                 value={email}
@@ -321,6 +322,7 @@ export default function ErstellenPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 className={styles.input}
                 placeholder="Mindestens 8 Zeichen"
                 value={password}

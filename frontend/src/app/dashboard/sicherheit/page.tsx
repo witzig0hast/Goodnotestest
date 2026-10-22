@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
-import { SettingsMenu } from "../../../components/SettingsMenu";
 import {
   ApiError,
   deleteAccount,
@@ -126,8 +125,11 @@ function SicherheitPageInner() {
   if (checking || !session) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            ← Zurück zu meinen Notizen
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -138,8 +140,11 @@ function SicherheitPageInner() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          ← Zurück zu meinen Notizen
+        </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Einstellungen</div>
           <h1 className={styles.title}>Sicherheit</h1>
@@ -265,12 +270,6 @@ function SicherheitPageInner() {
           )}
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-          <div style={{ marginTop: 12 }}><SettingsMenu /></div>
-        </section>
 
         <section className={`${styles.card} ${styles.dangerZone}`}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: "var(--danger)" }}>

@@ -130,8 +130,11 @@ export default function AdminPage() {
   if (checking || !users) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            ← Zurück zu meinen Notizen
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -145,8 +148,11 @@ export default function AdminPage() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          ← Zurück zu meinen Notizen
+        </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Verwaltung</div>
           <h1 className={styles.title}>Neue Konten freischalten</h1>
@@ -287,11 +293,6 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-        </section>
       </main>
     </div>
   );
