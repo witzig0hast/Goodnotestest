@@ -20,6 +20,7 @@ export default function SharePage() {
 
   const [info, setInfo] = useState<ShareInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
@@ -29,7 +30,10 @@ export default function SharePage() {
   useEffect(() => {
     fetchShareInfo(linkId)
       .then(setInfo)
-      .catch(() => setNotFound(true));
+      .catch((err) => {
+        setNotFound(true);
+        if (err instanceof ApiError && /abgerufen/.test(err.message)) setLimitReached(true);
+      });
   }, [linkId]);
 
   async function handleUnlock(e: React.FormEvent) {
@@ -54,10 +58,15 @@ export default function SharePage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <h1 className={styles.title}>Link nicht gefunden</h1>
+            <div className={styles.emptyIllustration}>{limitReached ? "⛔" : "🔗"}</div>
+            <h1 className={styles.title}>
+              {limitReached ? "Download-Limit erreicht" : "Link nicht gefunden"}
+            </h1>
             <p className={styles.subtitle}>
-              Dieser Link ist ungültig oder bereits abgelaufen. Bitte frage die
-              Person, die ihn dir geschickt hat, um einen neuen.
+              {limitReached
+                ? "Dieser Link wurde schon so oft abgerufen, wie die Person, die ihn geteilt hat, erlaubt hat."
+                : "Dieser Link ist ungültig oder bereits abgelaufen."}{" "}
+              Bitte frage die Person, die ihn dir geschickt hat, um einen neuen.
             </p>
           </section>
         </main>
@@ -135,6 +144,12 @@ export default function SharePage() {
             </form>
           )}
 
+          {canDownload && info.downloadsLeft !== null && (
+            <p className={styles.hint} style={{ marginBottom: 12 }}>
+              Noch {info.downloadsLeft} {info.downloadsLeft === 1 ? "Abruf" : "Abrufe"} möglich
+              {isViewablePdf ? " (Ansehen zählt auch)" : ""}.
+            </p>
+          )}
           {canDownload && (
             <div className={styles.actionRowInline}>
               {isViewablePdf && (

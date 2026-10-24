@@ -15,6 +15,10 @@ export interface ShareLinkRecord {
   expiresAt: string | null;
   viewCount: number;
   createdAt: string;
+  notifyOnOpen: boolean;
+  maxDownloads: number | null;
+  downloadCount: number;
+  lastNotifiedAt: string | null;
 }
 
 interface ShareLinkRow {
@@ -24,6 +28,10 @@ interface ShareLinkRow {
   expires_at: string | null;
   view_count: number;
   created_at: string;
+  notify_on_open: number;
+  max_downloads: number | null;
+  download_count: number;
+  last_notified_at: string | null;
 }
 
 interface ShareLinkItemRow {
@@ -50,6 +58,10 @@ function toRecord(row: ShareLinkRow): ShareLinkRecord {
     expiresAt: row.expires_at,
     viewCount: row.view_count,
     createdAt: row.created_at,
+    notifyOnOpen: row.notify_on_open === 1,
+    maxDownloads: row.max_downloads,
+    downloadCount: row.download_count,
+    lastNotifiedAt: row.last_notified_at,
   };
 }
 
@@ -58,6 +70,8 @@ export function createShareLink(input: {
   items: ShareLinkItem[];
   password: string | null;
   expiresInDays: number | null;
+  notifyOnOpen?: boolean;
+  maxDownloads?: number | null;
 }): ShareLinkRecord {
   if (input.items.length === 0) {
     throw new Error("Ein Share-Link braucht mindestens eine Datei oder einen Ordner.");
@@ -72,9 +86,18 @@ export function createShareLink(input: {
 
   const insert = db.transaction(() => {
     db.prepare(
-      `INSERT INTO share_links (id, repository_id, relative_path, is_directory, password_hash, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(id, input.repositoryId, first.relativePath, first.isDirectory ? 1 : 0, passwordHash, expiresAt);
+      `INSERT INTO share_links (id, repository_id, relative_path, is_directory, password_hash, expires_at, notify_on_open, max_downloads)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      id,
+      input.repositoryId,
+      first.relativePath,
+      first.isDirectory ? 1 : 0,
+      passwordHash,
+      expiresAt,
+      input.notifyOnOpen ? 1 : 0,
+      input.maxDownloads ?? null
+    );
 
     const insertItem = db.prepare(
       "INSERT INTO share_link_items (share_id, relative_path, is_directory) VALUES (?, ?, ?)"
@@ -93,6 +116,10 @@ export function createShareLink(input: {
     expiresAt,
     viewCount: 0,
     createdAt: new Date().toISOString(),
+    notifyOnOpen: Boolean(input.notifyOnOpen),
+    maxDownloads: input.maxDownloads ?? null,
+    downloadCount: 0,
+    lastNotifiedAt: null,
   };
 }
 
@@ -128,4 +155,24 @@ export function isShareLinkExpired(link: ShareLinkRecord): boolean {
 export function verifyShareLinkPassword(link: ShareLinkRecord, password: string): boolean {
   if (!link.passwordHash) return true;
   return bcrypt.compareSync(password, link.passwordHash);
+}
+
+/** Counts a download; returns the new count. */
+export function recordShareLinkDownload(id: string): number {
+  db.prepare("UPDATE share_links SET download_count = download_count + 1 WHERE id = ?").run(id);
+  const row = db.prepare("SELECT download_count FROM share_links WHERE id = ?").get(id) as
+    | { download_count: number }
+    | undefined;
+  return row?.download_count ?? 0;
+}
+
+export function isShareLinkExhausted(link: ShareLinkRecord): boolean {
+  return link.maxDownloads !== null && link.downloadCount >= link.maxDownloads;
+}
+
+export function markShareLinkNotified(id: string): void {
+  db.prepare("UPDATE share_links SET last_notified_at = ? WHERE id = ?").run(
+    new Date().toISOString(),
+    id
+  );
 }

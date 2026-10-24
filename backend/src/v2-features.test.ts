@@ -342,3 +342,47 @@ describe("storage quota", () => {
     expect(after.quotaBytes).toBeNull();
   });
 });
+
+describe("share links: open notification and download limit", () => {
+  it("stops serving a link once its download limit is used up", async () => {
+    const repo = await createRepository("Limit-Link");
+    await webdavClientFor(repo).putFileContents("/Skript.pdf", Buffer.from(await makeTestPdf("x")));
+    const { id } = await (
+      await api(repo.cookie, "/api/share", {
+        method: "POST",
+        body: JSON.stringify({ paths: ["Skript.pdf"], maxDownloads: 2 }),
+      })
+    ).json();
+
+    expect((await (await fetch(`${baseUrl}/api/share/${id}`)).json()).downloadsLeft).toBe(2);
+    expect((await fetch(`${baseUrl}/api/share/${id}/download`)).status).toBe(200);
+    expect((await fetch(`${baseUrl}/api/share/${id}/download`)).status).toBe(200);
+    expect((await fetch(`${baseUrl}/api/share/${id}/download`)).status).toBe(410);
+    expect((await fetch(`${baseUrl}/api/share/${id}`)).status).toBe(410);
+
+    const { links } = await (await api(repo.cookie, "/api/share/mine")).json();
+    expect(links[0]).toMatchObject({ maxDownloads: 2, downloadCount: 2, exhausted: true });
+    const { entries } = await (await api(repo.cookie, "/api/activity/log")).json();
+    expect(entries.some((e: { action: string }) => e.action === "share.limit_reached")).toBe(true);
+  });
+
+  it("emails the owner when the link is opened, at most once an hour", async () => {
+    const repo = await createRepository("Benachrichtigung");
+    await webdavClientFor(repo).putFileContents("/Brief.pdf", Buffer.from(await makeTestPdf("x")));
+    expect((await (await api(repo.cookie, "/api/share/options")).json()).emailNotifications).toBe(true);
+    const { id } = await (
+      await api(repo.cookie, "/api/share", {
+        method: "POST",
+        body: JSON.stringify({ paths: ["Brief.pdf"], notifyOnOpen: true }),
+      })
+    ).json();
+
+    const before = receivedEmails.length;
+    await fetch(`${baseUrl}/api/share/${id}`);
+    await fetch(`${baseUrl}/api/share/${id}`);
+    await new Promise((r) => setTimeout(r, 800));
+    const mails = receivedEmails.slice(before).filter((m) => m.to.includes(repo.email));
+    expect(mails).toHaveLength(1);
+    expect(mails[0].subject).toContain("Brief.pdf");
+  });
+});

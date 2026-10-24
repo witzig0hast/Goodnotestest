@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { ApiError, createShareLink } from "../lib/api";
+import { ApiError, createShareLink, fetchShareOptions } from "../lib/api";
 import styles from "../app/ui.module.css";
 
 export function ShareForm({
@@ -22,6 +22,15 @@ export function ShareForm({
   const [link, setLink] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [notifyOnOpen, setNotifyOnOpen] = useState(false);
+  const [maxDownloads, setMaxDownloads] = useState("");
+  const [canNotify, setCanNotify] = useState(false);
+
+  useEffect(() => {
+    fetchShareOptions()
+      .then((o) => setCanNotify(o.emailNotifications))
+      .catch(() => {});
+  }, []);
 
   async function handleCreate() {
     setLoading(true);
@@ -31,6 +40,8 @@ export function ShareForm({
         paths: targetPaths,
         password: password.trim() || undefined,
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
+        notifyOnOpen: canNotify && notifyOnOpen ? true : undefined,
+        maxDownloads: maxDownloads ? Number(maxDownloads) : undefined,
       });
       const url = `${window.location.origin}/s/${res.id}`;
       setLink(url);
@@ -118,7 +129,30 @@ export function ShareForm({
                 style={{ width: 160 }}
               />
             </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Max. Abrufe (optional)</label>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                max={10000}
+                placeholder="Unbegrenzt"
+                value={maxDownloads}
+                onChange={(e) => setMaxDownloads(e.target.value)}
+                style={{ width: 140 }}
+              />
+            </div>
           </div>
+          {canNotify && (
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={notifyOnOpen}
+                onChange={(e) => setNotifyOnOpen(e.target.checked)}
+              />
+              Mich per E-Mail benachrichtigen, wenn jemand den Link öffnet
+            </label>
+          )}
           <div className={styles.actionRowInline}>
             <button className={styles.button} onClick={handleCreate} disabled={loading}>
               {loading ? "Wird erstellt …" : "Link erstellen"}

@@ -271,6 +271,8 @@ export function createShareLink(input: {
   paths: string[];
   password?: string;
   expiresInDays?: number;
+  notifyOnOpen?: boolean;
+  maxDownloads?: number;
 }) {
   return request<CreateShareLinkResponse>("/api/share", {
     method: "POST",
@@ -286,6 +288,14 @@ export interface MyShareLink {
   expired: boolean;
   viewCount: number;
   createdAt: string;
+  notifyOnOpen: boolean;
+  maxDownloads: number | null;
+  downloadCount: number;
+  exhausted: boolean;
+}
+
+export function fetchShareOptions() {
+  return request<{ emailNotifications: boolean }>("/api/share/options");
 }
 
 export function fetchMyShareLinks() {
@@ -388,6 +398,7 @@ export interface ShareInfo {
   type: "file" | "folder" | "bundle";
   items: { name: string; type: "file" | "folder" }[];
   requiresPassword: boolean;
+  downloadsLeft: number | null;
 }
 
 export function fetchShareInfo(id: string) {

@@ -105,7 +105,12 @@ export default function FreigabenPage() {
                   <div className={styles.fileMain}>
                     <span className={styles.fileNameText}>{describeItems(link)}</span>
                     <span className={styles.fileMeta}>
-                      {link.viewCount} {link.viewCount === 1 ? "Aufruf" : "Aufrufe"} ·{" "}
+                      {link.maxDownloads !== null
+                        ? `${link.downloadCount} von ${link.maxDownloads} Abrufen`
+                        : `${link.viewCount} ${link.viewCount === 1 ? "Aufruf" : "Aufrufe"}`}{" "}
+                      ·{" "}
+                      {link.exhausted ? "Limit erreicht · " : ""}
+                      {link.notifyOnOpen ? "🔔 Benachrichtigung an · " : ""}
                       {link.requiresPassword ? "Passwortgeschützt · " : ""}
                       {link.expired
                         ? "Abgelaufen"
