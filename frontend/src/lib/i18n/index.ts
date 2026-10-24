@@ -64,9 +64,24 @@ function interpolate(text: string, vars?: Record<string, string | number>): stri
   );
 }
 
+// Server messages that end in a variable part ("Nicht gefunden: Ordner/x.pdf")
+// can't be looked up exactly — only their fixed beginning is translated.
+const EN_PREFIXES: [string, string][] = [
+  ["Nicht gefunden: ", "Not found: "],
+  ["Dieser Dateityp ist nicht erlaubt. Erlaubt sind: ", "This file type isn't allowed. Allowed are: "],
+];
+
+function lookupEnglish(text: string): string {
+  if (text in en) return en[text];
+  for (const [de, english] of EN_PREFIXES) {
+    if (text.startsWith(de)) return english + text.slice(de.length);
+  }
+  return text;
+}
+
 /** Translates outside of React components (e.g. API error messages). */
 export function translate(text: string, vars?: Record<string, string | number>, locale = getLocale()): string {
-  const source = locale === "en" ? (en[text] ?? text) : text;
+  const source = locale === "en" ? lookupEnglish(text) : text;
   return interpolate(source, vars);
 }
 
