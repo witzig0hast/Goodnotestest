@@ -59,6 +59,12 @@ function isPdf(name: string): boolean {
   return name.toLowerCase().endsWith(".pdf");
 }
 
+// GoodNotes' own backup format: a proprietary archive no browser (and no
+// PDF library) can display — only GoodNotes itself can open it.
+function isGoodnotesFile(name: string): boolean {
+  return name.toLowerCase().endsWith(".goodnotes");
+}
+
 function sortNodes(nodes: TreeNode[], sortBy: SortBy, sortDir: "asc" | "desc"): TreeNode[] {
   const sorted = [...nodes].sort((a, b) => {
     // folders always first, regardless of sort field
@@ -87,6 +93,8 @@ export function FileBrowser() {
   const [activeSharePath, setActiveSharePath] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewPage, setPreviewPage] = useState<number | undefined>(undefined);
+  const [formatHintPath, setFormatHintPath] = useState<string | null>(null);
   const [stats, setStats] = useState<RepositoryStats | null>(null);
 
   const [mode, setMode] = useState<Mode>("browse");
@@ -258,9 +266,15 @@ export function FileBrowser() {
     }
   }
 
-  function openFile(node: { name: string; path: string }) {
-    if (isPdf(node.name)) setPreviewPath(node.path);
-    else window.location.assign(downloadFileUrl(node.path));
+  function openFile(node: { name: string; path: string }, page?: number) {
+    if (isPdf(node.name)) {
+      setPreviewPage(page);
+      setPreviewPath(node.path);
+    } else if (isGoodnotesFile(node.name)) {
+      setFormatHintPath(node.path);
+    } else {
+      window.location.assign(downloadFileUrl(node.path));
+    }
   }
 
   function renderRenameInput(path: string) {
@@ -339,7 +353,9 @@ export function FileBrowser() {
               aria-label={`${node.name} auswählen`}
             />
           )}
-          <div className={styles.fileIcon}>{isPdf(node.name) ? "📄" : "📎"}</div>
+          <div className={styles.fileIcon}>
+            {isPdf(node.name) ? "📄" : isGoodnotesFile(node.name) ? "📓" : "📎"}
+          </div>
           {isRenaming ? (
             <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
           ) : (
@@ -348,7 +364,9 @@ export function FileBrowser() {
               onClick={() => openFile(node)}
               title={isPdf(node.name) ? "Ansehen" : "Herunterladen"}
             >
-              <span className={styles.fileNameText}>{node.name.replace(/\.pdf$/i, "")}</span>
+              <span className={styles.fileNameText}>
+                {node.name.replace(/\.(pdf|goodnotes)$/i, "")}
+              </span>
               <span className={styles.fileMeta}>
                 {mode !== "browse" ? `${node.path} · ` : ""}
                 {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
@@ -622,7 +640,45 @@ export function FileBrowser() {
 
   const overlays = (
     <>
-      {previewPath && <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />}
+      {previewPath && (
+        <PdfPreviewModal
+          path={previewPath}
+          initialPage={previewPage}
+          onClose={() => setPreviewPath(null)}
+        />
+      )}
+      {formatHintPath && (
+        <div className={styles.modalOverlay} onClick={() => setFormatHintPath(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.emptyIllustration} style={{ textAlign: "center" }}>
+              📓
+            </div>
+            <h2 className={styles.sectionTitle} style={{ marginBottom: 8 }}>
+              Das ist eine GoodNotes-Datei, kein PDF
+            </h2>
+            <p className={styles.hint} style={{ marginBottom: 12, fontSize: 14 }}>
+              „{formatHintPath.split("/").pop()}“ liegt im GoodNotes-eigenen Format
+              vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es
+              anzeigen.
+            </p>
+            <p className={styles.hint} style={{ marginBottom: 20, fontSize: 14 }}>
+              <strong style={{ color: "var(--foreground)" }}>So klappt die Vorschau:</strong>{" "}
+              Stell in GoodNotes unter Einstellungen → Backup das{" "}
+              <strong style={{ color: "var(--foreground)" }}>Backup-Format auf „PDF“</strong>{" "}
+              um. Ab dem nächsten Backup kannst du alle Notizen hier ansehen und
+              durchsuchen.
+            </p>
+            <div className={styles.actionRowInline}>
+              <a className={styles.buttonSecondary} href={downloadFileUrl(formatHintPath)}>
+                Trotzdem herunterladen
+              </a>
+              <button className={styles.button} onClick={() => setFormatHintPath(null)}>
+                Verstanden
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {versionsModal}
     </>
   );

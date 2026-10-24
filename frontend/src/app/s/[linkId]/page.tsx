@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
+import { PdfViewer } from "../../../components/PdfViewer";
 import {
   ApiError,
   fetchShareInfo,
@@ -23,6 +24,7 @@ export default function SharePage() {
   const [token, setToken] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
 
   useEffect(() => {
     fetchShareInfo(linkId)
@@ -77,6 +79,7 @@ export default function SharePage() {
   }
 
   const canDownload = !info.requiresPassword || Boolean(token);
+  const isViewablePdf = info.type === "file" && info.name.toLowerCase().endsWith(".pdf");
 
   return (
     <div className={styles.shell}>
@@ -133,13 +136,27 @@ export default function SharePage() {
           )}
 
           {canDownload && (
-            <a
-              className={styles.button}
-              href={shareDownloadUrl(linkId, token ?? undefined)}
-              style={{ display: "inline-flex" }}
-            >
-              {info.type === "file" ? "Herunterladen" : "Als ZIP herunterladen"}
-            </a>
+            <div className={styles.actionRowInline}>
+              {isViewablePdf && (
+                <button className={styles.button} onClick={() => setViewing(true)}>
+                  Ansehen
+                </button>
+              )}
+              <a
+                className={isViewablePdf ? styles.buttonSecondary : styles.button}
+                href={shareDownloadUrl(linkId, token ?? undefined)}
+              >
+                {info.type === "file" ? "Herunterladen" : "Als ZIP herunterladen"}
+              </a>
+            </div>
+          )}
+          {viewing && (
+            <PdfViewer
+              url={shareDownloadUrl(linkId, token ?? undefined)}
+              title={info.name}
+              downloadUrl={shareDownloadUrl(linkId, token ?? undefined)}
+              onClose={() => setViewing(false)}
+            />
           )}
         </section>
       </main>

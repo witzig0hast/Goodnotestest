@@ -1352,3 +1352,160 @@ button.checklistItem {
 .backLink:hover {
   color: var(--accent);
 }
+
+/* --- PDF viewer (pdf.js) --- */
+
+.pdfViewerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: #3a3b3d;
+  animation: fadeIn 0.15s ease backwards;
+}
+
+.pdfToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 1;
+}
+
+.pdfTitle {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pdfPageCounter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pdfZoomLabel {
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  min-width: 52px;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfZoomLabel:hover {
+  background: var(--accent-soft);
+}
+
+.pdfBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.pdfThumbs {
+  width: 150px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #2e2f31;
+}
+
+.pdfThumb {
+  border: 2px solid transparent;
+  background: none;
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #c9c7c0;
+  font-size: 12px;
+}
+
+.pdfThumb canvas {
+  width: 100%;
+  min-height: 60px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.pdfThumbActive {
+  composes: pdfThumb;
+  color: white;
+}
+
+.pdfThumbActive canvas {
+  outline: 3px solid #6fae9c;
+  outline-offset: 1px;
+}
+
+.pdfScroll {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  /* flex-start + auto margins on the pages instead of align-items: center:
+     a centered page wider than the screen (zoomed in) would overflow to
+     the left, where it can't be scrolled to. */
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.pdfPage {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdfPage canvas {
+  display: block;
+  transition: opacity 0.15s ease;
+}
+
+.pdfMessage {
+  margin: auto;
+  text-align: center;
+  color: #e7e5df;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .pdfScroll {
+    padding: 8px;
+    gap: 8px;
+  }
+}
