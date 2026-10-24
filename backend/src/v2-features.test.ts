@@ -392,7 +392,7 @@ describe("upload links", () => {
     return fetch(`${baseUrl}/api/upload-links/${id}/files${token ? `?token=${token}` : ""}`, {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(name) },
-      body,
+      body: body as unknown as BodyInit,
     });
   }
 
@@ -468,5 +468,55 @@ describe("upload links", () => {
       await api(repo.cookie, "/api/upload-links", { method: "POST", body: JSON.stringify({ path: "" }) })
     ).json();
     expect((await uploadVia(id, "gross.pdf", Buffer.alloc(1200 * 1024, 1))).status).toBe(507);
+  });
+});
+
+describe("tags", () => {
+  it("creates tags, assigns them across folders and follows renames", async () => {
+    const repo = await createRepository("Tags");
+    const client = webdavClientFor(repo);
+    await client.createDirectory("/Mathe");
+    await client.createDirectory("/Physik");
+    await client.putFileContents("/Mathe/A.pdf", Buffer.from(await makeTestPdf("A")));
+    await client.putFileContents("/Physik/B.pdf", Buffer.from(await makeTestPdf("B")));
+
+    const tag = await (
+      await api(repo.cookie, "/api/tags", { method: "POST", body: JSON.stringify({ name: "Prüfung", color: "red" }) })
+    ).json();
+    expect(
+      (await api(repo.cookie, "/api/tags", { method: "POST", body: JSON.stringify({ name: "Prüfung", color: "blue" }) }))
+        .status
+    ).toBe(409);
+
+    for (const path of ["Mathe/A.pdf", "Physik"]) {
+      expect(
+        (await api(repo.cookie, `/api/tags/${tag.id}/assign`, { method: "POST", body: JSON.stringify({ path }) })).status
+      ).toBe(204);
+    }
+    expect(
+      (await api(repo.cookie, `/api/tags/${tag.id}/assign`, { method: "POST", body: JSON.stringify({ path: "Gibts/nicht.pdf" }) }))
+        .status
+    ).toBe(400);
+
+    await api(repo.cookie, "/api/files/rename", { method: "POST", body: JSON.stringify({ path: "Physik", newName: "Physik 1" }) });
+    const { assignments } = await (await api(repo.cookie, "/api/tags")).json();
+    expect(assignments).toEqual({ "Mathe/A.pdf": [tag.id], "Physik 1": [tag.id] });
+
+    await api(repo.cookie, `/api/tags/${tag.id}/assign`, { method: "DELETE", body: JSON.stringify({ path: "Mathe/A.pdf" }) });
+    await api(repo.cookie, `/api/tags/${tag.id}`, { method: "DELETE" });
+    expect(await (await api(repo.cookie, "/api/tags")).json()).toEqual({ tags: [], assignments: {} });
+  });
+
+  it("can't touch another account's tags", async () => {
+    const a = await createRepository("Tags A");
+    const b = await createRepository("Tags B");
+    await webdavClientFor(b).putFileContents("/x.pdf", Buffer.from(await makeTestPdf("x")));
+    const tag = await (
+      await api(a.cookie, "/api/tags", { method: "POST", body: JSON.stringify({ name: "Privat", color: "green" }) })
+    ).json();
+    expect(
+      (await api(b.cookie, `/api/tags/${tag.id}/assign`, { method: "POST", body: JSON.stringify({ path: "x.pdf" }) })).status
+    ).toBe(404);
+    expect((await api(b.cookie, `/api/tags/${tag.id}`, { method: "DELETE" })).status).toBe(404);
   });
 });

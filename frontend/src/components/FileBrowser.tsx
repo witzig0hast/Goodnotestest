@@ -14,6 +14,10 @@ import {
   fetchFavorites,
   fetchStats,
   fetchTrash,
+  fetchTags,
+  assignTag,
+  unassignTag,
+  type Tag,
   restoreTrashItem,
   fetchTree,
   fetchVersions,
@@ -35,11 +39,12 @@ import { openTour } from "./WelcomeTour";
 import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
 import { UploadLinkForm } from "./UploadLinkForm";
+import { TagChip, TagPicker } from "./TagPicker";
 import styles from "../app/ui.module.css";
 
 type SortBy = "name" | "date";
 type ViewMode = "list" | "grid";
-type Mode = "browse" | "favorites" | "search" | "recent";
+type Mode = "browse" | "favorites" | "search" | "recent" | "tag";
 
 interface Toast {
   text: string;
@@ -53,6 +58,15 @@ function findChildrenAtPath(tree: TreeNode[], segments: string[]): TreeNode[] | 
   const match = tree.find((node) => node.type === "folder" && node.name === head);
   if (!match || !match.children) return null;
   return findChildrenAtPath(match.children, rest);
+}
+
+function flattenAll(nodes: TreeNode[]): TreeNode[] {
+  const all: TreeNode[] = [];
+  for (const node of nodes) {
+    all.push(node);
+    if (node.children) all.push(...flattenAll(node.children));
+  }
+  return all;
 }
 
 function flattenFiles(nodes: TreeNode[]): TreeNode[] {
@@ -108,6 +122,10 @@ export function FileBrowser() {
   const [stats, setStats] = useState<RepositoryStats | null>(null);
 
   const [mode, setMode] = useState<Mode>("browse");
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagAssignments, setTagAssignments] = useState<Record<string, string[]>>({});
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [tagPickerPath, setTagPickerPath] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -145,8 +163,60 @@ export function FileBrowser() {
     fetchFavorites()
       .then((res) => setFavorites(new Set(res.paths)))
       .catch(() => {});
+    fetchTags()
+      .then((res) => {
+        setTags(res.tags);
+        setTagAssignments(res.assignments);
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function tagsFor(path: string): Tag[] {
+    const ids = tagAssignments[path] ?? [];
+    return tags.filter((t) => ids.includes(t.id));
+  }
+
+  function renderTags(path: string) {
+    const list = tagsFor(path);
+    if (list.length === 0) return null;
+    return (
+      <span className={styles.tagRow}>
+        {list.map((t) => (
+          <TagChip key={t.id} tag={t} small />
+        ))}
+      </span>
+    );
+  }
+
+  async function toggleTag(path: string, tagId: string, on: boolean) {
+    const apply = (add: boolean) =>
+      setTagAssignments((current) => {
+        const ids = new Set(current[path] ?? []);
+        if (add) ids.add(tagId);
+        else ids.delete(tagId);
+        return { ...current, [path]: Array.from(ids) };
+      });
+    apply(on);
+    try {
+      if (on) await assignTag(tagId, path);
+      else await unassignTag(tagId, path);
+    } catch {
+      apply(!on);
+    }
+  }
+
+  function handleTagsChanged(next: Tag[]) {
+    setTags(next);
+    const ids = new Set(next.map((t) => t.id));
+    setTagAssignments((current) =>
+      Object.fromEntries(Object.entries(current).map(([p, list]) => [p, list.filter((id) => ids.has(id))]))
+    );
+    if (activeTagId && !ids.has(activeTagId)) {
+      setActiveTagId(null);
+      setMode("browse");
+    }
+  }
 
   useEffect(() => {
     setSelected(new Set());
@@ -367,6 +437,7 @@ export function FileBrowser() {
       { label: "Herunterladen", icon: "⬇", href: downloadFileUrl(node.path) },
       { label: "Teilen", icon: "📤", onClick: () => toggleShare(node.path) },
       { label: "Ältere Versionen", icon: "🕓", onClick: () => openVersions(node.path) },
+      { label: "Tags …", icon: "🏷", onClick: () => setTagPickerPath(node.path) },
       { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
@@ -407,6 +478,7 @@ export function FileBrowser() {
                 {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
                 {node.modifiedAt ? formatDate(node.modifiedAt) : ""}
               </span>
+              {renderTags(node.path)}
               {options.snippet && (
                 <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
                   „…{options.snippet}…“
@@ -452,6 +524,7 @@ export function FileBrowser() {
           setUploadLinkPath(node.path);
         },
       },
+      { label: "Tags …", icon: "🏷", onClick: () => setTagPickerPath(node.path) },
       { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
@@ -465,12 +538,14 @@ export function FileBrowser() {
     return (
       <Fragment key={node.path}>
         <div className={styles.fileRow}>
-          <input
-            type="checkbox"
-            checked={selected.has(node.path)}
-            onChange={() => toggleSelect(node.path)}
-            aria-label={`${node.name} auswählen`}
-          />
+          {mode === "browse" && (
+            <input
+              type="checkbox"
+              checked={selected.has(node.path)}
+              onChange={() => toggleSelect(node.path)}
+              aria-label={`${node.name} auswählen`}
+            />
+          )}
           <div className={styles.fileIconFolder}>📁</div>
           {isRenaming ? (
             <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
@@ -481,8 +556,10 @@ export function FileBrowser() {
             >
               <span className={styles.fileNameText}>{node.name}</span>
               <span className={styles.fileMeta}>
+                {mode !== "browse" ? `${node.path} · ` : ""}
                 {count} {count === 1 ? "Eintrag" : "Einträge"}
               </span>
+              {renderTags(node.path)}
             </div>
           )}
           {!isRenaming && (
@@ -610,6 +687,28 @@ export function FileBrowser() {
         >
           🕓 Neu (7 Tage)
         </button>
+        {tags.map((tag) => {
+          const active = mode === "tag" && activeTagId === tag.id;
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              className={active ? styles.chipActive : styles.chip}
+              data-color={tag.color}
+              onClick={() => {
+                if (active) {
+                  setMode("browse");
+                  setActiveTagId(null);
+                } else {
+                  setActiveTagId(tag.id);
+                  setMode("tag");
+                }
+              }}
+            >
+              {tag.name}
+            </button>
+          );
+        })}
       </div>
     </>
   );
@@ -702,6 +801,16 @@ export function FileBrowser() {
 
   const overlays = (
     <>
+      {tagPickerPath && (
+        <TagPicker
+          path={tagPickerPath}
+          tags={tags}
+          assigned={tagAssignments[tagPickerPath] ?? []}
+          onToggle={(tagId, on) => toggleTag(tagPickerPath, tagId, on)}
+          onTagsChanged={handleTagsChanged}
+          onClose={() => setTagPickerPath(null)}
+        />
+      )}
       {toast && (
         <div className={styles.toast} role="status">
           <span>{toast.text}</span>
@@ -801,6 +910,32 @@ export function FileBrowser() {
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}>⭐</div>
             Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.
+          </div>
+        )}
+        {overlays}
+      </div>
+    );
+  }
+
+  if (mode === "tag" && activeTagId) {
+    const tag = tags.find((t) => t.id === activeTagId);
+    const tagged = flattenAll(tree).filter((n) => (tagAssignments[n.path] ?? []).includes(activeTagId));
+    return (
+      <div>
+        {searchBar}
+        <div className={styles.toolbar}>
+          <div className={styles.hint}>
+            {tagged.length} {tagged.length === 1 ? "Eintrag" : "Einträge"} mit „{tag?.name}“
+          </div>
+        </div>
+        {tagged.length > 0 ? (
+          <div className={styles.fileList}>
+            {tagged.map((n) => (n.type === "folder" ? renderFolderRow(n) : renderFileRow(n)))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}>🏷</div>
+            Noch nichts mit diesem Tag — vergib ihn über „⋯“ → „Tags …“.
           </div>
         )}
         {overlays}

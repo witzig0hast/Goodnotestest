@@ -196,3 +196,14 @@ h3 {
     scroll-behavior: auto !important;
   }
 }
+
+/* Tag colors, used via data-color="…" on tag chips, swatches and filter
+   chips (kept global: CSS modules don't allow bare attribute selectors). */
+[data-color="green"] { --tag: #3f8f6b; }
+[data-color="blue"] { --tag: #3d74c4; }
+[data-color="purple"] { --tag: #8458c4; }
+[data-color="pink"] { --tag: #c4589a; }
+[data-color="red"] { --tag: #c94c3c; }
+[data-color="orange"] { --tag: #d4782a; }
+[data-color="yellow"] { --tag: #c9a227; }
+[data-color="gray"] { --tag: #8a877f; }

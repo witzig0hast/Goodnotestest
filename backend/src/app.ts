@@ -18,6 +18,7 @@ import { webauthnRouter } from "./routes/webauthn.js";
 import { trashRouter } from "./routes/trash.js";
 import { activityRouter } from "./routes/activity.js";
 import { uploadLinksRouter } from "./routes/upload-links.js";
+import { tagsRouter } from "./routes/tags.js";
 
 export function createApp() {
   const app = express();
@@ -80,6 +81,7 @@ export function createApp() {
   api.use("/trash", trashRouter);
   api.use("/activity", activityRouter);
   api.use("/upload-links", uploadLinksRouter);
+  api.use("/tags", tagsRouter);
 
   app.use("/api", api);
 

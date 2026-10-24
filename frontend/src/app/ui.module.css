@@ -1783,3 +1783,97 @@ button.checklistItem {
   background: var(--accent-soft);
   transform: scale(1.01);
 }
+
+/* --- Tags --- */
+
+.tagChip {
+  --tag: #5b8f7f;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--tag) 16%, transparent);
+  white-space: nowrap;
+}
+
+.tagChip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tag);
+}
+
+.tagChipSmall {
+  composes: tagChip;
+  font-size: 11px;
+  padding: 1px 7px 1px 6px;
+}
+
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.tagPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.tagPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.tagPickerRow:hover {
+  background: var(--accent-soft);
+}
+
+.colorSwatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--tag);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+}
+
+.colorSwatchActive {
+  composes: colorSwatch;
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--tag);
+}
+
+.chip[data-color]::before,
+.chipActive[data-color]::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tag);
+}

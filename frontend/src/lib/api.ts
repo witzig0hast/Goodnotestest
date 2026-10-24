@@ -647,3 +647,34 @@ export function uploadViaLink(
     xhr.send(file);
   });
 }
+
+// --- Tags ---
+
+export const TAG_COLORS = ["green", "blue", "purple", "pink", "red", "orange", "yellow", "gray"] as const;
+export type TagColor = (typeof TAG_COLORS)[number];
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: TagColor;
+}
+
+export function fetchTags() {
+  return request<{ tags: Tag[]; assignments: Record<string, string[]> }>("/api/tags");
+}
+
+export function createTag(name: string, color: TagColor) {
+  return request<Tag>("/api/tags", { method: "POST", body: JSON.stringify({ name, color }) });
+}
+
+export function deleteTag(id: string) {
+  return request<void>(`/api/tags/${id}`, { method: "DELETE" });
+}
+
+export function assignTag(id: string, path: string) {
+  return request<void>(`/api/tags/${id}/assign`, { method: "POST", body: JSON.stringify({ path }) });
+}
+
+export function unassignTag(id: string, path: string) {
+  return request<void>(`/api/tags/${id}/assign`, { method: "DELETE", body: JSON.stringify({ path }) });
+}
