@@ -464,14 +464,19 @@ export function FileBrowser() {
           {node.type === "folder" ? (
             "📁"
           ) : isPdf(node.name) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- backend-generated thumbnail, not a static asset
-            <img
-              src={thumbnailUrl(node.path)}
-              alt=""
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
+            <>
+              {/* Stays visible underneath while the thumbnail is still being
+                  rendered (first view of a PDF takes a moment) or if it fails. */}
+              📄
+              {/* eslint-disable-next-line @next/next/no-img-element -- backend-generated thumbnail, not a static asset */}
+              <img
+                src={thumbnailUrl(node.path)}
+                alt=""
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </>
           ) : (
             "📄"
           )}

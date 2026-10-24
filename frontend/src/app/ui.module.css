@@ -908,12 +908,18 @@
   justify-content: center;
   font-size: 32px;
   overflow: hidden;
+  position: relative;
 }
 
 .gridThumb img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top;
+  background: white;
+  animation: fadeIn 0.25s ease backwards;
 }
 
 .gridName {
