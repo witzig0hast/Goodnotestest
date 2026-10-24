@@ -1877,3 +1877,29 @@ button.checklistItem {
   border-radius: 50%;
   background: var(--tag);
 }
+
+.langSwitch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+}
+
+.langSwitchItem {
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 5px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.langSwitchActive {
+  composes: langSwitchItem;
+  background: var(--accent);
+  color: white;
+}

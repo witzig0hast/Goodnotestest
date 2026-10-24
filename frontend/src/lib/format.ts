@@ -10,8 +10,10 @@ export function formatFileSize(bytes: number): string {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unitIndex]}`;
 }
 
+import { intlLocale, translate } from "./i18n";
+
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", {
+  return new Date(iso).toLocaleDateString(intlLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -19,7 +21,7 @@ export function formatDate(iso: string): string {
 }
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("de-DE", {
+  return new Date(iso).toLocaleString(intlLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -31,8 +33,8 @@ export function formatDateTime(iso: string): string {
 /** "vor 3 Minuten", "gestern", … — for status lines where the exact time matters less. */
 export function formatRelative(iso: string): string {
   const diffSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const rtf = new Intl.RelativeTimeFormat("de-DE", { numeric: "auto" });
-  if (diffSeconds < 60) return "gerade eben";
+  const rtf = new Intl.RelativeTimeFormat(intlLocale(), { numeric: "auto" });
+  if (diffSeconds < 60) return translate("gerade eben");
   if (diffSeconds < 3600) return rtf.format(-Math.round(diffSeconds / 60), "minute");
   if (diffSeconds < 86400) return rtf.format(-Math.round(diffSeconds / 3600), "hour");
   return rtf.format(-Math.round(diffSeconds / 86400), "day");

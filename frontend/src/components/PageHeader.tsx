@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "./AppNav";
+import { LanguageSwitch } from "./LanguageSwitch";
 import styles from "../app/ui.module.css";
 
 // `app` switches to the logged-in variant: the logo leads back to the
@@ -13,7 +14,7 @@ export function PageHeader({ app = false }: { app?: boolean }) {
         <div className={styles.logoMark}>G</div>
         <div className={styles.logoText}>GoodShare</div>
       </Link>
-      {app && <AppNav />}
+      {app ? <AppNav /> : <LanguageSwitch />}
     </header>
   );
 }

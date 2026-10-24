@@ -5,6 +5,8 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
+import { translate } from "./i18n";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -23,7 +25,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(body.error ?? "Etwas ist schiefgelaufen.");
+    // The server answers in German; show its message in the UI language.
+    throw new ApiError(translate(body.error ?? "Etwas ist schiefgelaufen."));
   }
 
   return body as T;
@@ -652,10 +655,10 @@ export function uploadViaLink(
         // non-JSON error page (e.g. a proxy's 413)
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve({ name: body.name ?? file.name });
-      else if (xhr.status === 413) reject(new ApiError("Die Datei ist zu groß."));
-      else reject(new ApiError(body.error ?? "Hochladen ist fehlgeschlagen."));
+      else if (xhr.status === 413) reject(new ApiError(translate("Die Datei ist zu groß.")));
+      else reject(new ApiError(translate(body.error ?? "Hochladen ist fehlgeschlagen.")));
     };
-    xhr.onerror = () => reject(new ApiError("Keine Verbindung zum Server."));
+    xhr.onerror = () => reject(new ApiError(translate("Keine Verbindung zum Server.")));
     xhr.send(file);
   });
 }

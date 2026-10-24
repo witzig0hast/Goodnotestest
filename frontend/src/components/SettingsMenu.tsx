@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { setLocale, useLocale, useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 const ITEMS = [
@@ -23,6 +24,8 @@ export function SettingsMenu({
   isAdmin?: boolean;
   onLogout?: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -55,13 +58,13 @@ export function SettingsMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        title="Einstellungen"
+        title={t("Einstellungen")}
       >
-        ⚙️ <span className={styles.navLabel}>Einstellungen</span>
+        ⚙️ <span className={styles.navLabel}>{t("Einstellungen")}</span>
       </button>
       {open && (
         <div className={styles.menuPanel} role="menu">
-          <div className={styles.menuHeading}>Einstellungen</div>
+          <div className={styles.menuHeading}>{t("Einstellungen")}</div>
           {ITEMS.map((item) => (
             <Link
               key={item.href}
@@ -72,7 +75,7 @@ export function SettingsMenu({
               style={pathname === item.href ? { color: "var(--accent)" } : undefined}
             >
               <span className={styles.menuIcon}>{item.icon}</span>
-              {item.label}
+              {t(item.label)}
             </Link>
           ))}
           {isAdmin && (
@@ -85,10 +88,20 @@ export function SettingsMenu({
                 role="menuitem"
               >
                 <span className={styles.menuIcon}>👑</span>
-                Verwaltung
+                {t("Verwaltung")}
               </Link>
             </>
           )}
+          <div className={styles.menuDivider} />
+          <button
+            type="button"
+            className={styles.menuItem}
+            role="menuitem"
+            onClick={() => setLocale(locale === "de" ? "en" : "de")}
+          >
+            <span className={styles.menuIcon}>🌐</span>
+            {locale === "de" ? "English" : "Deutsch"}
+          </button>
           {onLogout && (
             <>
               <div className={styles.menuDivider} />
@@ -102,7 +115,7 @@ export function SettingsMenu({
                 }}
               >
                 <span className={styles.menuIcon}>↩</span>
-                Abmelden
+                {t("Abmelden")}
               </button>
             </>
           )}
