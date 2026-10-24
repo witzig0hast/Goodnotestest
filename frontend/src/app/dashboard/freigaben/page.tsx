@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
+import { UploadLinkList } from "../../../components/UploadLinkList";
 import {
   ApiError,
   fetchCurrentRepository,
@@ -87,7 +88,7 @@ export default function FreigabenPage() {
         </Link>
         <section className={styles.card}>
           <div className={styles.eyebrow}>Verwaltung</div>
-          <h1 className={styles.title}>Meine Freigabe-Links</h1>
+          <h1 className={styles.title}>Meine Freigaben</h1>
           <p className={styles.subtitle}>
             Alle Links, die du erstellt hast — mit Aufrufzähler und der
             Möglichkeit, sie jederzeit wieder zu widerrufen.
@@ -135,6 +136,13 @@ export default function FreigabenPage() {
           )}
         </section>
 
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>Upload-Links</h2>
+          <p className={styles.hint} style={{ marginBottom: 16 }}>
+            Über diese Links können andere dir Dateien in einen Ordner schicken.
+          </p>
+          <UploadLinkList />
+        </section>
       </main>
     </div>
   );

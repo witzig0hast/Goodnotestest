@@ -554,3 +554,96 @@ export interface BackupDay {
 export function fetchBackupDays(days = 182) {
   return request<{ days: BackupDay[] }>(`/api/activity/backups?days=${days}`);
 }
+
+// --- Upload links: others can drop files into one of your folders ---
+
+export function createUploadLink(input: {
+  path: string;
+  label?: string;
+  password?: string;
+  expiresInDays?: number;
+  maxFiles?: number;
+  notifyOwner?: boolean;
+}) {
+  return request<{ id: string }>("/api/upload-links", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface MyUploadLink {
+  id: string;
+  relativePath: string;
+  label: string | null;
+  requiresPassword: boolean;
+  expiresAt: string | null;
+  expired: boolean;
+  maxFiles: number | null;
+  uploadCount: number;
+  full: boolean;
+  createdAt: string;
+}
+
+export function fetchMyUploadLinks() {
+  return request<{ links: MyUploadLink[] }>("/api/upload-links/mine");
+}
+
+export function revokeUploadLink(id: string) {
+  return request<void>(`/api/upload-links/${id}`, { method: "DELETE" });
+}
+
+export interface UploadLinkInfo {
+  label: string | null;
+  ownerName: string;
+  folderName: string;
+  requiresPassword: boolean;
+  filesLeft: number | null;
+  maxFileMb: number;
+  allowedExtensions: string[];
+}
+
+export function fetchUploadLinkInfo(id: string) {
+  return request<UploadLinkInfo>(`/api/upload-links/${id}`);
+}
+
+export function unlockUploadLink(id: string, password: string) {
+  return request<{ token: string }>(`/api/upload-links/${id}/unlock`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+/**
+ * Uploads one file via XMLHttpRequest rather than fetch(), because only
+ * XHR reports upload progress — the upload page shows a bar per file.
+ */
+export function uploadViaLink(
+  id: string,
+  file: File,
+  token: string | null,
+  onProgress: (fraction: number) => void
+): Promise<{ name: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+    xhr.open("POST", `${API_BASE_URL}/api/upload-links/${id}/files${suffix}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: { name?: string; error?: string } = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON error page (e.g. a proxy's 413)
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve({ name: body.name ?? file.name });
+      else if (xhr.status === 413) reject(new ApiError("Die Datei ist zu groß."));
+      else reject(new ApiError(body.error ?? "Hochladen ist fehlgeschlagen."));
+    };
+    xhr.onerror = () => reject(new ApiError("Keine Verbindung zum Server."));
+    xhr.send(file);
+  });
+}

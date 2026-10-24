@@ -144,3 +144,22 @@ export function verifyShareUnlockToken(token: string): ShareUnlockPayload | null
     return null;
   }
 }
+
+// Same idea as the share unlock token, for password-protected upload
+// links — a separate payload key so one can never stand in for the other.
+export interface UploadUnlockPayload {
+  uploadLinkId: string;
+}
+
+export function signUploadUnlockToken(payload: UploadUnlockPayload): string {
+  return jwt.sign(payload, config.jwtSecret, { expiresIn: "2h" });
+}
+
+export function verifyUploadUnlockToken(token: string): UploadUnlockPayload | null {
+  try {
+    const payload = jwt.verify(token, config.jwtSecret) as Partial<UploadUnlockPayload>;
+    return typeof payload.uploadLinkId === "string" ? { uploadLinkId: payload.uploadLinkId } : null;
+  } catch {
+    return null;
+  }
+}

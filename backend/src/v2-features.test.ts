@@ -386,3 +386,87 @@ describe("share links: open notification and download limit", () => {
     expect(mails[0].subject).toContain("Brief.pdf");
   });
 });
+
+describe("upload links", () => {
+  async function uploadVia(id: string, name: string, body: Uint8Array | Buffer, token?: string) {
+    return fetch(`${baseUrl}/api/upload-links/${id}/files${token ? `?token=${token}` : ""}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(name) },
+      body,
+    });
+  }
+
+  it("lets anyone with the link drop files into the folder, without seeing it", async () => {
+    const repo = await createRepository("Upload");
+    const client = webdavClientFor(repo);
+    await client.createDirectory("/Uni");
+    await client.putFileContents("/Uni/Geheim.pdf", Buffer.from(await makeTestPdf("x")));
+
+    const { id } = await (
+      await api(repo.cookie, "/api/upload-links", {
+        method: "POST",
+        body: JSON.stringify({ path: "Uni", label: "Folien Woche 3", maxFiles: 2 }),
+      })
+    ).json();
+
+    const info = await (await fetch(`${baseUrl}/api/upload-links/${id}`)).json();
+    expect(info).toMatchObject({ folderName: "Uni", label: "Folien Woche 3", filesLeft: 2, ownerName: "Upload" });
+    expect(JSON.stringify(info)).not.toContain("Geheim");
+
+    const pdf = await makeTestPdf("Folien");
+    expect((await uploadVia(id, "Folien Ü.pdf", pdf)).status).toBe(201);
+    const second = await uploadVia(id, "Folien Ü.pdf", pdf);
+    expect(await second.json()).toEqual({ name: "Folien Ü (2).pdf" });
+    expect((await uploadVia(id, "drei.pdf", pdf)).status).toBe(409);
+
+    expect(await client.exists("/Uni/Folien Ü.pdf")).toBe(true);
+    expect(await client.exists("/Uni/Folien Ü (2).pdf")).toBe(true);
+    const { entries } = await (await api(repo.cookie, "/api/activity/log")).json();
+    expect(entries.filter((e: { action: string }) => e.action === "upload_link.upload")).toHaveLength(2);
+  });
+
+  it("rejects dangerous file types and path tricks", async () => {
+    const repo = await createRepository("Upload Typen");
+    const { id } = await (
+      await api(repo.cookie, "/api/upload-links", { method: "POST", body: JSON.stringify({ path: "" }) })
+    ).json();
+    expect((await uploadVia(id, "boese.html", Buffer.from("<script>"))).status).toBe(415);
+    expect((await uploadVia(id, "../ausbruch.pdf", Buffer.from("x"))).status).toBe(400);
+    expect((await uploadVia(id, ".versteckt.pdf", Buffer.from("x"))).status).toBe(400);
+  });
+
+  it("requires the password when the link has one, and stops working once revoked", async () => {
+    const repo = await createRepository("Upload Passwort");
+    const { id } = await (
+      await api(repo.cookie, "/api/upload-links", {
+        method: "POST",
+        body: JSON.stringify({ path: "", password: "geheim" }),
+      })
+    ).json();
+    const pdf = await makeTestPdf("x");
+    expect((await uploadVia(id, "a.pdf", pdf)).status).toBe(401);
+
+    const unlock = await fetch(`${baseUrl}/api/upload-links/${id}/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "geheim" }),
+    });
+    const { token } = await unlock.json();
+    expect((await uploadVia(id, "a.pdf", pdf, token)).status).toBe(201);
+
+    expect((await api(repo.cookie, `/api/upload-links/${id}`, { method: "DELETE" })).status).toBe(204);
+    expect((await fetch(`${baseUrl}/api/upload-links/${id}`)).status).toBe(404);
+  });
+
+  it("respects the owner's storage limit", async () => {
+    const repo = await createRepository("Upload Limit");
+    await api(adminCookie, `/api/admin/users/${repo.repositoryId}/quota`, {
+      method: "POST",
+      body: JSON.stringify({ quotaMb: 1 }),
+    });
+    const { id } = await (
+      await api(repo.cookie, "/api/upload-links", { method: "POST", body: JSON.stringify({ path: "" }) })
+    ).json();
+    expect((await uploadVia(id, "gross.pdf", Buffer.alloc(1200 * 1024, 1))).status).toBe(507);
+  });
+});

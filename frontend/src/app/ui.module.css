@@ -1762,3 +1762,24 @@ button.checklistItem {
   cursor: pointer;
   padding: 4px 8px;
 }
+
+.dropZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.dropZone:hover {
+  border-color: var(--accent);
+}
+
+.dropZoneActive {
+  composes: dropZone;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(1.01);
+}

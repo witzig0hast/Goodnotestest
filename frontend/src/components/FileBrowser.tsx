@@ -34,6 +34,7 @@ import { PdfPreviewModal } from "./PdfPreviewModal";
 import { openTour } from "./WelcomeTour";
 import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
+import { UploadLinkForm } from "./UploadLinkForm";
 import styles from "../app/ui.module.css";
 
 type SortBy = "name" | "date";
@@ -99,6 +100,7 @@ export function FileBrowser() {
   const [tree, setTree] = useState<TreeNode[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeSharePath, setActiveSharePath] = useState<string | null>(null);
+  const [uploadLinkPath, setUploadLinkPath] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [previewPage, setPreviewPage] = useState<number | undefined>(undefined);
@@ -442,6 +444,14 @@ export function FileBrowser() {
       { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(node.path) },
       { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(node.path) },
       { label: "Ordner teilen", icon: "📤", onClick: () => toggleShare(node.path) },
+      {
+        label: "Upload-Link erstellen",
+        icon: "📥",
+        onClick: () => {
+          setActiveSharePath(null);
+          setUploadLinkPath(node.path);
+        },
+      },
       { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
@@ -485,6 +495,11 @@ export function FileBrowser() {
         {activeSharePath === node.path && (
           <div style={{ padding: "0 16px 16px" }}>
             <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
+          </div>
+        )}
+        {uploadLinkPath === node.path && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <UploadLinkForm path={node.path} onClose={() => setUploadLinkPath(null)} />
           </div>
         )}
       </Fragment>
@@ -932,7 +947,7 @@ export function FileBrowser() {
           </div>
         </div>
         <ActionMenu
-          trigger={<>⬇ Exportieren ▾</>}
+          trigger={<>⬇ Exportieren & teilen ▾</>}
           items={[
             { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(currentPath) },
             { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(currentPath) },
@@ -940,6 +955,11 @@ export function FileBrowser() {
               label: segments.length ? "Ordner teilen" : "Alles teilen",
               icon: "📤",
               onClick: () => toggleShare(currentPath || "."),
+            },
+            {
+              label: "Upload-Link für diesen Ordner",
+              icon: "📥",
+              onClick: () => setUploadLinkPath(currentPath),
             },
           ]}
         />
@@ -970,6 +990,12 @@ export function FileBrowser() {
       {bulkSharing && selected.size > 0 && (
         <div style={{ marginBottom: 20 }}>
           <ShareForm paths={Array.from(selected)} onClose={() => setBulkSharing(false)} />
+        </div>
+      )}
+
+      {uploadLinkPath === currentPath && (
+        <div style={{ marginBottom: 20 }}>
+          <UploadLinkForm path={currentPath} onClose={() => setUploadLinkPath(null)} />
         </div>
       )}
 
