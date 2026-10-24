@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -13,6 +13,8 @@ import {
   downloadZipUrl,
   fetchFavorites,
   fetchStats,
+  fetchTrash,
+  restoreTrashItem,
   fetchTree,
   fetchVersions,
   removeFavorite,
@@ -37,6 +39,12 @@ import styles from "../app/ui.module.css";
 type SortBy = "name" | "date";
 type ViewMode = "list" | "grid";
 type Mode = "browse" | "favorites" | "search" | "recent";
+
+interface Toast {
+  text: string;
+  actionLabel?: string;
+  action?: () => void;
+}
 
 function findChildrenAtPath(tree: TreeNode[], segments: string[]): TreeNode[] | null {
   if (segments.length === 0) return tree;
@@ -111,6 +119,8 @@ export function FileBrowser() {
   const [busyPath, setBusyPath] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkSharing, setBulkSharing] = useState(false);
 
   const [versionsPath, setVersionsPath] = useState<string | null>(null);
@@ -188,9 +198,27 @@ export function FileBrowser() {
     }
   }
 
+  function showToast(next: Toast) {
+    setToast(next);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 7000);
+  }
+
+  async function undoDelete(path: string) {
+    setToast(null);
+    try {
+      const { items } = await fetchTrash();
+      const item = items.find((i) => i.originalPath === path);
+      if (item) await restoreTrashItem(item.id);
+      reloadTree();
+    } catch {
+      window.alert("Rückgängig machen hat nicht geklappt — schau im Papierkorb nach.");
+    }
+  }
+
   async function handleDelete(path: string, isFolder: boolean) {
-    const label = isFolder ? "diesen Ordner samt Inhalt" : "diese Datei";
-    if (!window.confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} wirklich löschen?`)) {
+    const label = isFolder ? "Diesen Ordner samt Inhalt" : "Diese Datei";
+    if (!window.confirm(`${label} in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.`)) {
       return;
     }
     setBusyPath(path);
@@ -202,6 +230,11 @@ export function FileBrowser() {
         return next;
       });
       reloadTree();
+      showToast({
+        text: `„${path.split("/").pop()}“ liegt jetzt im Papierkorb.`,
+        actionLabel: "Rückgängig",
+        action: () => undoDelete(path),
+      });
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
     } finally {
@@ -335,7 +368,7 @@ export function FileBrowser() {
       { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
-        label: "Löschen",
+        label: "In den Papierkorb",
         icon: "🗑",
         danger: true,
         disabled: isBusy,
@@ -412,7 +445,7 @@ export function FileBrowser() {
       { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
-        label: "Löschen",
+        label: "In den Papierkorb",
         icon: "🗑",
         danger: true,
         disabled: isBusy,
@@ -640,6 +673,24 @@ export function FileBrowser() {
 
   const overlays = (
     <>
+      {toast && (
+        <div className={styles.toast} role="status">
+          <span>{toast.text}</span>
+          {toast.action && (
+            <button type="button" className={styles.toastAction} onClick={toast.action}>
+              {toast.actionLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            className={styles.toastClose}
+            onClick={() => setToast(null)}
+            aria-label="Schließen"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {previewPath && (
         <PdfPreviewModal
           path={previewPath}

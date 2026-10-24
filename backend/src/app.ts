@@ -15,6 +15,8 @@ import { shareRouter } from "./routes/share.js";
 import { shortcutsRouter } from "./routes/shortcuts.js";
 import { ssoRouter } from "./routes/sso.js";
 import { webauthnRouter } from "./routes/webauthn.js";
+import { trashRouter } from "./routes/trash.js";
+import { activityRouter } from "./routes/activity.js";
 
 export function createApp() {
   const app = express();
@@ -74,6 +76,8 @@ export function createApp() {
   api.use("/auth/sso", ssoRouter);
   api.use("/admin", adminRouter);
   api.use("/announcements", publicAnnouncementsRouter);
+  api.use("/trash", trashRouter);
+  api.use("/activity", activityRouter);
 
   app.use("/api", api);
 

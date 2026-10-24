@@ -9,6 +9,8 @@ const ITEMS = [
   { href: "/dashboard/webdav", label: "GoodNotes verbinden", icon: "🔗" },
   { href: "/dashboard/sicherheit", label: "Anmeldung & Sicherheit", icon: "🔐" },
   { href: "/dashboard/freigaben", label: "Meine Freigaben", icon: "📤" },
+  { href: "/dashboard/papierkorb", label: "Papierkorb", icon: "🗑" },
+  { href: "/dashboard/aktivitaet", label: "Aktivität & Backups", icon: "📈" },
   { href: "/dashboard/benachrichtigungen", label: "Backup-Erinnerung", icon: "🔔" },
   { href: "/dashboard/nextcloud", label: "Nextcloud", icon: "☁️" },
   { href: "/dashboard/kurzbefehl", label: "iOS-Kurzbefehl", icon: "⚡" },

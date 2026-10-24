@@ -175,3 +175,126 @@ describe("setup status", () => {
     expect(status.goodnotesFormatCount).toBe(1);
   });
 });
+
+describe("trash", () => {
+  it("moves web deletions to the trash and restores them", async () => {
+    const repo = await createRepository("Papierkorb");
+    const client = webdavClientFor(repo);
+    await client.createDirectory("/Ordner");
+    await client.putFileContents("/Ordner/Notiz.pdf", Buffer.from(await makeTestPdf("Eins")));
+
+    const del = await api(repo.cookie, "/api/files/delete", {
+      method: "POST",
+      body: JSON.stringify({ path: "Ordner/Notiz.pdf" }),
+    });
+    expect(del.status).toBe(204);
+    expect(await client.exists("/Ordner/Notiz.pdf")).toBe(false);
+
+    const { items } = await (await api(repo.cookie, "/api/trash")).json();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ originalPath: "Ordner/Notiz.pdf", deletedBy: "web", isDirectory: false });
+
+    const restore = await api(repo.cookie, `/api/trash/${items[0].id}/restore`, { method: "POST" });
+    expect(await restore.json()).toEqual({ path: "Ordner/Notiz.pdf" });
+    expect(await client.exists("/Ordner/Notiz.pdf")).toBe(true);
+    expect((await (await api(repo.cookie, "/api/trash")).json()).items).toHaveLength(0);
+  });
+
+  it("restores next to an existing file instead of overwriting it", async () => {
+    const repo = await createRepository("Papierkorb Konflikt");
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/Notiz.pdf", Buffer.from(await makeTestPdf("Alt")));
+    await api(repo.cookie, "/api/files/delete", { method: "POST", body: JSON.stringify({ path: "Notiz.pdf" }) });
+    await client.putFileContents("/Notiz.pdf", Buffer.from(await makeTestPdf("Neu")));
+
+    const { items } = await (await api(repo.cookie, "/api/trash")).json();
+    const restore = await api(repo.cookie, `/api/trash/${items[0].id}/restore`, { method: "POST" });
+    expect(await restore.json()).toEqual({ path: "Notiz (wiederhergestellt).pdf" });
+    expect(await client.exists("/Notiz.pdf")).toBe(true);
+  });
+
+  it("catches deletions GoodNotes makes over WebDAV, including whole folders", async () => {
+    const repo = await createRepository("Papierkorb WebDAV");
+    const client = webdavClientFor(repo);
+    await client.createDirectory("/Fach");
+    await client.putFileContents("/Fach/A.pdf", Buffer.from(await makeTestPdf("A")));
+    await client.putFileContents("/Fach/B.pdf", Buffer.from(await makeTestPdf("B")));
+    await client.deleteFile("/Fach");
+
+    expect(await client.exists("/Fach")).toBe(false);
+    const { items } = await (await api(repo.cookie, "/api/trash")).json();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ originalPath: "Fach", isDirectory: true, deletedBy: "goodnotes" });
+
+    await api(repo.cookie, `/api/trash/${items[0].id}/restore`, { method: "POST" });
+    expect(await client.exists("/Fach/B.pdf")).toBe(true);
+  });
+
+  it("treats a MOVE onto an existing file as an overwrite, not a deletion", async () => {
+    const repo = await createRepository("Papierkorb Move");
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/Notiz.pdf", Buffer.from(await makeTestPdf("Alt")));
+    await client.putFileContents("/tmp-upload.pdf", Buffer.from(await makeTestPdf("Neu")));
+    await client.moveFile("/tmp-upload.pdf", "/Notiz.pdf");
+
+    expect((await (await api(repo.cookie, "/api/trash")).json()).items).toHaveLength(0);
+    const versions = await (await api(repo.cookie, "/api/files/versions?path=Notiz.pdf")).json();
+    expect(versions.versions.length).toBeGreaterThan(0);
+  });
+
+  it("purges single items and empties the whole trash", async () => {
+    const repo = await createRepository("Papierkorb leeren");
+    const client = webdavClientFor(repo);
+    for (const n of ["1", "2", "3"]) {
+      await client.putFileContents(`/${n}.pdf`, Buffer.from(await makeTestPdf(n)));
+      await api(repo.cookie, "/api/files/delete", { method: "POST", body: JSON.stringify({ path: `${n}.pdf` }) });
+    }
+    const { items } = await (await api(repo.cookie, "/api/trash")).json();
+    expect((await api(repo.cookie, `/api/trash/${items[0].id}`, { method: "DELETE" })).status).toBe(204);
+    expect(await (await api(repo.cookie, "/api/trash", { method: "DELETE" })).json()).toEqual({ deleted: 2 });
+    expect((await (await api(repo.cookie, "/api/trash")).json()).items).toHaveLength(0);
+  });
+});
+
+describe("activity log", () => {
+  it("records sign-ins, failed attempts and deletions for the account", async () => {
+    const repo = await createRepository("Protokoll");
+    await fetch(`${baseUrl}/api/auth/login-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: repo.email, password: "falsch-falsch" }),
+    });
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/Weg.pdf", Buffer.from(await makeTestPdf("x")));
+    await api(repo.cookie, "/api/files/delete", { method: "POST", body: JSON.stringify({ path: "Weg.pdf" }) });
+
+    const { entries } = await (await api(repo.cookie, "/api/activity/log")).json();
+    const actions = entries.map((e: { action: string }) => e.action);
+    expect(actions).toEqual(expect.arrayContaining(["login.password", "login.failed", "file.delete"]));
+    expect(entries.find((e: { action: string }) => e.action === "file.delete").detail).toBe("Weg.pdf");
+  });
+
+  it("is only visible to the account itself, and to the admin in full", async () => {
+    const a = await createRepository("Protokoll A");
+    const b = await createRepository("Protokoll B");
+    const own = await (await api(b.cookie, "/api/activity/log")).json();
+    expect(own.entries.every((e: { repositoryId: string }) => e.repositoryId === b.repositoryId)).toBe(true);
+
+    expect((await api(a.cookie, "/api/admin/audit")).status).toBe(403);
+    const all = await (await api(adminCookie, "/api/admin/audit")).json();
+    const ids = new Set(all.entries.map((e: { repositoryId: string }) => e.repositoryId));
+    expect(ids.has(a.repositoryId) && ids.has(b.repositoryId)).toBe(true);
+  });
+});
+
+describe("backup calendar", () => {
+  it("counts uploads per day", async () => {
+    const repo = await createRepository("Kalender");
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/1.pdf", Buffer.from(await makeTestPdf("1")));
+    await client.putFileContents("/2.pdf", Buffer.from(await makeTestPdf("2")));
+    const { days } = await (await api(repo.cookie, "/api/activity/backups")).json();
+    expect(days).toHaveLength(1);
+    expect(days[0]).toMatchObject({ day: new Date().toISOString().slice(0, 10), uploads: 2 });
+  });
+});

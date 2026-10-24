@@ -15,6 +15,7 @@ import { requireSession } from "../middleware/require-session.js";
 import { registrationLimiter } from "../middleware/rate-limit.js";
 import { buildRepositoryTree, flattenFiles } from "../lib/file-tree.js";
 import { getWebdavStatus } from "../lib/webdav-status.js";
+import { logAudit } from "../lib/audit.js";
 
 export const repositoriesRouter = Router();
 
@@ -70,6 +71,7 @@ repositoriesRouter.post("/webdav/regenerate", requireSession, (req, res) => {
     return;
   }
   const password = regenerateWebdavPassword(repo.id);
+  logAudit(req, "webdav.password_regenerated");
   res.json({ username: repo.webdavUsername, password });
 });
 
@@ -91,6 +93,7 @@ repositoriesRouter.post("/pin/regenerate", requireSession, (req, res) => {
     return;
   }
   const pin = regeneratePin(repo.id);
+  logAudit(req, "pin.regenerated");
   res.json({ repositoryId: repo.id, pin });
 });
 

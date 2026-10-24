@@ -1598,3 +1598,167 @@ button.checklistItem {
   padding: 6px;
   border: 1px solid var(--border);
 }
+
+/* --- Backup calendar heatmap --- */
+
+.calendarScroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.calendar {
+  display: flex;
+  gap: 3px;
+  width: max-content;
+}
+
+.calendarWeek,
+.calendarWeekdays {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calendarWeekdays span {
+  height: 14px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--muted);
+  width: 18px;
+}
+
+.calendarCell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--accent-soft);
+}
+
+.calendarCell[data-level="1"] {
+  background: color-mix(in srgb, var(--accent) 35%, var(--accent-soft));
+}
+.calendarCell[data-level="2"] {
+  background: color-mix(in srgb, var(--accent) 60%, var(--accent-soft));
+}
+.calendarCell[data-level="3"] {
+  background: color-mix(in srgb, var(--accent) 80%, var(--accent-soft));
+}
+.calendarCell[data-level="4"] {
+  background: var(--accent);
+}
+.calendarCell[data-level="future"] {
+  background: transparent;
+}
+
+.calendarLegend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+/* --- Audit log --- */
+
+.auditList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.auditRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.auditRow:last-child {
+  border-bottom: none;
+}
+
+.auditRow[data-warning] {
+  background: var(--danger-soft);
+}
+
+.auditIcon {
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.auditLabel {
+  font-weight: 600;
+}
+
+.auditAccount {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.auditDetail {
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.auditTime {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 28px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: #2b2a27;
+  color: #f1efe9;
+  font-size: 14px;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.25s ease backwards;
+}
+
+.toastAction {
+  border: none;
+  background: none;
+  color: #8fd1bd;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.toastAction:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toastClose {
+  border: none;
+  background: none;
+  color: #a3a096;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}

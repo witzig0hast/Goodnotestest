@@ -35,3 +35,11 @@ export function generatePin(): string {
   const n = Math.floor(Math.random() * 10000);
   return n.toString().padStart(4, "0");
 }
+
+// Internal IDs for trash entries, upload links and tags. Upload links end
+// up in URLs handed to other people, so they get the same length as
+// share links.
+const LONG_ID_ALPHABET = UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz";
+export const generateTrashItemId = customAlphabet(LONG_ID_ALPHABET, 12);
+export const generateUploadLinkId = customAlphabet(LONG_ID_ALPHABET, 12);
+export const generateTagId = customAlphabet(LONG_ID_ALPHABET, 10);

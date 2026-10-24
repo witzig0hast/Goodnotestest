@@ -17,6 +17,7 @@ import { resolveSafePath } from "../lib/storage.js";
 import { getThumbnailPath } from "../lib/thumbnails.js";
 import { listVersions, restoreVersion, versionDownloadPath } from "../lib/versions.js";
 import { streamDirectoryAsZip, streamPathsAsZip } from "../lib/zip.js";
+import { logAudit } from "../lib/audit.js";
 
 export const filesRouter = Router();
 
@@ -192,6 +193,7 @@ filesRouter.post("/delete", async (req, res) => {
 
   try {
     await deleteEntry(req.repositoryId!, parsed.data.path);
+    logAudit(req, "file.delete", parsed.data.path);
     res.status(204).end();
   } catch (err) {
     if (err instanceof NotFoundError) {
@@ -243,6 +245,7 @@ filesRouter.post("/versions/restore", async (req, res) => {
 
   try {
     await restoreVersion(req.repositoryId!, parsed.data.path, parsed.data.timestamp);
+    logAudit(req, "version.restore", parsed.data.path);
     res.status(204).end();
   } catch (err) {
     res.status(404).json({ error: err instanceof Error ? err.message : "Fehlgeschlagen." });
@@ -263,6 +266,7 @@ filesRouter.post("/rename", async (req, res) => {
 
   try {
     const newPath = await renameEntry(req.repositoryId!, parsed.data.path, parsed.data.newName);
+    logAudit(req, "file.rename", `${parsed.data.path} → ${newPath}`);
     res.json({ path: newPath });
   } catch (err) {
     if (err instanceof NotFoundError) {

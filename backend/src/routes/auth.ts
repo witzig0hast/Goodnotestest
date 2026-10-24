@@ -11,6 +11,7 @@ import {
 } from "../lib/repositories.js";
 import { requireSession } from "../middleware/require-session.js";
 import { loginLimiter, pinLoginLimiter } from "../middleware/rate-limit.js";
+import { logAudit } from "../lib/audit.js";
 
 export const authRouter = Router();
 
@@ -45,6 +46,7 @@ authRouter.post("/login", pinLoginLimiter, (req, res) => {
   // Same error for "not found" and "wrong PIN" so we don't leak which
   // repository IDs exist.
   if (!repo || !verifyPin(repo, pin)) {
+    if (repo) logAudit(req, "login.failed", "Notfall-Code", repo.id);
     res.status(401).json({ error: "Repository-ID oder Code ist falsch." });
     return;
   }
@@ -56,6 +58,7 @@ authRouter.post("/login", pinLoginLimiter, (req, res) => {
   }
 
   issueSession(res, repo.id);
+  logAudit(req, "login.code", null, repo.id);
   res.json(toSessionJson(repo));
 });
 
@@ -75,6 +78,7 @@ authRouter.post("/login-password", loginLimiter, (req, res) => {
 
   // Same error whether the email is unknown or the password is wrong.
   if (!repo || !verifyPassword(repo, parsed.data.password)) {
+    if (repo) logAudit(req, "login.failed", "Passwort", repo.id);
     res.status(401).json({ error: "E-Mail oder Passwort ist falsch." });
     return;
   }
@@ -86,6 +90,7 @@ authRouter.post("/login-password", loginLimiter, (req, res) => {
   }
 
   issueSession(res, repo.id);
+  logAudit(req, "login.password", null, repo.id);
   res.json(toSessionJson(repo));
 });
 

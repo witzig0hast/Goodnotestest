@@ -52,6 +52,10 @@ export function resolveThumbnailPath(repositoryId: string, relativePath: string)
   return resolveSafePathIn(repositoryThumbnailsDir(repositoryId), relativePath);
 }
 
+export function repositoryTrashDir(repositoryId: string): string {
+  return path.join(path.resolve(config.trashDir), repositoryId);
+}
+
 /** A filesystem-safe name for a single path segment (no slashes, no ".."). */
 export function isValidSegmentName(name: string): boolean {
   return name.length > 0 && !name.includes("/") && !name.includes("\\") && name !== "." && name !== "..";
@@ -68,5 +72,6 @@ export async function removeAllRepositoryData(repositoryId: string): Promise<voi
     fs.rm(repositoryDir(repositoryId), { recursive: true, force: true }),
     fs.rm(repositoryVersionsDir(repositoryId), { recursive: true, force: true }),
     fs.rm(repositoryThumbnailsDir(repositoryId), { recursive: true, force: true }),
+    fs.rm(repositoryTrashDir(repositoryId), { recursive: true, force: true }),
   ]);
 }

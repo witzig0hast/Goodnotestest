@@ -472,3 +472,62 @@ export interface WebdavConnectionStatus {
 export function fetchWebdavStatus() {
   return request<WebdavConnectionStatus>("/api/repositories/webdav/status");
 }
+
+// --- Trash ---
+
+export interface TrashItem {
+  id: string;
+  originalPath: string;
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  deletedBy: "web" | "goodnotes";
+  deletedAt: string;
+  expiresAt: string;
+}
+
+export function fetchTrash() {
+  return request<{ items: TrashItem[]; retentionDays: number }>("/api/trash");
+}
+
+export function restoreTrashItem(id: string) {
+  return request<{ path: string }>(`/api/trash/${id}/restore`, { method: "POST" });
+}
+
+export function deleteTrashItem(id: string) {
+  return request<void>(`/api/trash/${id}`, { method: "DELETE" });
+}
+
+export function emptyTrash() {
+  return request<{ deleted: number }>("/api/trash", { method: "DELETE" });
+}
+
+// --- Activity: audit log + backup calendar ---
+
+export interface AuditEntry {
+  id: number;
+  repositoryId: string | null;
+  repositoryName?: string | null;
+  action: string;
+  detail: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export function fetchActivityLog() {
+  return request<{ entries: AuditEntry[] }>("/api/activity/log");
+}
+
+export function fetchAdminAudit() {
+  return request<{ entries: AuditEntry[] }>("/api/admin/audit");
+}
+
+export interface BackupDay {
+  day: string;
+  uploads: number;
+  lastUploadAt: string;
+}
+
+export function fetchBackupDays(days = 182) {
+  return request<{ days: BackupDay[] }>(`/api/activity/backups?days=${days}`);
+}

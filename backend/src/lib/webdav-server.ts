@@ -5,6 +5,7 @@ import { findRepositoryById } from "./repositories.js";
 import { ensureRepositoryDir } from "./storage.js";
 import { snapshotBeforeOverwrite } from "./versions.js";
 import { recordUpload } from "./backup-history.js";
+import { moveToTrash } from "./trash.js";
 import { recordWebdavFailure, recordWebdavSuccess } from "./webdav-status.js";
 
 /**
@@ -41,6 +42,65 @@ class VersioningPhysicalFileSystem extends webdav.PhysicalFileSystem {
         }
         super._openWriteStream(path, ctx, callback);
       });
+  }
+}
+
+/**
+ * Deletions GoodNotes makes over WebDAV go to the trash too, so a note
+ * deleted on the iPad can still be recovered here. The one exception is a
+ * MOVE that overwrites its destination (an upload via temp file + rename):
+ * that's an overwrite, not a deletion, so the old file is only snapshotted
+ * into the version history like any other overwrite.
+ */
+class TrashingFileSystem extends VersioningPhysicalFileSystem {
+  private readonly overwriteTargets = new Set<string>();
+
+  constructor(
+    private readonly trashRepositoryId: string,
+    rootPath: string
+  ) {
+    super(trashRepositoryId, rootPath);
+  }
+
+  protected _move(
+    pathFrom: webdav.Path,
+    pathTo: webdav.Path,
+    ctx: webdav.MoveInfo,
+    callback: webdav.ReturnCallback<boolean>
+  ) {
+    const target = pathTo.toString();
+    this.overwriteTargets.add(target);
+    super._move(pathFrom, pathTo, ctx, (e, overwritten) => {
+      this.overwriteTargets.delete(target);
+      callback(e, overwritten);
+    });
+  }
+
+  protected _delete(path: webdav.Path, ctx: webdav.DeleteInfo, callback: webdav.SimpleCallback) {
+    const key = path.toString();
+    const relativePath = key.replace(/^\/+/, "");
+    const fallback = () => super._delete(path, ctx, callback);
+
+    if (!relativePath) return fallback();
+
+    if (this.overwriteTargets.has(key)) {
+      const { realPath } = this.getRealPath(path);
+      snapshotBeforeOverwrite(this.trashRepositoryId, relativePath, realPath)
+        .catch(() => {})
+        .then(fallback);
+      return;
+    }
+
+    moveToTrash(this.trashRepositoryId, relativePath, "goodnotes")
+      .then(() => {
+        // webdav-server caches per-path resource metadata; drop the entry
+        // the same way its own _delete does on success.
+        delete (this as unknown as { resources: Record<string, unknown> }).resources[key];
+        callback();
+      })
+      // If moving to the trash fails for whatever reason, still honour
+      // the delete rather than leaving GoodNotes' backup half-applied.
+      .catch(fallback);
   }
 }
 
@@ -107,7 +167,7 @@ function getServerForRepository(repositoryId: string): webdav.WebDAVServer {
       new RepositoryUserManager(repositoryId),
       "GoodShare"
     ),
-    rootFileSystem: new VersioningPhysicalFileSystem(repositoryId, dir),
+    rootFileSystem: new TrashingFileSystem(repositoryId, dir),
   });
 
   serverCache.set(repositoryId, server);

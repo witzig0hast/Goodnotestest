@@ -16,6 +16,7 @@ import {
 } from "../lib/share-links.js";
 import { resolveSafePath } from "../lib/storage.js";
 import { streamDirectoryAsZip, streamPathsAsZip } from "../lib/zip.js";
+import { logAudit } from "../lib/audit.js";
 
 export const shareRouter = Router();
 
@@ -55,6 +56,7 @@ shareRouter.post("/", requireSession, (req, res) => {
     expiresInDays: parsed.data.expiresInDays ?? null,
   });
 
+  logAudit(req, "share.create", items.map((i) => i.relativePath || "Alle Notizen").join(", "));
   res.status(201).json({ id: link.id });
 });
 
@@ -81,6 +83,7 @@ shareRouter.delete("/:id", requireSession, (req, res) => {
     res.status(404).json({ error: "Link nicht gefunden." });
     return;
   }
+  logAudit(req, "share.revoke", req.params.id);
   res.status(204).end();
 });
 

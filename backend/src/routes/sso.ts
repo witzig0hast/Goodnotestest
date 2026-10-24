@@ -20,6 +20,7 @@ import {
   linkSsoIdentity,
 } from "../lib/repositories.js";
 import { requireSession } from "../middleware/require-session.js";
+import { logAudit } from "../lib/audit.js";
 
 export const ssoRouter = Router();
 
@@ -145,6 +146,7 @@ ssoRouter.get("/callback", ssoLimiter, async (req, res) => {
     }
 
     issueSession(res, repo.id);
+    logAudit(req, "login.sso", null, repo.id);
     res.redirect(`${frontendOrigin}/dashboard`);
   } catch {
     clearSsoFlowCookie(res);

@@ -18,6 +18,8 @@ export const config = {
   filesDir: required("FILES_DIR", "./data/files"),
   versionsDir: required("VERSIONS_DIR", "./data/versions"),
   thumbnailsDir: required("THUMBNAILS_DIR", "./data/thumbnails"),
+  trashDir: required("TRASH_DIR", "./data/trash"),
+  trashRetentionDays: Number(process.env.TRASH_RETENTION_DAYS ?? 30),
   jwtSecret: required("JWT_SECRET", DEV_ONLY_JWT_SECRET),
   encryptionKey: required("ENCRYPTION_KEY", DEV_ONLY_ENCRYPTION_KEY),
   frontendOrigin: required("FRONTEND_ORIGIN", "http://localhost:3000"),

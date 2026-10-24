@@ -4,6 +4,8 @@ import { requireAdmin } from "../middleware/require-admin.js";
 import { requireSession } from "../middleware/require-session.js";
 import { findRepositoryById, listAllRepositories, setApprovalStatus } from "../lib/repositories.js";
 import { createAnnouncement, deleteAnnouncement, listAnnouncements } from "../lib/announcements.js";
+import { listAuditAll } from "../lib/audit.js";
+import { logAudit } from "../lib/audit.js";
 
 export const adminRouter = Router();
 
@@ -28,6 +30,7 @@ adminRouter.post("/users/:id/approve", (req, res) => {
     return;
   }
   setApprovalStatus(repo.id, "approved");
+  logAudit(req, "admin.approve", repo.name, repo.id);
   res.json({ approvalStatus: "approved" });
 });
 
@@ -42,6 +45,7 @@ adminRouter.post("/users/:id/reject", (req, res) => {
     return;
   }
   setApprovalStatus(repo.id, "rejected");
+  logAudit(req, "admin.reject", repo.name, repo.id);
   res.json({ approvalStatus: "rejected" });
 });
 
@@ -70,4 +74,8 @@ adminRouter.delete("/announcements/:id", (req, res) => {
     return;
   }
   res.status(204).end();
+});
+
+adminRouter.get("/audit", (_req, res) => {
+  res.json({ entries: listAuditAll() });
 });
