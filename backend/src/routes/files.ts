@@ -19,6 +19,7 @@ import { listVersions, restoreVersion, versionDownloadPath } from "../lib/versio
 import { streamDirectoryAsZip, streamPathsAsZip } from "../lib/zip.js";
 import { logAudit } from "../lib/audit.js";
 import { getQuotaBytes } from "../lib/quota.js";
+import { indexStatus } from "../lib/ocr.js";
 
 export const filesRouter = Router();
 
@@ -154,6 +155,10 @@ filesRouter.get("/thumbnail", async (req, res) => {
 
   res.setHeader("Cache-Control", "private, max-age=3600");
   res.sendFile(thumbPath);
+});
+
+filesRouter.get("/index-status", async (req, res) => {
+  res.json(await indexStatus(req.repositoryId!));
 });
 
 filesRouter.get("/search", async (req, res) => {

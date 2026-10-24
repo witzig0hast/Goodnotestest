@@ -235,8 +235,20 @@ export function fetchStats() {
 export interface SearchResult {
   path: string;
   name: string;
-  matchedIn: "filename" | "content";
+  matchedIn: "filename" | "content" | "handwriting";
   snippet?: string;
+  page?: number;
+}
+
+export interface IndexStatus {
+  enabled: boolean;
+  pdfCount: number;
+  indexed: number;
+  ocrPages: number;
+}
+
+export function fetchIndexStatus() {
+  return request<IndexStatus>("/api/files/index-status");
 }
 
 export function searchFiles(query: string) {

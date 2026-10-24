@@ -15,6 +15,8 @@ import {
   fetchStats,
   fetchTrash,
   fetchTags,
+  fetchIndexStatus,
+  type IndexStatus,
   assignTag,
   unassignTag,
   type Tag,
@@ -129,6 +131,7 @@ export function FileBrowser() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
 
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -263,6 +266,7 @@ export function FileBrowser() {
     try {
       const res = await searchFiles(searchQuery.trim());
       setSearchResults(res.results);
+      fetchIndexStatus().then(setIndexStatus).catch(() => {});
     } catch {
       setSearchResults([]);
     } finally {
@@ -426,7 +430,12 @@ export function FileBrowser() {
 
   function renderFileRow(
     node: { name: string; path: string; size?: number; modifiedAt?: string },
-    options: { snippet?: string; selectable?: boolean } = {}
+    options: {
+      snippet?: string;
+      selectable?: boolean;
+      page?: number;
+      matchedIn?: SearchResult["matchedIn"];
+    } = {}
   ) {
     const isRenaming = renamingPath === node.path;
     const isBusy = busyPath === node.path;
@@ -467,7 +476,7 @@ export function FileBrowser() {
           ) : (
             <div
               className={styles.fileMainClickable}
-              onClick={() => openFile(node)}
+              onClick={() => openFile(node, options.page)}
               title={isPdf(node.name) ? "Ansehen" : "Herunterladen"}
             >
               <span className={styles.fileNameText}>
@@ -481,7 +490,8 @@ export function FileBrowser() {
               {renderTags(node.path)}
               {options.snippet && (
                 <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
-                  „…{options.snippet}…“
+                  {options.matchedIn === "handwriting" && "✍️ in deiner Handschrift erkannt · "}
+                  {options.page ? `Seite ${options.page}: ` : ""}„{options.snippet}“
                 </span>
               )}
             </div>
@@ -879,11 +889,16 @@ export function FileBrowser() {
         <div className={styles.toolbar}>
           <div className={styles.hint}>
             {searchResults?.length ?? 0} Treffer für „{searchQuery}“
+            {indexStatus && indexStatus.indexed < indexStatus.pdfCount && (
+              <> · Texterkennung läuft noch ({indexStatus.indexed} von {indexStatus.pdfCount} Notizen durchsucht)</>
+            )}
           </div>
         </div>
         {searchResults && searchResults.length > 0 ? (
           <div className={styles.fileList}>
-            {searchResults.map((r) => renderFileRow(r, { snippet: r.snippet }))}
+            {searchResults.map((r) =>
+              renderFileRow(r, { snippet: r.snippet, page: r.page, matchedIn: r.matchedIn })
+            )}
           </div>
         ) : (
           <div className={styles.emptyState}>

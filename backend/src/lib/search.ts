@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { db } from "./db.js";
 import { buildRepositoryTree, flattenFiles, type TreeNode } from "./file-tree.js";
 import { resolveSafePath } from "./storage.js";
+import { enqueue, getIndexedPages } from "./ocr.js";
 
 const MAX_INDEXABLE_SIZE = 20 * 1024 * 1024; // 20 MB — keeps a search from stalling on huge scans
 
@@ -67,8 +68,10 @@ function snippetAround(text: string, index: number, query: string): string {
 export interface SearchResult {
   path: string;
   name: string;
-  matchedIn: "filename" | "content";
+  /** "handwriting": found by text recognition on a page without a text layer */
+  matchedIn: "filename" | "content" | "handwriting";
   snippet?: string;
+  page?: number;
 }
 
 export async function searchRepository(
@@ -87,6 +90,27 @@ export async function searchRepository(
       results.push({ path: file.path, name: file.name, matchedIn: "filename" });
       continue;
     }
+
+    // Prefer the per-page index (has page numbers and recognized
+    // handwriting); fall back to the whole-file text layer while the
+    // background indexer hasn't reached this file yet.
+    const pages = file.name.toLowerCase().endsWith(".pdf")
+      ? getIndexedPages(repositoryId, file.path, file.modifiedAt ?? "")
+      : null;
+    if (pages) {
+      const hit = pages.find((p) => p.text.toLowerCase().includes(q));
+      if (hit) {
+        results.push({
+          path: file.path,
+          name: file.name,
+          matchedIn: hit.source === "ocr" ? "handwriting" : "content",
+          snippet: snippetAround(hit.text, hit.text.toLowerCase().indexOf(q), q),
+          page: hit.page,
+        });
+      }
+      continue;
+    }
+    if (file.name.toLowerCase().endsWith(".pdf")) enqueue(repositoryId, file.path);
 
     const text = await getIndexedText(repositoryId, file);
     if (!text) continue;

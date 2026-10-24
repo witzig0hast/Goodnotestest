@@ -111,6 +111,7 @@ beforeAll(async () => {
   process.env.THUMBNAILS_DIR = join(tempDir, "thumbnails");
   process.env.TRASH_DIR = join(tempDir, "trash");
   process.env.OCR_ENABLED = "false";
+  process.env.OCR_DATA_DIR = join(tempDir, "ocr");
   process.env.JWT_SECRET = "test-secret";
   process.env.FRONTEND_ORIGIN = "http://localhost:3000";
   process.env.SMTP_HOST = "127.0.0.1";
@@ -519,4 +520,52 @@ describe("tags", () => {
     ).toBe(404);
     expect((await api(b.cookie, `/api/tags/${tag.id}`, { method: "DELETE" })).status).toBe(404);
   });
+});
+
+describe("page-level search and handwriting recognition", () => {
+  async function makeMultiPagePdf(texts: string[]) {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    for (const t of texts) {
+      const page = doc.addPage([300, 300]);
+      page.drawText(t, { x: 20, y: 250, size: 14, font, color: rgb(0, 0, 0) });
+    }
+    return doc.save();
+  }
+
+  it("reports the page a search hit is on", async () => {
+    const repo = await createRepository("Seitensuche");
+    await webdavClientFor(repo).putFileContents(
+      "/Skript.pdf",
+      Buffer.from(await makeMultiPagePdf(["Einleitung und Motivation", "Kapitel Zwei", "Grenzwerte von Folgen"]))
+    );
+    const { indexFile } = await import("./lib/ocr.js");
+    await indexFile(repo.repositoryId, "Skript.pdf");
+
+    const { results } = await (await api(repo.cookie, "/api/files/search?q=grenzwerte")).json();
+    expect(results).toEqual([
+      expect.objectContaining({ path: "Skript.pdf", matchedIn: "content", page: 3 }),
+    ]);
+    const status = await (await api(repo.cookie, "/api/files/index-status")).json();
+    expect(status).toMatchObject({ pdfCount: 1, indexed: 1 });
+  });
+
+  it("recognizes text on pages that are only an image", async () => {
+    const { createCanvas } = await import("@napi-rs/canvas");
+    const canvas = createCanvas(1240, 600);
+    const g = canvas.getContext("2d");
+    g.fillStyle = "white";
+    g.fillRect(0, 0, 1240, 600);
+    g.fillStyle = "#1a2a6c";
+    g.font = "italic 64px sans-serif";
+    g.fillText("Klausur am Donnerstag", 80, 200);
+    const doc = await PDFDocument.create();
+    const img = await doc.embedPng(canvas.toBuffer("image/png"));
+    doc.addPage([595, 288]).drawImage(img, { x: 0, y: 0, width: 595, height: 288 });
+
+    const { extractPages } = await import("./lib/ocr.js");
+    const pages = await extractPages(Buffer.from(await doc.save()), true);
+    expect(pages[0].source).toBe("ocr");
+    expect(pages[0].text).toContain("Klausur");
+  }, 60_000);
 });

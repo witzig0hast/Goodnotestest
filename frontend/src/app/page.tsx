@@ -10,8 +10,8 @@ const FEATURES = [
   },
   {
     icon: "🔎",
-    title: "Volltextsuche",
-    text: "Finde Notizen nicht nur über den Namen, sondern auch über ihren Inhalt.",
+    title: "Sucht in deiner Handschrift",
+    text: "Texterkennung macht auch Handgeschriebenes durchsuchbar — Treffer öffnen direkt auf der richtigen Seite.",
   },
   {
     icon: "📤",

@@ -47,7 +47,7 @@ const STEPS = [
   {
     art: "🔎",
     title: "3. Finden statt suchen",
-    text: "Die Suche durchsucht nicht nur Dateinamen, sondern auch den Text in deinen PDFs. Mit ☆ markierst du Favoriten, unter „Neu“ siehst du, was in den letzten 7 Tagen dazugekommen ist.",
+    text: "Die Suche findet nicht nur Dateinamen, sondern auch Text in deinen Notizen — sogar deine Handschrift wird im Hintergrund erkannt. Treffer öffnen direkt auf der richtigen Seite. Mit ☆ markierst du Favoriten, mit Tags sortierst du über Ordner hinweg.",
   },
   {
     art: "📤",

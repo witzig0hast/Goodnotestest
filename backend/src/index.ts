@@ -3,6 +3,7 @@ import { config } from "./lib/config.js";
 import { runBackupChecks } from "./lib/backup-check.js";
 import { purgeExpiredTrash } from "./lib/trash.js";
 import { pruneAuditLog } from "./lib/audit.js";
+import { startOcrSweeps } from "./lib/ocr.js";
 
 const app = createApp();
 
@@ -22,3 +23,6 @@ function housekeeping() {
 }
 setTimeout(housekeeping, 30 * 1000);
 setInterval(housekeeping, ONE_HOUR);
+
+// Background text indexing (incl. handwriting recognition) for search.
+startOcrSweeps();

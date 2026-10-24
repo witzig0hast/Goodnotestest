@@ -12,6 +12,8 @@
   "dependencies": {
     "@napi-rs/canvas": "^1.0.9",
     "@simplewebauthn/server": "^14.0.2",
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "archiver": "^8.0.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.3.0",
@@ -27,6 +29,7 @@
     "nodemailer": "^10.0.10",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
+    "tesseract.js": "^7.0.0",
     "webdav": "^5.11.0",
     "webdav-server": "^2.6.3",
     "zod": "^3.23.8"

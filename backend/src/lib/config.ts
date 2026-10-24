@@ -20,6 +20,10 @@ export const config = {
   thumbnailsDir: required("THUMBNAILS_DIR", "./data/thumbnails"),
   trashDir: required("TRASH_DIR", "./data/trash"),
   trashRetentionDays: Number(process.env.TRASH_RETENTION_DAYS ?? 30),
+  // Handwriting/scan text recognition for search. Runs in the background
+  // and is CPU-heavy — can be switched off on very small servers.
+  ocrEnabled: process.env.OCR_ENABLED !== "false",
+  ocrDataDir: required("OCR_DATA_DIR", "./data/ocr"),
   // Storage limit for accounts without an individual one set by the admin.
   // Unset = unlimited.
   defaultQuotaBytes: process.env.DEFAULT_QUOTA_MB
