@@ -4,6 +4,8 @@ import { v2 as webdav } from "webdav-server";
 import { findRepositoryById } from "./repositories.js";
 import { ensureRepositoryDir } from "./storage.js";
 import { snapshotBeforeOverwrite } from "./versions.js";
+import { recordUpload } from "./backup-history.js";
+import { recordWebdavFailure, recordWebdavSuccess } from "./webdav-status.js";
 
 /**
  * Keeps GoodNotes' own habit of just re-uploading a file with the same
@@ -31,7 +33,14 @@ class VersioningPhysicalFileSystem extends webdav.PhysicalFileSystem {
         // Never block a GoodNotes sync just because we couldn't snapshot
         // the previous version — the new write should still go through.
       })
-      .then(() => super._openWriteStream(path, ctx, callback));
+      .then(() => {
+        try {
+          recordUpload(this.repositoryId);
+        } catch {
+          // statistics only — never fail the upload over it
+        }
+        super._openWriteStream(path, ctx, callback);
+      });
   }
 }
 
@@ -62,17 +71,21 @@ class RepositoryUserManager implements webdav.ITestableUserManager {
   ) {
     const repo = findRepositoryById(this.repositoryId);
     if (!repo || repo.webdavUsername !== name) {
+      if (repo) recordWebdavFailure(repo.id, "unknown_user");
       callback(new Error("Unbekannter Benutzer."));
       return;
     }
     if (!bcrypt.compareSync(password, repo.webdavPasswordHash)) {
+      recordWebdavFailure(repo.id, "wrong_password");
       callback(new Error("Falsches Passwort."));
       return;
     }
     if (repo.approvalStatus !== "approved") {
+      recordWebdavFailure(repo.id, "pending_approval");
       callback(new Error("Konto wartet noch auf Freigabe."));
       return;
     }
+    recordWebdavSuccess(repo.id);
     callback(null as unknown as Error, {
       uid: repo.id,
       username: repo.webdavUsername,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
 import { ApiError, createRepository, type CreateRepositoryResponse } from "../../lib/api";
+import { ConnectionStatus } from "../../components/ConnectionStatus";
 import { browserSupportsWebAuthn, registerPasskey } from "../../lib/passkeys";
 import styles from "../ui.module.css";
 
@@ -164,13 +165,15 @@ export default function ErstellenPage() {
               <div className={styles.step}>
                 <div className={styles.stepNumber}>1</div>
                 <div className={styles.stepText}>
-                  Öffne GoodNotes und gehe zu Einstellungen → Backup → WebDAV.
+                  Öffne GoodNotes und gehe zu Einstellungen → Backup, schalte Auto-Backup ein und wähle WebDAV.
                 </div>
               </div>
               <div className={styles.step}>
                 <div className={styles.stepNumber}>2</div>
                 <div className={styles.stepText}>
-                  Trage die drei Angaben von oben ein.
+                  Trage die drei Angaben von oben ein und stell das{" "}
+                  <strong>Backup-Format auf „PDF“</strong> — nur dann kannst du
+                  deine Notizen hier ansehen und durchsuchen.
                 </div>
               </div>
               <div className={styles.step}>
@@ -181,6 +184,11 @@ export default function ErstellenPage() {
                 </div>
               </div>
             </div>
+            {!isPending && (
+              <div style={{ marginTop: 20 }}>
+                <ConnectionStatus />
+              </div>
+            )}
           </section>
 
           {!isPending && browserSupportsWebAuthn() && (

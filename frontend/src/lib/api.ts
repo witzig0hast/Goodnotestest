@@ -458,3 +458,17 @@ export function createAnnouncement(message: string) {
 export function deleteAnnouncement(id: string) {
   return request<void>(`/api/admin/announcements/${id}`, { method: "DELETE" });
 }
+
+// --- Setup status: has GoodNotes connected yet? ---
+
+export interface WebdavConnectionStatus {
+  lastSuccessAt: string | null;
+  lastError: "wrong_password" | "unknown_user" | "pending_approval" | null;
+  lastErrorAt: string | null;
+  fileCount: number;
+  goodnotesFormatCount: number;
+}
+
+export function fetchWebdavStatus() {
+  return request<WebdavConnectionStatus>("/api/repositories/webdav/status");
+}

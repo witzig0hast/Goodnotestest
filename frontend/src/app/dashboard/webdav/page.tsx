@@ -11,6 +11,8 @@ import {
   regenerateWebdavPassword,
   type SessionResponse,
 } from "../../../lib/api";
+import QRCode from "qrcode";
+import { ConnectionStatus } from "../../../components/ConnectionStatus";
 import styles from "../../ui.module.css";
 
 export default function WebdavPage() {
@@ -22,6 +24,13 @@ export default function WebdavPage() {
   const [newPassword, setNewPassword] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [regenerateError, setRegenerateError] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    QRCode.toDataURL(`${window.location.origin}/dashboard/webdav`, { width: 240, margin: 1 })
+      .then(setQrCodeUrl)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchCurrentRepository()
@@ -127,6 +136,14 @@ export default function WebdavPage() {
               </div>
             </div>
           </div>
+
+          <div style={{ marginTop: 20 }}>
+            <ConnectionStatus
+              onPasswordProblem={() =>
+                document.getElementById("passwort")?.scrollIntoView({ behavior: "smooth" })
+              }
+            />
+          </div>
         </section>
 
         <section className={styles.card}>
@@ -137,7 +154,9 @@ export default function WebdavPage() {
             <div className={styles.step}>
               <div className={styles.stepNumber}>1</div>
               <div className={styles.stepText}>
-                Öffne GoodNotes und gehe zu Einstellungen → Backup → WebDAV.
+                Öffne GoodNotes auf dem iPad oder iPhone und gehe zu{" "}
+                <strong>Einstellungen → Backup</strong>. Schalte „Auto-Backup“ ein
+                und wähle als Ziel <strong>WebDAV</strong>.
               </div>
             </div>
             <div className={styles.step}>
@@ -151,13 +170,35 @@ export default function WebdavPage() {
             <div className={styles.step}>
               <div className={styles.stepNumber}>3</div>
               <div className={styles.stepText}>
-                Tippe auf „Jetzt sichern“ — fertig.
+                Stell das <strong>Backup-Format auf „PDF“</strong> — nur dann kannst
+                du deine Notizen hier ansehen und durchsuchen.
+              </div>
+            </div>
+            <div className={styles.step}>
+              <div className={styles.stepNumber}>4</div>
+              <div className={styles.stepText}>
+                Tippe auf „Jetzt sichern“. Oben siehst du sofort, ob es geklappt hat.
               </div>
             </div>
           </div>
         </section>
 
-        <section className={styles.card}>
+        {qrCodeUrl && (
+          <section className={styles.card}>
+            <h2 className={styles.sectionTitle}>Direkt auf dem iPad einrichten</h2>
+            <div className={styles.qrRow} style={{ marginTop: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- generated data: URL */}
+              <img src={qrCodeUrl} alt="QR-Code zu dieser Seite" />
+              <p className={styles.hint} style={{ flex: 1, minWidth: 200, fontSize: 14 }}>
+                Abtippen ist mühsam: Scanne den Code mit der Kamera des iPads, um
+                diese Seite dort zu öffnen. Dann kannst du Adresse, Benutzername
+                und Passwort einfach kopieren und in GoodNotes einfügen.
+              </p>
+            </div>
+          </section>
+        )}
+
+        <section className={styles.card} id="passwort">
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
             WebDAV-Passwort vergessen?
           </h2>

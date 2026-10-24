@@ -177,3 +177,105 @@ if (!existingShareLinkColumns.has("view_count")) {
 db.exec(
   `CREATE UNIQUE INDEX IF NOT EXISTS repositories_email_idx ON repositories (email)`
 );
+
+// --- Tables for setup status, backup history, trash, OCR, upload links,
+// tags and the audit log. All additive: CREATE TABLE IF NOT EXISTS for new
+// tables, guarded ALTER TABLE for new columns on existing ones.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS webdav_status (
+    repository_id TEXT PRIMARY KEY REFERENCES repositories(id) ON DELETE CASCADE,
+    last_success_at TEXT,
+    last_error TEXT,
+    last_error_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS backup_days (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    day TEXT NOT NULL,
+    uploads INTEGER NOT NULL DEFAULT 0,
+    last_upload_at TEXT NOT NULL,
+    PRIMARY KEY (repository_id, day)
+  );
+
+  CREATE TABLE IF NOT EXISTS trash_items (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    original_path TEXT NOT NULL,
+    is_directory INTEGER NOT NULL,
+    size INTEGER NOT NULL DEFAULT 0,
+    deleted_by TEXT NOT NULL DEFAULT 'web',
+    deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS trash_items_repository_id_idx ON trash_items (repository_id);
+
+  CREATE TABLE IF NOT EXISTS file_page_text (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    mtime TEXT NOT NULL,
+    page INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL,
+    PRIMARY KEY (repository_id, relative_path, page)
+  );
+
+  CREATE TABLE IF NOT EXISTS upload_links (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    label TEXT,
+    password_hash TEXT,
+    expires_at TEXT,
+    max_files INTEGER,
+    upload_count INTEGER NOT NULL DEFAULT 0,
+    notify_owner INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS upload_links_repository_id_idx ON upload_links (repository_id);
+
+  CREATE TABLE IF NOT EXISTS tags (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS tags_repository_name_idx ON tags (repository_id, name);
+
+  CREATE TABLE IF NOT EXISTS file_tags (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (repository_id, relative_path, tag_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repository_id TEXT REFERENCES repositories(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    detail TEXT,
+    ip TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS audit_log_repository_id_idx ON audit_log (repository_id, created_at);
+`);
+
+function addColumnsIfMissing(table: string, columns: [string, string][]) {
+  const existing = new Set(
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name)
+  );
+  for (const [column, definition] of columns) {
+    if (!existing.has(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+addColumnsIfMissing("repositories", [["storage_quota_bytes", "INTEGER"]]);
+addColumnsIfMissing("share_links", [
+  ["notify_on_open", "INTEGER NOT NULL DEFAULT 0"],
+  ["max_downloads", "INTEGER"],
+  ["download_count", "INTEGER NOT NULL DEFAULT 0"],
+  ["last_notified_at", "TEXT"],
+]);

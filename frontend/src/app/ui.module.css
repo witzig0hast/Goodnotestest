@@ -1509,3 +1509,92 @@ button.checklistItem {
     gap: 8px;
   }
 }
+
+/* --- Live connection status on the setup pages --- */
+
+.connectionBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 14px;
+  animation: fadeIn 0.2s ease backwards;
+}
+
+.connectionBox .statusDot {
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.connectionBoxSuccess {
+  composes: connectionBox;
+  align-items: center;
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  flex-wrap: wrap;
+}
+
+.connectionBoxError {
+  composes: connectionBox;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.connectionIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: white;
+  background: var(--accent);
+  animation: popIn 0.3s ease;
+}
+
+.connectionBoxError .connectionIcon {
+  background: var(--danger);
+}
+
+.connectionNote {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.connectionBoxError .connectionNote {
+  color: var(--danger);
+  opacity: 0.85;
+}
+
+.inlineLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.qrRow {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qrRow img {
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+  background: white;
+  padding: 6px;
+  border: 1px solid var(--border);
+}

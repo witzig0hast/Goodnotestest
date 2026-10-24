@@ -17,3 +17,23 @@ export function formatDate(iso: string): string {
     year: "numeric",
   });
 }
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** "vor 3 Minuten", "gestern", … — for status lines where the exact time matters less. */
+export function formatRelative(iso: string): string {
+  const diffSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const rtf = new Intl.RelativeTimeFormat("de-DE", { numeric: "auto" });
+  if (diffSeconds < 60) return "gerade eben";
+  if (diffSeconds < 3600) return rtf.format(-Math.round(diffSeconds / 60), "minute");
+  if (diffSeconds < 86400) return rtf.format(-Math.round(diffSeconds / 3600), "hour");
+  return rtf.format(-Math.round(diffSeconds / 86400), "day");
+}
