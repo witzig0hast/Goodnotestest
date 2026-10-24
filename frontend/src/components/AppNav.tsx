@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchCurrentRepository, logout } from "../lib/api";
+import { clearOffline } from "../lib/offline";
 import { SettingsMenu } from "./SettingsMenu";
 import { OPEN_TOUR_EVENT, WelcomeTour } from "./WelcomeTour";
 import styles from "../app/ui.module.css";
@@ -30,6 +31,8 @@ export function AppNav() {
   }, []);
 
   async function handleLogout() {
+    // Offline copies are personal — never leave them behind on a shared device.
+    await clearOffline();
     await logout().catch(() => {});
     router.replace("/login");
   }

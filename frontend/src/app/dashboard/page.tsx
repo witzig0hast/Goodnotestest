@@ -7,7 +7,9 @@ import { LoadingState } from "../../components/LoadingState";
 import { FileBrowser } from "../../components/FileBrowser";
 import { GettingStarted } from "../../components/GettingStarted";
 import { hasSeenTour, openTour } from "../../components/WelcomeTour";
-import { fetchCurrentRepository } from "../../lib/api";
+import { ApiError, fetchCurrentRepository } from "../../lib/api";
+import { isOfflineEnabled } from "../../lib/offline";
+import { OfflineView } from "../../components/OfflineView";
 import styles from "../ui.module.css";
 
 function greeting(): string {
@@ -22,6 +24,7 @@ export default function DashboardPage() {
   const [name, setName] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [hello, setHello] = useState("Hallo");
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     fetchCurrentRepository()
@@ -32,9 +35,16 @@ export default function DashboardPage() {
         // brand-new user isn't left guessing what this page is for.
         if (!hasSeenTour()) setTimeout(openTour, 400);
       })
-      .catch(() => router.replace("/login"))
+      .catch((err) => {
+        // A network failure (not a "not signed in" answer) with offline
+        // favorites switched on: show those instead of the login page.
+        if (!(err instanceof ApiError) && isOfflineEnabled()) setOffline(true);
+        else router.replace("/login");
+      })
       .finally(() => setChecking(false));
   }, [router]);
+
+  if (offline) return <OfflineView />;
 
   if (checking) {
     return (

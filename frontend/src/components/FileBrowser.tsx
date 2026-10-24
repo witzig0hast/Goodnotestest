@@ -38,6 +38,7 @@ import { formatDate, formatFileSize } from "../lib/format";
 import { ActionMenu, type ActionMenuItem } from "./ActionMenu";
 import { PdfPreviewModal } from "./PdfPreviewModal";
 import { openTour } from "./WelcomeTour";
+import { clearOffline, isOfflineEnabled, offlineSupported, syncOfflineFavorites } from "../lib/offline";
 import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
 import { UploadLinkForm } from "./UploadLinkForm";
@@ -143,6 +144,9 @@ export function FileBrowser() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<Toast | null>(null);
+  const [offlineState, setOfflineState] = useState<{ enabled: boolean; busy: boolean; stored?: number }>(
+    () => ({ enabled: typeof window !== "undefined" && isOfflineEnabled(), busy: false })
+  );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkSharing, setBulkSharing] = useState(false);
 
@@ -236,6 +240,31 @@ export function FileBrowser() {
     setActiveSharePath((current) => (current === path ? null : path));
   }
 
+  async function setOfflineMode(on: boolean, files: TreeNode[]) {
+    setOfflineState({ enabled: on, busy: true });
+    try {
+      if (on) {
+        const stored = await syncOfflineFavorites(files.map((f) => ({ path: f.path, name: f.name })));
+        setOfflineState({ enabled: true, busy: false, stored });
+      } else {
+        await clearOffline();
+        setOfflineState({ enabled: false, busy: false });
+      }
+    } catch {
+      setOfflineState({ enabled: false, busy: false });
+      window.alert("Offline-Speichern wird von diesem Browser nicht unterstützt.");
+    }
+  }
+
+  // Keeps the offline copies in step when favorites change.
+  function resyncOffline(nextFavorites: Set<string>) {
+    if (!isOfflineEnabled() || !tree) return;
+    const files = flattenFiles(tree).filter((f) => nextFavorites.has(f.path));
+    syncOfflineFavorites(files.map((f) => ({ path: f.path, name: f.name })))
+      .then((stored) => setOfflineState({ enabled: true, busy: false, stored }))
+      .catch(() => {});
+  }
+
   async function toggleFavorite(path: string) {
     const isFav = favorites.has(path);
     setFavorites((current) => {
@@ -247,6 +276,10 @@ export function FileBrowser() {
     try {
       if (isFav) await removeFavorite(path);
       else await addFavorite(path);
+      const next = new Set(favorites);
+      if (isFav) next.delete(path);
+      else next.add(path);
+      resyncOffline(next);
     } catch {
       // revert on failure
       setFavorites((current) => {
@@ -916,6 +949,40 @@ export function FileBrowser() {
     return (
       <div>
         {searchBar}
+        {offlineSupported() && favoriteFiles.length > 0 && (
+          <div className={styles.connectionBox} style={{ marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 20 }}>📴</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              {offlineState.enabled ? (
+                <>
+                  <strong>Offline verfügbar</strong>
+                  <div className={styles.connectionNote}>
+                    {offlineState.busy
+                      ? "Wird gespeichert …"
+                      : `${offlineState.stored ?? "—"} Favoriten sind auf diesem Gerät gespeichert und auch ohne Internet lesbar. Neue Favoriten kommen automatisch dazu.`}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>Favoriten offline verfügbar machen</strong>
+                  <div className={styles.connectionNote}>
+                    Speichert deine Favoriten auf diesem Gerät — praktisch im Hörsaal oder
+                    unterwegs ohne Netz. Beim Abmelden wird alles wieder gelöscht.
+                  </div>
+                </>
+              )}
+            </div>
+            {offlineState.enabled ? (
+              <button className={styles.smallButton} onClick={() => setOfflineMode(false, favoriteFiles)} disabled={offlineState.busy}>
+                Ausschalten
+              </button>
+            ) : (
+              <button className={styles.smallButtonAccent} onClick={() => setOfflineMode(true, favoriteFiles)} disabled={offlineState.busy}>
+                Einschalten
+              </button>
+            )}
+          </div>
+        )}
         <div className={styles.toolbar}>
           <div className={styles.hint}>{favoriteFiles.length} Favoriten</div>
         </div>
