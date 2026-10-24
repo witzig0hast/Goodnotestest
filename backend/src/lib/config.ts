@@ -20,6 +20,11 @@ export const config = {
   thumbnailsDir: required("THUMBNAILS_DIR", "./data/thumbnails"),
   trashDir: required("TRASH_DIR", "./data/trash"),
   trashRetentionDays: Number(process.env.TRASH_RETENTION_DAYS ?? 30),
+  // Storage limit for accounts without an individual one set by the admin.
+  // Unset = unlimited.
+  defaultQuotaBytes: process.env.DEFAULT_QUOTA_MB
+    ? Number(process.env.DEFAULT_QUOTA_MB) * 1024 * 1024
+    : null,
   jwtSecret: required("JWT_SECRET", DEV_ONLY_JWT_SECRET),
   encryptionKey: required("ENCRYPTION_KEY", DEV_ONLY_ENCRYPTION_KEY),
   frontendOrigin: required("FRONTEND_ORIGIN", "http://localhost:3000"),

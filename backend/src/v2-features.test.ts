@@ -298,3 +298,47 @@ describe("backup calendar", () => {
     expect(days[0]).toMatchObject({ day: new Date().toISOString().slice(0, 10), uploads: 2 });
   });
 });
+
+describe("storage quota", () => {
+  it("rejects WebDAV uploads beyond the account's limit and reports it", async () => {
+    const repo = await createRepository("Limit");
+    const set = await api(adminCookie, `/api/admin/users/${repo.repositoryId}/quota`, {
+      method: "POST",
+      body: JSON.stringify({ quotaMb: 1 }),
+    });
+    expect(set.status).toBe(200);
+
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/klein.pdf", Buffer.alloc(300 * 1024, 1));
+    await expect(client.putFileContents("/gross.pdf", Buffer.alloc(900 * 1024, 1))).rejects.toThrow();
+    expect(await client.exists("/gross.pdf")).toBe(false);
+
+    const status = await (await api(repo.cookie, "/api/repositories/webdav/status")).json();
+    expect(status.lastError).toBe("quota_exceeded");
+    const stats = await (await api(repo.cookie, "/api/files/stats")).json();
+    expect(stats.quotaBytes).toBe(1024 * 1024);
+  });
+
+  it("shows usage per account to the admin, and only to the admin", async () => {
+    const repo = await createRepository("Nutzung");
+    await webdavClientFor(repo).putFileContents("/a.pdf", Buffer.alloc(2048, 1));
+    expect((await api(repo.cookie, "/api/admin/users")).status).toBe(403);
+    const { users } = await (await api(adminCookie, "/api/admin/users")).json();
+    const me = users.find((u: { id: string }) => u.id === repo.repositoryId);
+    expect(me.usageBytes).toBeGreaterThanOrEqual(2048);
+    expect(me.quotaBytes).toBeNull();
+
+    await api(adminCookie, `/api/admin/users/${repo.repositoryId}/quota`, {
+      method: "POST",
+      body: JSON.stringify({ quotaMb: 50 }),
+    });
+    await api(adminCookie, `/api/admin/users/${repo.repositoryId}/quota`, {
+      method: "POST",
+      body: JSON.stringify({ quotaMb: null }),
+    });
+    const after = (await (await api(adminCookie, "/api/admin/users")).json()).users.find(
+      (u: { id: string }) => u.id === repo.repositoryId
+    );
+    expect(after.quotaBytes).toBeNull();
+  });
+});

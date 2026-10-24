@@ -79,7 +79,9 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
         ? "GoodNotes hat sich gemeldet, aber das Passwort stimmt nicht."
         : status.lastError === "unknown_user"
           ? "GoodNotes hat sich gemeldet, aber der Benutzername stimmt nicht."
-          : "GoodNotes hat sich gemeldet, aber dein Konto ist noch nicht freigeschaltet.";
+          : status.lastError === "quota_exceeded"
+            ? "Dein Speicherplatz ist voll — GoodNotes konnte nicht alles sichern."
+            : "GoodNotes hat sich gemeldet, aber dein Konto ist noch nicht freigeschaltet.";
     return (
       <div className={styles.connectionBoxError}>
         <span className={styles.connectionIcon}>!</span>

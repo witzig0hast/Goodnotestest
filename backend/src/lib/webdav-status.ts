@@ -12,7 +12,11 @@ import { db } from "./db.js";
 const SUCCESS_WRITE_INTERVAL_MS = 30 * 1000;
 const lastSuccessWrite = new Map<string, number>();
 
-export type WebdavFailureReason = "wrong_password" | "unknown_user" | "pending_approval";
+export type WebdavFailureReason =
+  | "wrong_password"
+  | "unknown_user"
+  | "pending_approval"
+  | "quota_exceeded";
 
 export function recordWebdavSuccess(repositoryId: string): void {
   const now = Date.now();

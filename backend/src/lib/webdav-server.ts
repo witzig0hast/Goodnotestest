@@ -6,6 +6,7 @@ import { ensureRepositoryDir } from "./storage.js";
 import { snapshotBeforeOverwrite } from "./versions.js";
 import { recordUpload } from "./backup-history.js";
 import { moveToTrash } from "./trash.js";
+import { noteUpload, wouldExceedQuota } from "./quota.js";
 import { recordWebdavFailure, recordWebdavSuccess } from "./webdav-status.js";
 
 /**
@@ -187,5 +188,23 @@ export function handleWebdavRequest(req: Request, res: Response) {
   }
 
   const server = getServerForRepository(repositoryId);
+
+  if (req.method === "PUT") {
+    const incoming = Number(req.headers["content-length"] ?? 0) || 0;
+    wouldExceedQuota(repositoryId, incoming)
+      .then((exceeded) => {
+        if (exceeded) {
+          recordWebdavFailure(repositoryId, "quota_exceeded");
+          res.status(507).send("Speicherlimit erreicht.");
+          return;
+        }
+        noteUpload(repositoryId, incoming);
+        server.executeRequest(req, res, `/webdav/${repositoryId}`);
+      })
+      // Never block a backup because the usage couldn't be computed.
+      .catch(() => server.executeRequest(req, res, `/webdav/${repositoryId}`));
+    return;
+  }
+
   server.executeRequest(req, res, `/webdav/${repositoryId}`);
 }

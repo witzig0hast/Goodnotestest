@@ -14,10 +14,14 @@ import {
   fetchAdminUsers,
   fetchCurrentRepository,
   rejectUser,
+  setUserQuota,
+  fetchAdminAudit,
+  type AuditEntry,
   type AdminUser,
   type Announcement,
 } from "../../../lib/api";
-import { formatDate } from "../../../lib/format";
+import { formatDate, formatFileSize, formatRelative } from "../../../lib/format";
+import { AuditList } from "../../../components/AuditList";
 import styles from "../../ui.module.css";
 
 function statusLabel(status: AdminUser["approvalStatus"]): string {
@@ -38,13 +42,21 @@ export default function AdminPage() {
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [defaultQuota, setDefaultQuota] = useState<number | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[] | null>(null);
 
   function load() {
     fetchAdminUsers()
-      .then((res) => setUsers(res.users))
+      .then((res) => {
+        setUsers(res.users);
+        setDefaultQuota(res.defaultQuotaBytes);
+      })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Konten konnten nicht geladen werden.")
       );
+    fetchAdminAudit()
+      .then((res) => setAudit(res.entries))
+      .catch(() => setAudit([]));
     fetchAdminAnnouncements()
       .then((res) => setAnnouncements(res.announcements))
       .catch(() => setAnnouncements([]));
@@ -65,6 +77,38 @@ export default function AdminPage() {
       );
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleQuota(user: AdminUser) {
+    const current = user.quotaBytes ? String(Math.round(user.quotaBytes / 1024 / 1024)) : "";
+    const input = window.prompt(
+      `Speicherlimit für „${user.name}“ in MB (leer lassen = ${
+        defaultQuota ? `Server-Standard, ${formatFileSize(defaultQuota)}` : "kein Limit"
+      }):`,
+      current
+    );
+    if (input === null) return;
+    const trimmed = input.trim();
+    const mb = trimmed === "" ? null : Number(trimmed);
+    if (mb !== null && (!Number.isInteger(mb) || mb < 1)) {
+      window.alert("Bitte eine ganze Zahl in MB angeben.");
+      return;
+    }
+    setBusyId(user.id);
+    try {
+      const res = await setUserQuota(user.id, mb);
+      setUsers((list) =>
+        list?.map((u) =>
+          u.id === user.id
+            ? { ...u, quotaBytes: res.quotaBytes, effectiveQuotaBytes: res.effectiveQuotaBytes }
+            : u
+        ) ?? null
+      );
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Speichern ist fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -265,8 +309,34 @@ export default function AdminPage() {
                   <span className={styles.fileMeta}>
                     {user.email} · {statusLabel(user.approvalStatus)} · seit{" "}
                     {formatDate(user.createdAt)}
+                    {user.lastBackupAt && ` · zuletzt gesichert ${formatRelative(user.lastBackupAt)}`}
                   </span>
+                  <span className={styles.fileMeta}>
+                    {formatFileSize(user.usageBytes)} belegt
+                    {user.effectiveQuotaBytes
+                      ? ` von ${formatFileSize(user.effectiveQuotaBytes)}${user.quotaBytes ? "" : " (Standard)"}`
+                      : " · kein Limit"}
+                  </span>
+                  {user.effectiveQuotaBytes && (
+                    <div className={styles.progressTrack} style={{ marginTop: 4, height: 4, maxWidth: 240 }}>
+                      <div
+                        className={styles.progressFill}
+                        style={{
+                          width: `${Math.min(100, (user.usageBytes / user.effectiveQuotaBytes) * 100)}%`,
+                          background:
+                            user.usageBytes / user.effectiveQuotaBytes > 0.9 ? "var(--danger)" : undefined,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
+                <button
+                  className={styles.smallButton}
+                  onClick={() => handleQuota(user)}
+                  disabled={busyId === user.id}
+                >
+                  Limit
+                </button>
                 {!user.isAdmin && (
                   <div className={styles.fileActions}>
                     {user.approvalStatus === "rejected" ? (
@@ -293,6 +363,14 @@ export default function AdminPage() {
           </div>
         </section>
 
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>Protokoll aller Konten</h2>
+          <p className={styles.hint} style={{ marginBottom: 16 }}>
+            Anmeldungen, fehlgeschlagene Versuche, Freigaben und Löschungen auf
+            diesem Server — neueste zuerst.
+          </p>
+          {audit ? <AuditList entries={audit} showAccount /> : <LoadingState />}
+        </section>
       </main>
     </div>
   );

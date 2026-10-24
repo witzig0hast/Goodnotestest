@@ -18,6 +18,7 @@ import { getThumbnailPath } from "../lib/thumbnails.js";
 import { listVersions, restoreVersion, versionDownloadPath } from "../lib/versions.js";
 import { streamDirectoryAsZip, streamPathsAsZip } from "../lib/zip.js";
 import { logAudit } from "../lib/audit.js";
+import { getQuotaBytes } from "../lib/quota.js";
 
 export const filesRouter = Router();
 
@@ -38,7 +39,12 @@ filesRouter.get("/stats", async (req, res) => {
     return !latest || f.modifiedAt > latest ? f.modifiedAt : latest;
   }, null);
 
-  res.json({ totalFiles: files.length, totalSize, lastBackupAt });
+  res.json({
+    totalFiles: files.length,
+    totalSize,
+    lastBackupAt,
+    quotaBytes: getQuotaBytes(req.repositoryId!),
+  });
 });
 
 filesRouter.get("/download", (req, res) => {

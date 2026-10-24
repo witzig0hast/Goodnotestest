@@ -225,6 +225,7 @@ export interface RepositoryStats {
   totalFiles: number;
   totalSize: number;
   lastBackupAt: string | null;
+  quotaBytes: number | null;
 }
 
 export function fetchStats() {
@@ -414,10 +415,21 @@ export interface AdminUser {
   isAdmin: boolean;
   approvalStatus: ApprovalStatus;
   createdAt: string;
+  usageBytes: number;
+  quotaBytes: number | null;
+  effectiveQuotaBytes: number | null;
+  lastBackupAt: string | null;
 }
 
 export function fetchAdminUsers() {
-  return request<{ users: AdminUser[] }>("/api/admin/users");
+  return request<{ users: AdminUser[]; defaultQuotaBytes: number | null }>("/api/admin/users");
+}
+
+export function setUserQuota(id: string, quotaMb: number | null) {
+  return request<{ quotaBytes: number | null; effectiveQuotaBytes: number | null }>(
+    `/api/admin/users/${id}/quota`,
+    { method: "POST", body: JSON.stringify({ quotaMb }) }
+  );
 }
 
 export function approveUser(id: string) {
@@ -463,7 +475,7 @@ export function deleteAnnouncement(id: string) {
 
 export interface WebdavConnectionStatus {
   lastSuccessAt: string | null;
-  lastError: "wrong_password" | "unknown_user" | "pending_approval" | null;
+  lastError: "wrong_password" | "unknown_user" | "pending_approval" | "quota_exceeded" | null;
   lastErrorAt: string | null;
   fileCount: number;
   goodnotesFormatCount: number;

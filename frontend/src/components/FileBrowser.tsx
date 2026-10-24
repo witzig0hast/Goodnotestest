@@ -607,7 +607,21 @@ export function FileBrowser() {
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{formatFileSize(stats.totalSize)}</div>
-        <div className={styles.statTileLabel}>Speicher</div>
+        <div className={styles.statTileLabel}>
+          {stats.quotaBytes ? `von ${formatFileSize(stats.quotaBytes)} belegt` : "Speicher"}
+        </div>
+        {stats.quotaBytes && (
+          <div className={styles.progressTrack} style={{ marginTop: 6, height: 4 }}>
+            <div
+              className={styles.progressFill}
+              style={{
+                width: `${Math.min(100, (stats.totalSize / stats.quotaBytes) * 100)}%`,
+                background:
+                  stats.totalSize / stats.quotaBytes > 0.9 ? "var(--danger)" : undefined,
+              }}
+            />
+          </div>
+        )}
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>
