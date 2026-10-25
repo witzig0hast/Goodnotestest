@@ -6,7 +6,16 @@ import { db } from "./db.js";
  * deleted or renamed (a rename covers a folder rename affecting every
  * descendant, since "Ordner" also matches "Ordner/Unterordner/Datei.pdf").
  */
-const PATH_REFERENCING_TABLES = ["file_text_index", "favorites"] as const;
+const PATH_REFERENCING_TABLES = [
+  "file_text_index",
+  "favorites",
+  "file_tags",
+  "file_page_text",
+  "recent_views",
+  "page_bookmarks",
+  "file_issues",
+  "study_sheet_pages",
+] as const;
 
 export function deletePathReferences(repositoryId: string, relativePath: string): void {
   for (const table of PATH_REFERENCING_TABLES) {

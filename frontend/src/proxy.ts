@@ -14,7 +14,9 @@ export function proxy(request: NextRequest) {
 
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    // 'wasm-unsafe-eval' only permits compiling WebAssembly (not eval()):
+    // the pdf.js viewer uses it to decode JPEG 2000 / JBIG2 images in PDFs.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
     // CSP has no nonce mechanism for inline style="" attributes (only for
     // <style> blocks) — this codebase uses style={{...}} props throughout,
     // so 'unsafe-inline' is unavoidable here. script-src is what actually

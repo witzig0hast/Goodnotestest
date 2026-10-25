@@ -4,10 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
 import { ApiError, createRepository, type CreateRepositoryResponse } from "../../lib/api";
+import { ConnectionStatus } from "../../components/ConnectionStatus";
 import { browserSupportsWebAuthn, registerPasskey } from "../../lib/passkeys";
+import { translate, useT } from "../../lib/i18n";
 import styles from "../ui.module.css";
 
 export default function ErstellenPage() {
+  const t = useT();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +28,7 @@ export default function ErstellenPage() {
     setError(null);
     try {
       const res = await createRepository({
-        name: name.trim() || "Meine Notizen",
+        name: name.trim() || t("Meine Notizen"),
         email: email.trim(),
         password,
       });
@@ -34,7 +37,7 @@ export default function ErstellenPage() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal."
+          : translate("Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.")
       );
     } finally {
       setLoading(false);
@@ -74,30 +77,27 @@ export default function ErstellenPage() {
         <main className={styles.main}>
           <section className={styles.card}>
             <div className={styles.eyebrow}>
-              {isPending ? "Fast geschafft" : "Fertig eingerichtet"}
+              {isPending ? t("Fast geschafft") : t("Fertig eingerichtet")}
             </div>
-            <h1 className={styles.title}>„{result.name}“ ist angelegt</h1>
+            <h1 className={styles.title}>{t("„{name}“ ist angelegt", { name: result.name })}</h1>
             {isPending ? (
               <div className={styles.warningBox} style={{ marginBottom: 16 }}>
-                Deine Anfrage wird noch bearbeitet. Um Überlastung zu
-                vermeiden, muss ein neues Konto erst von einem Menschen
-                geprüft werden, bevor du dich anmelden oder mit GoodNotes
-                synchronisieren kannst. Trag die Zugangsdaten unten trotzdem
-                schon mal ein — sie funktionieren automatisch, sobald dein
-                Konto freigeschaltet wurde.
+                {t(
+                  "Deine Anfrage wird noch bearbeitet. Um Überlastung zu vermeiden, muss ein neues Konto erst von einem Menschen geprüft werden, bevor du dich anmelden oder mit GoodNotes synchronisieren kannst. Trag die Zugangsdaten unten trotzdem schon mal ein — sie funktionieren automatisch, sobald dein Konto freigeschaltet wurde."
+                )}
               </div>
             ) : (
               <p className={styles.subtitle}>
-                Du bist schon angemeldet. Für GoodNotes brauchst du noch die
-                WebDAV-Zugangsdaten unten — trag sie einmal ein, dann läuft
-                alles automatisch.
+                {t(
+                  "Du bist schon angemeldet. Für GoodNotes brauchst du noch die WebDAV-Zugangsdaten unten — trag sie einmal ein, dann läuft alles automatisch."
+                )}
               </p>
             )}
 
             <div className={styles.secretGrid}>
               <div className={styles.secretItem}>
                 <span className={styles.secretLabel}>
-                  WebDAV-Adresse (für GoodNotes → Einstellungen → Backup)
+                  {t("WebDAV-Adresse (für GoodNotes → Einstellungen → Backup)")}
                 </span>
                 <div className={styles.secretValue}>
                   <span>{webdavUrl}</span>
@@ -107,13 +107,13 @@ export default function ErstellenPage() {
                     }
                     onClick={() => copy("webdavUrl", webdavUrl)}
                   >
-                    {copiedField === "webdavUrl" ? "Kopiert" : "Kopieren"}
+                    {copiedField === "webdavUrl" ? t("Kopiert") : t("Kopieren")}
                   </button>
                 </div>
               </div>
 
               <div className={styles.secretItem}>
-                <span className={styles.secretLabel}>WebDAV-Benutzername</span>
+                <span className={styles.secretLabel}>{t("WebDAV-Benutzername")}</span>
                 <div className={styles.secretValue}>
                   <span>{result.webdav.username}</span>
                   <button
@@ -122,15 +122,15 @@ export default function ErstellenPage() {
                     }
                     onClick={() => copy("webdavUser", result.webdav.username)}
                   >
-                    {copiedField === "webdavUser" ? "Kopiert" : "Kopieren"}
+                    {copiedField === "webdavUser" ? t("Kopiert") : t("Kopieren")}
                   </button>
                 </div>
               </div>
 
               <div className={`${styles.secretItem} ${styles.onlyOnceItem}`}>
                 <span className={styles.secretLabel}>
-                  WebDAV-Passwort
-                  <span className={styles.onlyOnceBadge}>Nur jetzt sichtbar</span>
+                  {t("WebDAV-Passwort")}
+                  <span className={styles.onlyOnceBadge}>{t("Nur jetzt sichtbar")}</span>
                 </span>
                 <div className={styles.secretValue}>
                   <span>{result.webdav.password}</span>
@@ -144,13 +144,13 @@ export default function ErstellenPage() {
                       copy("webdavPassword", result.webdav.password)
                     }
                   >
-                    {copiedField === "webdavPassword" ? "Kopiert" : "Kopieren"}
+                    {copiedField === "webdavPassword" ? t("Kopiert") : t("Kopieren")}
                   </button>
                 </div>
                 <span className={styles.hint} style={{ marginTop: 4 }}>
-                  Jetzt notieren — unter „WebDAV-Zugang“ in den Einstellungen
-                  lässt sich bei Bedarf jederzeit ein neues erzeugen, dieses
-                  hier aber nie wieder anzeigen.
+                  {t(
+                    "Jetzt notieren — unter Einstellungen → „GoodNotes verbinden“ lässt sich bei Bedarf jederzeit ein neues erzeugen, dieses hier aber nie wieder anzeigen."
+                  )}
                 </span>
               </div>
             </div>
@@ -158,51 +158,61 @@ export default function ErstellenPage() {
 
           <section className={styles.card}>
             <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-              So richtest du GoodNotes ein
+              {t("So richtest du GoodNotes ein")}
             </h2>
             <div className={styles.stepList}>
               <div className={styles.step}>
                 <div className={styles.stepNumber}>1</div>
                 <div className={styles.stepText}>
-                  Öffne GoodNotes und gehe zu Einstellungen → Backup → WebDAV.
+                  {t("Öffne GoodNotes und gehe zu Einstellungen → Backup, schalte Auto-Backup ein und wähle WebDAV.")}
                 </div>
               </div>
               <div className={styles.step}>
                 <div className={styles.stepNumber}>2</div>
                 <div className={styles.stepText}>
-                  Trage die drei Angaben von oben ein.
+                  {t("Trage die drei Angaben von oben ein und stell das")}{" "}
+                  <strong>{t("Backup-Format auf „PDF“")}</strong>{" "}
+                  {t("— nur dann kannst du deine Notizen hier ansehen und durchsuchen.")}
                 </div>
               </div>
               <div className={styles.step}>
                 <div className={styles.stepNumber}>3</div>
                 <div className={styles.stepText}>
-                  Tippe auf „Jetzt sichern“ — fertig. Deine Notizen erscheinen
-                  ab jetzt automatisch in deinem Konto.
+                  {t(
+                    "Tippe auf „Jetzt sichern“ — fertig. Deine Notizen erscheinen ab jetzt automatisch in deinem Konto."
+                  )}
                 </div>
               </div>
             </div>
+            {!isPending && (
+              <div style={{ marginTop: 20 }}>
+                <ConnectionStatus />
+              </div>
+            )}
           </section>
 
           {!isPending && browserSupportsWebAuthn() && (
             <section className={styles.card}>
               <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-                Schneller anmelden mit Passkey
+                {t("Schneller anmelden mit Passkey")}
               </h2>
               <p className={styles.hint} style={{ marginBottom: 16 }}>
-                Statt Passwort einzutippen, kannst du dich beim nächsten Mal
-                mit Face ID, Fingerabdruck oder deinem Gerätecode anmelden.
+                {t(
+                  "Statt Passwort einzutippen, kannst du dich beim nächsten Mal mit Face ID, Fingerabdruck oder deinem Gerätecode anmelden."
+                )}
               </p>
               {passkeyStatus === "done" ? (
                 <div className={styles.statusBadge}>
                   <span className={styles.statusDot} />
-                  Passkey eingerichtet
+                  {t("Passkey eingerichtet")}
                 </div>
               ) : (
                 <>
                   {passkeyStatus === "error" && (
                     <div className={styles.errorBox} style={{ marginBottom: 12 }}>
-                      Das hat nicht geklappt. Du kannst es später jederzeit in
-                      den Einstellungen erneut versuchen.
+                      {t(
+                        "Das hat nicht geklappt. Du kannst es später jederzeit in den Einstellungen erneut versuchen."
+                      )}
                     </div>
                   )}
                   <button
@@ -211,8 +221,8 @@ export default function ErstellenPage() {
                     disabled={passkeyStatus === "loading"}
                   >
                     {passkeyStatus === "loading"
-                      ? "Wird eingerichtet …"
-                      : "Passkey jetzt einrichten"}
+                      ? t("Wird eingerichtet …")
+                      : t("Passkey jetzt einrichten")}
                   </button>
                 </>
               )}
@@ -221,32 +231,30 @@ export default function ErstellenPage() {
 
           <section className={styles.card}>
             <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-              Für den Notfall
+              {t("Für den Notfall")}
             </h2>
             <p className={styles.hint} style={{ marginBottom: 16 }}>
-              Falls du E-Mail, Passwort und Passkey mal nicht zur Hand hast,
-              kommst du mit diesen zwei Angaben trotzdem rein. Die
-              Konto-Kennung findest du jederzeit wieder unter „Sicherheit“ —
-              den Notfall-Code aber nur jetzt. Notier ihn dir sicher, z. B.
-              in deinem Passwortmanager.
+              {t(
+                "Falls du E-Mail, Passwort und Passkey mal nicht zur Hand hast, kommst du mit diesen zwei Angaben trotzdem rein. Die Konto-Kennung findest du jederzeit wieder unter „Sicherheit“ — den Notfall-Code aber nur jetzt. Notier ihn dir sicher, z. B. in deinem Passwortmanager."
+              )}
             </p>
             <div className={styles.secretGrid}>
               <div className={styles.secretItem}>
-                <span className={styles.secretLabel}>Konto-Kennung</span>
+                <span className={styles.secretLabel}>{t("Konto-Kennung")}</span>
                 <div className={styles.secretValue}>
                   <span>{result.repositoryId}</span>
                   <button
                     className={copiedField === "id" ? styles.copyButtonCopied : styles.copyButton}
                     onClick={() => copy("id", result.repositoryId)}
                   >
-                    {copiedField === "id" ? "Kopiert" : "Kopieren"}
+                    {copiedField === "id" ? t("Kopiert") : t("Kopieren")}
                   </button>
                 </div>
               </div>
               <div className={`${styles.secretItem} ${styles.onlyOnceItem}`}>
                 <span className={styles.secretLabel}>
-                  Notfall-Code
-                  <span className={styles.onlyOnceBadge}>Nur jetzt sichtbar</span>
+                  {t("Notfall-Code")}
+                  <span className={styles.onlyOnceBadge}>{t("Nur jetzt sichtbar")}</span>
                 </span>
                 <div className={styles.pinBig}>{result.pin}</div>
               </div>
@@ -257,11 +265,11 @@ export default function ErstellenPage() {
             <div className={styles.actionRowInline}>
               {isPending ? (
                 <Link href="/login" className={styles.button}>
-                  Zur Anmeldung
+                  {t("Zur Anmeldung")}
                 </Link>
               ) : (
                 <Link href="/dashboard" className={styles.button}>
-                  Zu meinen Notizen
+                  {t("Zu meinen Notizen")}
                 </Link>
               )}
             </div>
@@ -276,23 +284,23 @@ export default function ErstellenPage() {
       <PageHeader />
       <main className={styles.main}>
         <form className={styles.card} onSubmit={handleSubmit}>
-          <div className={styles.eyebrow}>Neu hier</div>
-          <h1 className={styles.title}>Konto erstellen</h1>
+          <div className={styles.eyebrow}>{t("Neu hier")}</div>
+          <h1 className={styles.title}>{t("Konto erstellen")}</h1>
           <p className={styles.subtitle}>
-            Nur drei Angaben, dann bist du fertig.
+            {t("Nur drei Angaben, dann bist du fertig.")}
           </p>
 
-          {error && <div className={styles.errorBox}>{error}</div>}
+          {error && <div className={styles.errorBox}>{t(error)}</div>}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="name">
-                Name (z. B. deine Praxis)
+                {t("Wie soll dein Konto heißen? (optional)")}
               </label>
               <input
                 id="name"
                 className={styles.input}
-                placeholder="z. B. Praxis Musterfrau"
+                placeholder={t("z. B. Praxis Musterfrau")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
@@ -301,13 +309,14 @@ export default function ErstellenPage() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="email">
-                E-Mail-Adresse
+                {t("E-Mail-Adresse")}
               </label>
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 className={styles.input}
-                placeholder="du@beispiel.de"
+                placeholder={t("du@beispiel.de")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -316,13 +325,14 @@ export default function ErstellenPage() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="password">
-                Passwort
+                {t("Passwort")}
               </label>
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 className={styles.input}
-                placeholder="Mindestens 8 Zeichen"
+                placeholder={t("Mindestens 8 Zeichen")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={8}
@@ -333,10 +343,10 @@ export default function ErstellenPage() {
 
           <div className={styles.actionRowInline}>
             <button className={styles.button} type="submit" disabled={loading}>
-              {loading ? "Wird erstellt …" : "Konto erstellen"}
+              {loading ? t("Wird erstellt …") : t("Konto erstellen")}
             </button>
             <Link href="/" className={styles.buttonSecondary}>
-              Abbrechen
+              {t("Abbrechen")}
             </Link>
           </div>
         </form>

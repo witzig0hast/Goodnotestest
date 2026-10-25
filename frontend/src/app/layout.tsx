@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import { AnnouncementBanner } from "../components/AnnouncementBanner";
 import { ServiceWorkerRegistration } from "../components/ServiceWorkerRegistration";
+import { LocaleSync } from "../components/LanguageSwitch";
 import "./globals.css";
 
 const bodyFont = Inter({
@@ -58,6 +59,7 @@ export default function RootLayout({
         <AnnouncementBanner />
         {children}
         <ServiceWorkerRegistration />
+        <LocaleSync />
       </body>
     </html>
   );

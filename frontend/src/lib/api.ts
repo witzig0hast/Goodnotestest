@@ -5,6 +5,8 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
+import { translate } from "./i18n";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -23,7 +25,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(body.error ?? "Etwas ist schiefgelaufen.");
+    // The server answers in German; show its message in the UI language.
+    throw new ApiError(translate(body.error ?? "Etwas ist schiefgelaufen."));
   }
 
   return body as T;
@@ -71,10 +74,12 @@ export interface SessionResponse {
   isAdmin: boolean;
   webdavUsername: string;
   hasPassword: boolean;
+  totpEnabled?: boolean;
 }
 
+/** Either signs in right away, or asks for the authenticator code first. */
 export function loginWithPassword(email: string, password: string) {
-  return request<SessionResponse>("/api/auth/login-password", {
+  return request<SessionResponse | { totpRequired: true; ticket: string }>("/api/auth/login-password", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -225,6 +230,7 @@ export interface RepositoryStats {
   totalFiles: number;
   totalSize: number;
   lastBackupAt: string | null;
+  quotaBytes: number | null;
 }
 
 export function fetchStats() {
@@ -234,8 +240,20 @@ export function fetchStats() {
 export interface SearchResult {
   path: string;
   name: string;
-  matchedIn: "filename" | "content";
+  matchedIn: "filename" | "content" | "handwriting";
   snippet?: string;
+  page?: number;
+}
+
+export interface IndexStatus {
+  enabled: boolean;
+  pdfCount: number;
+  indexed: number;
+  ocrPages: number;
+}
+
+export function fetchIndexStatus() {
+  return request<IndexStatus>("/api/files/index-status");
 }
 
 export function searchFiles(query: string) {
@@ -270,6 +288,8 @@ export function createShareLink(input: {
   paths: string[];
   password?: string;
   expiresInDays?: number;
+  notifyOnOpen?: boolean;
+  maxDownloads?: number;
 }) {
   return request<CreateShareLinkResponse>("/api/share", {
     method: "POST",
@@ -285,6 +305,14 @@ export interface MyShareLink {
   expired: boolean;
   viewCount: number;
   createdAt: string;
+  notifyOnOpen: boolean;
+  maxDownloads: number | null;
+  downloadCount: number;
+  exhausted: boolean;
+}
+
+export function fetchShareOptions() {
+  return request<{ emailNotifications: boolean }>("/api/share/options");
 }
 
 export function fetchMyShareLinks() {
@@ -387,6 +415,7 @@ export interface ShareInfo {
   type: "file" | "folder" | "bundle";
   items: { name: string; type: "file" | "folder" }[];
   requiresPassword: boolean;
+  downloadsLeft: number | null;
 }
 
 export function fetchShareInfo(id: string) {
@@ -414,10 +443,21 @@ export interface AdminUser {
   isAdmin: boolean;
   approvalStatus: ApprovalStatus;
   createdAt: string;
+  usageBytes: number;
+  quotaBytes: number | null;
+  effectiveQuotaBytes: number | null;
+  lastBackupAt: string | null;
 }
 
 export function fetchAdminUsers() {
-  return request<{ users: AdminUser[] }>("/api/admin/users");
+  return request<{ users: AdminUser[]; defaultQuotaBytes: number | null }>("/api/admin/users");
+}
+
+export function setUserQuota(id: string, quotaMb: number | null) {
+  return request<{ quotaBytes: number | null; effectiveQuotaBytes: number | null }>(
+    `/api/admin/users/${id}/quota`,
+    { method: "POST", body: JSON.stringify({ quotaMb }) }
+  );
 }
 
 export function approveUser(id: string) {
@@ -457,4 +497,365 @@ export function createAnnouncement(message: string) {
 
 export function deleteAnnouncement(id: string) {
   return request<void>(`/api/admin/announcements/${id}`, { method: "DELETE" });
+}
+
+// --- Setup status: has GoodNotes connected yet? ---
+
+export interface WebdavConnectionStatus {
+  lastSuccessAt: string | null;
+  lastError: "wrong_password" | "unknown_user" | "pending_approval" | "quota_exceeded" | null;
+  lastErrorAt: string | null;
+  fileCount: number;
+  goodnotesFormatCount: number;
+}
+
+export function fetchWebdavStatus() {
+  return request<WebdavConnectionStatus>("/api/repositories/webdav/status");
+}
+
+// --- Trash ---
+
+export interface TrashItem {
+  id: string;
+  originalPath: string;
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  deletedBy: "web" | "goodnotes";
+  deletedAt: string;
+  expiresAt: string;
+}
+
+export function fetchTrash() {
+  return request<{ items: TrashItem[]; retentionDays: number }>("/api/trash");
+}
+
+export function restoreTrashItem(id: string) {
+  return request<{ path: string }>(`/api/trash/${id}/restore`, { method: "POST" });
+}
+
+export function deleteTrashItem(id: string) {
+  return request<void>(`/api/trash/${id}`, { method: "DELETE" });
+}
+
+export function emptyTrash() {
+  return request<{ deleted: number }>("/api/trash", { method: "DELETE" });
+}
+
+// --- Activity: audit log + backup calendar ---
+
+export interface AuditEntry {
+  id: number;
+  repositoryId: string | null;
+  repositoryName?: string | null;
+  action: string;
+  detail: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export function fetchActivityLog() {
+  return request<{ entries: AuditEntry[] }>("/api/activity/log");
+}
+
+export function fetchAdminAudit() {
+  return request<{ entries: AuditEntry[] }>("/api/admin/audit");
+}
+
+export interface BackupDay {
+  day: string;
+  uploads: number;
+  lastUploadAt: string;
+}
+
+export function fetchBackupDays(days = 182) {
+  return request<{ days: BackupDay[] }>(`/api/activity/backups?days=${days}`);
+}
+
+// --- Upload links: others can drop files into one of your folders ---
+
+export function createUploadLink(input: {
+  path: string;
+  label?: string;
+  password?: string;
+  expiresInDays?: number;
+  maxFiles?: number;
+  notifyOwner?: boolean;
+}) {
+  return request<{ id: string }>("/api/upload-links", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface MyUploadLink {
+  id: string;
+  relativePath: string;
+  label: string | null;
+  requiresPassword: boolean;
+  expiresAt: string | null;
+  expired: boolean;
+  maxFiles: number | null;
+  uploadCount: number;
+  full: boolean;
+  createdAt: string;
+}
+
+export function fetchMyUploadLinks() {
+  return request<{ links: MyUploadLink[] }>("/api/upload-links/mine");
+}
+
+export function revokeUploadLink(id: string) {
+  return request<void>(`/api/upload-links/${id}`, { method: "DELETE" });
+}
+
+export interface UploadLinkInfo {
+  label: string | null;
+  ownerName: string;
+  folderName: string;
+  requiresPassword: boolean;
+  filesLeft: number | null;
+  maxFileMb: number;
+  allowedExtensions: string[];
+}
+
+export function fetchUploadLinkInfo(id: string) {
+  return request<UploadLinkInfo>(`/api/upload-links/${id}`);
+}
+
+export function unlockUploadLink(id: string, password: string) {
+  return request<{ token: string }>(`/api/upload-links/${id}/unlock`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+/**
+ * Uploads one file via XMLHttpRequest rather than fetch(), because only
+ * XHR reports upload progress — the upload page shows a bar per file.
+ */
+export function uploadViaLink(
+  id: string,
+  file: File,
+  token: string | null,
+  onProgress: (fraction: number) => void
+): Promise<{ name: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const suffix = token ? `?token=${encodeURIComponent(token)}` : "";
+    xhr.open("POST", `${API_BASE_URL}/api/upload-links/${id}/files${suffix}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: { name?: string; error?: string } = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON error page (e.g. a proxy's 413)
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve({ name: body.name ?? file.name });
+      else if (xhr.status === 413) reject(new ApiError(translate("Die Datei ist zu groß.")));
+      else reject(new ApiError(translate(body.error ?? "Hochladen ist fehlgeschlagen.")));
+    };
+    xhr.onerror = () => reject(new ApiError(translate("Keine Verbindung zum Server.")));
+    xhr.send(file);
+  });
+}
+
+// --- Tags ---
+
+export const TAG_COLORS = ["green", "blue", "purple", "pink", "red", "orange", "yellow", "gray"] as const;
+export type TagColor = (typeof TAG_COLORS)[number];
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: TagColor;
+}
+
+export function fetchTags() {
+  return request<{ tags: Tag[]; assignments: Record<string, string[]> }>("/api/tags");
+}
+
+export function createTag(name: string, color: TagColor) {
+  return request<Tag>("/api/tags", { method: "POST", body: JSON.stringify({ name, color }) });
+}
+
+export function deleteTag(id: string) {
+  return request<void>(`/api/tags/${id}`, { method: "DELETE" });
+}
+
+export function assignTag(id: string, path: string) {
+  return request<void>(`/api/tags/${id}/assign`, { method: "POST", body: JSON.stringify({ path }) });
+}
+
+export function unassignTag(id: string, path: string) {
+  return request<void>(`/api/tags/${id}/assign`, { method: "DELETE", body: JSON.stringify({ path }) });
+}
+
+// --- Reading position, recently viewed, page bookmarks ---
+
+export interface RecentView {
+  path: string;
+  lastPage: number;
+  pageCount: number | null;
+  viewedAt: string;
+}
+
+export function fetchRecentViews(limit = 8) {
+  return request<{ items: RecentView[] }>(`/api/reading/recent?limit=${limit}`);
+}
+
+export function fetchLastPage(path: string) {
+  return request<{ lastPage: number | null }>(`/api/reading/position?path=${encodeURIComponent(path)}`);
+}
+
+export function saveReadingPosition(path: string, page: number, pageCount?: number) {
+  return request<void>("/api/reading/position", {
+    method: "POST",
+    body: JSON.stringify({ path, page, pageCount }),
+  });
+}
+
+export interface Bookmark {
+  id: string;
+  path: string;
+  page: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export function fetchBookmarks(path?: string) {
+  return request<{ bookmarks: Bookmark[] }>(
+    `/api/reading/bookmarks${path ? `?path=${encodeURIComponent(path)}` : ""}`
+  );
+}
+
+export function addBookmark(path: string, page: number, note?: string) {
+  return request<Bookmark>("/api/reading/bookmarks", {
+    method: "POST",
+    body: JSON.stringify({ path, page, note }),
+  });
+}
+
+export function deleteBookmark(id: string) {
+  return request<void>(`/api/reading/bookmarks/${id}`, { method: "DELETE" });
+}
+
+// --- Signed-in devices and two-factor sign-in ---
+
+export interface SessionInfo {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  method: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+}
+
+export function fetchSessions() {
+  return request<{ sessions: SessionInfo[] }>("/api/auth/sessions");
+}
+
+export function revokeSession(id: string) {
+  return request<void>(`/api/auth/sessions/${id}`, { method: "DELETE" });
+}
+
+export function revokeOtherSessions() {
+  return request<{ signedOut: number }>("/api/auth/sessions", { method: "DELETE" });
+}
+
+export function loginWithTotp(ticket: string, code: string) {
+  return request<SessionResponse>("/api/auth/login-totp", {
+    method: "POST",
+    body: JSON.stringify({ ticket, code }),
+  });
+}
+
+export function startTotpSetup() {
+  return request<{ secret: string; otpauthUrl: string; setupToken: string }>("/api/auth/totp/setup", {
+    method: "POST",
+  });
+}
+
+export function enableTotp(setupToken: string, code: string) {
+  return request<{ enabled: true }>("/api/auth/totp/enable", {
+    method: "POST",
+    body: JSON.stringify({ setupToken, code }),
+  });
+}
+
+export function disableTotp(code: string) {
+  return request<{ enabled: false }>("/api/auth/totp/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+// --- Study sheets (Lernzettel) ---
+
+export interface StudySheetPage {
+  id: string;
+  path: string;
+  page: number;
+}
+
+export interface StudySheet {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  pages: StudySheetPage[];
+}
+
+export function fetchStudySheets() {
+  return request<{ sheets: StudySheet[] }>("/api/study-sheets");
+}
+
+export function createStudySheet(name: string, pages: { path: string; page: number }[] = []) {
+  return request<StudySheet>("/api/study-sheets", {
+    method: "POST",
+    body: JSON.stringify({ name, pages }),
+  });
+}
+
+export function updateStudySheet(id: string, changes: { name?: string; order?: string[] }) {
+  return request<StudySheet>(`/api/study-sheets/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export function deleteStudySheet(id: string) {
+  return request<void>(`/api/study-sheets/${id}`, { method: "DELETE" });
+}
+
+export function addStudySheetPages(id: string, pages: { path: string; page: number }[]) {
+  return request<StudySheet>(`/api/study-sheets/${id}/pages`, {
+    method: "POST",
+    body: JSON.stringify({ pages }),
+  });
+}
+
+export function removeStudySheetPage(id: string, pageId: string) {
+  return request<StudySheet>(`/api/study-sheets/${id}/pages/${pageId}`, { method: "DELETE" });
+}
+
+export function saveStudySheet(id: string) {
+  return request<{ path: string; name: string; skipped: number }>(`/api/study-sheets/${id}/save`, {
+    method: "POST",
+  });
+}
+
+export function studySheetPdfUrl(sheet: StudySheet, download = false): string {
+  // Changes to the page list must bust the viewer's cache, even several
+  // within the same second (updatedAt only has second resolution).
+  let hash = 0;
+  for (const ch of sheet.pages.map((p) => p.id).join(",")) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  const version = `${encodeURIComponent(sheet.updatedAt)}-${(hash >>> 0).toString(36)}`;
+  return `${API_BASE_URL}/api/study-sheets/${sheet.id}/pdf?v=${version}${download ? "&download=1" : ""}`;
 }

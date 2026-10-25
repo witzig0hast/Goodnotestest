@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../../components/PageHeader";
 import { ApiError, loginWithCode } from "../../../lib/api";
+import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
 
 export default function CodeLoginPage() {
+  const t = useT();
   const router = useRouter();
   const [repositoryId, setRepositoryId] = useState("");
   const [pin, setPin] = useState("");
@@ -25,7 +27,7 @@ export default function CodeLoginPage() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal."
+          : translate("Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.")
       );
     } finally {
       setLoading(false);
@@ -37,29 +39,29 @@ export default function CodeLoginPage() {
       <PageHeader />
       <main className={styles.main}>
         <form className={styles.card} onSubmit={handleSubmit}>
-          <div className={styles.eyebrow}>Notfall-Zugang</div>
-          <h1 className={styles.title}>Mit Konto-Kennung anmelden</h1>
+          <div className={styles.eyebrow}>{t("Notfall-Zugang")}</div>
+          <h1 className={styles.title}>{t("Mit Konto-Kennung anmelden")}</h1>
           <p className={styles.subtitle}>
-            Falls du dein Passwort oder deinen Passkey gerade nicht zur Hand
-            hast: Gib die Konto-Kennung und den Notfall-Code ein, die du bei
-            der Einrichtung erhalten hast.
+            {t(
+              "Falls du dein Passwort oder deinen Passkey gerade nicht zur Hand hast: Gib die Konto-Kennung und den Notfall-Code ein, die du bei der Einrichtung erhalten hast."
+            )}
           </p>
 
           {error && (
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
-              {error}
+              {t(error)}
             </div>
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="repositoryId">
-                Konto-Kennung
+                {t("Konto-Kennung")}
               </label>
               <input
                 id="repositoryId"
                 className={styles.input}
-                placeholder="z. B. 4F6R3V"
+                placeholder={t("z. B. {example}", { example: "4F6R3V" })}
                 value={repositoryId}
                 onChange={(e) => setRepositoryId(e.target.value)}
                 autoCapitalize="characters"
@@ -70,7 +72,7 @@ export default function CodeLoginPage() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="pin">
-                Notfall-Code
+                {t("Notfall-Code")}
               </label>
               <input
                 id="pin"
@@ -94,10 +96,10 @@ export default function CodeLoginPage() {
               type="submit"
               disabled={loading || pin.length !== 4 || !repositoryId.trim()}
             >
-              {loading ? "Wird geprüft …" : "Anmelden"}
+              {loading ? t("Wird geprüft …") : t("Anmelden")}
             </button>
             <Link href="/login" className={styles.buttonSecondary}>
-              Zurück
+              {t("Zurück")}
             </Link>
           </div>
         </form>

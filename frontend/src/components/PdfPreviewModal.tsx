@@ -1,77 +1,38 @@
 "use client";
 
-import { previewFileUrl } from "../lib/api";
+import { downloadFileUrl, previewFileUrl } from "../lib/api";
+import { PdfViewer } from "./PdfViewer";
+import { AddToSheetButton } from "./AddToSheetButton";
 
-export function PdfPreviewModal({ path, onClose }: { path: string; onClose: () => void }) {
+// The previous version embedded the PDF with <object>, which never worked:
+// the page's CSP has object-src 'none', the API serves files as
+// attachments, and iOS Safari only shows page one of embedded PDFs anyway.
+// pdf.js draws the pages itself, so none of that applies.
+export function PdfPreviewModal({
+  path,
+  initialPage,
+  extraActions,
+  onClose,
+}: {
+  path: string;
+  initialPage?: number;
+  extraActions?: (page: number) => React.ReactNode;
+  onClose: () => void;
+}) {
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(20, 20, 15, 0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-        padding: 24,
-        animation: "fadeIn 0.2s ease both",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 14,
-          width: "100%",
-          maxWidth: 900,
-          height: "85vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          animation: "scaleIn 0.2s ease both",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "12px 16px",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
-          <strong style={{ fontSize: 14 }}>{path.split("/").pop()}</strong>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 20,
-              cursor: "pointer",
-              color: "var(--muted)",
-              lineHeight: 1,
-            }}
-            aria-label="Schließen"
-          >
-            ×
-          </button>
-        </div>
-        <object
-          data={previewFileUrl(path)}
-          type="application/pdf"
-          style={{ flex: 1, width: "100%" }}
-        >
-          <p style={{ padding: 20 }}>
-            Vorschau wird von diesem Browser nicht unterstützt.{" "}
-            <a href={previewFileUrl(path)} target="_blank" rel="noreferrer">
-              Datei stattdessen öffnen
-            </a>
-            .
-          </p>
-        </object>
-      </div>
-    </div>
+    <PdfViewer
+      url={previewFileUrl(path)}
+      title={path.split("/").pop() ?? path}
+      downloadUrl={downloadFileUrl(path)}
+      initialPage={initialPage}
+      filePath={path}
+      extraActions={(page) => (
+        <>
+          <AddToSheetButton path={path} page={page} />
+          {extraActions?.(page)}
+        </>
+      )}
+      onClose={onClose}
+    />
   );
 }

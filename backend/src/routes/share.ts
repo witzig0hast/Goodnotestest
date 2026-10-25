@@ -12,10 +12,18 @@ import {
   isShareLinkExpired,
   listShareLinksForRepository,
   recordShareLinkView,
+  recordShareLinkDownload,
+  isShareLinkExhausted,
+  markShareLinkNotified,
   verifyShareLinkPassword,
+  type ShareLinkRecord,
 } from "../lib/share-links.js";
+import { findRepositoryById } from "../lib/repositories.js";
+import { sendNotificationEmail } from "../lib/backup-check.js";
+import { config, smtpConfig } from "../lib/config.js";
 import { resolveSafePath } from "../lib/storage.js";
 import { streamDirectoryAsZip, streamPathsAsZip } from "../lib/zip.js";
+import { logAudit, logAuditFor } from "../lib/audit.js";
 
 export const shareRouter = Router();
 
@@ -23,7 +31,35 @@ const createSchema = z.object({
   paths: z.array(z.string().trim().min(1)).min(1).max(50),
   password: z.string().min(1).optional(),
   expiresInDays: z.number().int().min(1).max(365).optional(),
+  notifyOnOpen: z.boolean().optional(),
+  maxDownloads: z.number().int().min(1).max(10_000).optional(),
 });
+
+// At most one "your link was opened" email per link and hour, so a link
+// posted in a busy group chat doesn't flood the owner's inbox.
+const OPEN_NOTIFICATION_INTERVAL_MS = 60 * 60 * 1000;
+
+function notifyOwnerOfOpen(link: ShareLinkRecord, name: string): void {
+  if (!link.notifyOnOpen || !smtpConfig) return;
+  if (
+    link.lastNotifiedAt &&
+    Date.now() - new Date(link.lastNotifiedAt).getTime() < OPEN_NOTIFICATION_INTERVAL_MS
+  ) {
+    return;
+  }
+  const owner = findRepositoryById(link.repositoryId);
+  if (!owner?.email) return;
+  markShareLinkNotified(link.id);
+  sendNotificationEmail(
+    owner.email,
+    `GoodShare: Dein Link zu „${name}“ wurde geöffnet`,
+    `Jemand hat gerade deinen Freigabe-Link zu „${name}“ geöffnet (${new Date().toLocaleString("de-DE")}).\n\n` +
+      `Bisher ${link.downloadCount} ${link.downloadCount === 1 ? "Abruf" : "Abrufe"}` +
+      (link.maxDownloads ? ` von maximal ${link.maxDownloads}` : "") +
+      `.\n\nDeine Freigaben verwaltest du hier: ${config.frontendOrigin}/dashboard/freigaben\n\n` +
+      `Weitere Benachrichtigungen zu diesem Link kommen frühestens in einer Stunde.`
+  ).catch(() => {});
+}
 
 shareRouter.post("/", requireSession, (req, res) => {
   const parsed = createSchema.safeParse(req.body ?? {});
@@ -53,8 +89,11 @@ shareRouter.post("/", requireSession, (req, res) => {
     items,
     password: parsed.data.password ?? null,
     expiresInDays: parsed.data.expiresInDays ?? null,
+    notifyOnOpen: parsed.data.notifyOnOpen,
+    maxDownloads: parsed.data.maxDownloads ?? null,
   });
 
+  logAudit(req, "share.create", items.map((i) => i.relativePath || "Alle Notizen").join(", "));
   res.status(201).json({ id: link.id });
 });
 
@@ -71,8 +110,18 @@ shareRouter.get("/mine", requireSession, (req, res) => {
       expired: isShareLinkExpired(link),
       viewCount: link.viewCount,
       createdAt: link.createdAt,
+      notifyOnOpen: link.notifyOnOpen,
+      maxDownloads: link.maxDownloads,
+      downloadCount: link.downloadCount,
+      exhausted: isShareLinkExhausted(link),
     })),
   });
+});
+
+// What the share form can offer: open notifications need a mail server.
+shareRouter.get("/options", requireSession, (req, res) => {
+  const repo = findRepositoryById(req.repositoryId!);
+  res.json({ emailNotifications: Boolean(smtpConfig && repo?.email) });
 });
 
 shareRouter.delete("/:id", requireSession, (req, res) => {
@@ -81,6 +130,7 @@ shareRouter.delete("/:id", requireSession, (req, res) => {
     res.status(404).json({ error: "Link nicht gefunden." });
     return;
   }
+  logAudit(req, "share.revoke", req.params.id);
   res.status(204).end();
 });
 
@@ -100,11 +150,23 @@ shareRouter.get("/:id", (req, res) => {
   }));
 
   const single = items.length === 1;
+  const name = single ? items[0].name : `${items.length} Objekte`;
+
+  if (isShareLinkExhausted(link)) {
+    res.status(410).json({
+      error: "Dieser Link wurde schon so oft abgerufen wie erlaubt.",
+      reason: "limit_reached",
+    });
+    return;
+  }
+
+  notifyOwnerOfOpen(link, name);
   res.json({
-    name: single ? items[0].name : `${items.length} Objekte`,
+    name,
     type: single ? items[0].type : "bundle",
     items,
     requiresPassword: Boolean(link.passwordHash),
+    downloadsLeft: link.maxDownloads === null ? null : link.maxDownloads - link.downloadCount,
   });
 });
 
@@ -158,7 +220,16 @@ shareRouter.get("/:id/download", (req, res) => {
     return;
   }
 
+  if (isShareLinkExhausted(link)) {
+    res.status(410).json({ error: "Dieser Link wurde schon so oft abgerufen wie erlaubt." });
+    return;
+  }
+
   recordShareLinkView(link.id);
+  const downloads = recordShareLinkDownload(link.id);
+  if (link.maxDownloads !== null && downloads >= link.maxDownloads) {
+    logAuditFor(link.repositoryId, "share.limit_reached", link.id);
+  }
 
   if (existingEntries.length === 1 && !existingEntries[0].item.isDirectory) {
     const { absolutePath } = existingEntries[0];

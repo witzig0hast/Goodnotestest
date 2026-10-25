@@ -25,6 +25,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      DEFAULT_QUOTA_MB: ${DEFAULT_QUOTA_MB:-}
+      TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-30}
+      OCR_ENABLED: ${OCR_ENABLED:-true}
     volumes:
       - goodshare-data:/app/data
     networks:

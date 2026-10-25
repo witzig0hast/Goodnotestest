@@ -13,6 +13,9 @@ import {
 import { removeAllRepositoryData } from "../lib/storage.js";
 import { requireSession } from "../middleware/require-session.js";
 import { registrationLimiter } from "../middleware/rate-limit.js";
+import { buildRepositoryTree, flattenFiles } from "../lib/file-tree.js";
+import { getWebdavStatus } from "../lib/webdav-status.js";
+import { logAudit } from "../lib/audit.js";
 
 export const repositoriesRouter = Router();
 
@@ -42,7 +45,7 @@ repositoriesRouter.post("/", registrationLimiter, (req, res) => {
   // get signed in yet (and its WebDAV credentials won't work either) until
   // the admin approves it — see requireSession and webdav-server.ts.
   if (secrets.approvalStatus === "approved") {
-    issueSession(res, secrets.id);
+    issueSession(res, secrets.id, req, "signup");
   }
 
   res.status(201).json({
@@ -68,7 +71,18 @@ repositoriesRouter.post("/webdav/regenerate", requireSession, (req, res) => {
     return;
   }
   const password = regenerateWebdavPassword(repo.id);
+  logAudit(req, "webdav.password_regenerated");
   res.json({ username: repo.webdavUsername, password });
+});
+
+// Polled by the "GoodNotes verbinden" page while someone sets GoodNotes
+// up: has GoodNotes signed in yet, did it fail (and why), and has a first
+// file arrived.
+repositoriesRouter.get("/webdav/status", requireSession, async (req, res) => {
+  const status = getWebdavStatus(req.repositoryId!);
+  const files = flattenFiles(await buildRepositoryTree(req.repositoryId!));
+  const nonPdf = files.filter((f) => f.name.toLowerCase().endsWith(".goodnotes")).length;
+  res.json({ ...status, fileCount: files.length, goodnotesFormatCount: nonPdf });
 });
 
 // Same idea as above, for the repository-ID + 4-digit backup code.
@@ -79,6 +93,7 @@ repositoriesRouter.post("/pin/regenerate", requireSession, (req, res) => {
     return;
   }
   const pin = regeneratePin(repo.id);
+  logAudit(req, "pin.regenerated");
   res.json({ repositoryId: repo.id, pin });
 });
 

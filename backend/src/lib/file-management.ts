@@ -1,6 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
-import { deletePathReferences, renamePathReferences } from "./path-refs.js";
+import { renamePathReferences } from "./path-refs.js";
+import { moveToTrash, type TrashItem } from "./trash.js";
 import {
   resolveSafePath,
   resolveThumbnailPath,
@@ -11,16 +12,14 @@ import {
 export class InvalidPathError extends Error {}
 export class NotFoundError extends Error {}
 
-export async function deleteEntry(repositoryId: string, relativePath: string): Promise<void> {
+/** Moves the entry into the trash (see trash.ts) — nothing is removed for good here. */
+export async function deleteEntry(repositoryId: string, relativePath: string): Promise<TrashItem> {
   if (!relativePath) throw new InvalidPathError("Kein Pfad angegeben.");
 
   const absolutePath = resolveSafePath(repositoryId, relativePath);
   if (!existsSync(absolutePath)) throw new NotFoundError("Nicht gefunden.");
 
-  await fs.rm(absolutePath, { recursive: true, force: true });
-  await fs.rm(resolveVersionsPath(repositoryId, relativePath), { recursive: true, force: true });
-  await fs.rm(resolveThumbnailPath(repositoryId, relativePath), { recursive: true, force: true });
-  deletePathReferences(repositoryId, relativePath);
+  return moveToTrash(repositoryId, relativePath, "web");
 }
 
 export async function renameEntry(

@@ -86,55 +86,159 @@
 }
 
 .shell {
+  --content-width: 640px;
   min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 48px 20px 64px;
+  padding: 28px 20px 64px;
+}
+
+.shellWide {
+  composes: shell;
+  --content-width: 880px;
 }
 
 .header {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-width);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 30;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 40px;
+  border-radius: 10px;
 }
 
 .logoMark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: var(--accent);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, #3f7a69 100%);
+  box-shadow: 0 4px 12px var(--glow-1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  font-family: var(--font-heading), Georgia, serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 18px;
+  transform: rotate(-4deg);
+  transition: transform 0.2s ease;
+}
+
+.logo:hover .logoMark {
+  transform: rotate(0deg) scale(1.04);
 }
 
 .logoText {
-  font-weight: 600;
+  font-weight: 650;
   font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navLink:hover {
+  background: var(--surface-glass);
+  color: var(--foreground);
+}
+
+.navLinkActive {
+  composes: navLink;
+  background: var(--surface-glass);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.navLabel {
+  display: inline;
+}
+
+@media (max-width: 560px) {
+  .navLabel {
+    display: none;
+  }
+  .navLink {
+    padding: 8px 10px;
+  }
 }
 
 .main {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-width);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .card {
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px;
   animation: fadeInUp 0.35s ease backwards;
+}
+
+.main > .card:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.main > .card:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.main > .card:nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 18px 14px 48px;
+  }
+  .card {
+    padding: 22px 18px;
+  }
+  .header {
+    margin-bottom: 20px;
+  }
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 650;
+  margin-bottom: 4px;
 }
 
 .eyebrow {
@@ -148,7 +252,7 @@
 
 .title {
   font-family: var(--font-heading), Georgia, serif;
-  font-size: 28px;
+  font-size: clamp(24px, 5vw, 30px);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -229,13 +333,15 @@
   border-radius: 10px;
   padding: 12px 14px;
   font-size: 16px;
-  background: var(--background);
+  background: var(--surface);
   color: var(--foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .pinInput {
@@ -467,14 +573,27 @@
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  background: var(--surface);
+  /* not overflow: hidden — the ⋯ menus open beyond the list's edges;
+     the first/last rows round their own corners instead. */
+}
+
+.fileList > :first-child {
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+}
+
+.fileList > :last-child {
+  border-bottom-left-radius: 11px;
+  border-bottom-right-radius: 11px;
 }
 
 .fileRow {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
+  min-height: 64px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   transition: background-color 0.15s ease;
@@ -488,11 +607,28 @@
   border-bottom: none;
 }
 
+.fileRow:focus-within {
+  position: relative;
+  z-index: 2;
+}
+
 .fileIcon {
-  font-size: 20px;
-  width: 28px;
-  text-align: center;
+  font-size: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.fileIconFolder {
+  composes: fileIcon;
+  background: rgba(214, 170, 92, 0.18);
+  color: #b07d22;
 }
 
 .fileMain {
@@ -523,8 +659,156 @@
 
 .fileActions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+.iconButton {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 17px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.iconButton:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.iconButtonActive {
+  composes: iconButton;
+  color: #c8932f;
+}
+
+.hideOnMobile {
+  display: inline-flex;
+}
+
+@media (max-width: 560px) {
+  .hideOnMobile {
+    display: none;
+  }
+  .fileRow {
+    padding: 10px 10px;
+    gap: 10px;
+  }
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.menuItemDanger {
+  composes: menuItem;
+  color: var(--danger);
+}
+
+.menuItemDanger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  gap: 2px;
+}
+
+.segmentedItem {
+  border: none;
+  background: none;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.segmentedItemActive {
+  composes: segmentedItem;
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.chipRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.chip {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chipActive {
+  composes: chip;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.chipActive:hover {
+  color: white;
+}
+
+.searchField {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchField .input {
+  width: 100%;
+  padding-left: 40px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 15px;
 }
 
 .emptyState {
@@ -618,6 +902,7 @@
 }
 
 .gridThumb {
+  color: var(--muted);
   width: 100%;
   aspect-ratio: 3 / 4;
   border-radius: 6px;
@@ -627,12 +912,18 @@
   justify-content: center;
   font-size: 32px;
   overflow: hidden;
+  position: relative;
 }
 
 .gridThumb img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top;
+  background: white;
+  animation: fadeIn 0.25s ease backwards;
 }
 
 .gridName {
@@ -663,7 +954,8 @@
 
 .modalBox {
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
   padding: 24px;
   max-width: 480px;
   width: 100%;
@@ -673,23 +965,38 @@
 }
 
 .statsTiles {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  flex-wrap: wrap;
   margin-bottom: 20px;
 }
 
 .statTile {
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .statTileValue {
   font-size: 20px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .statsTiles {
+    gap: 8px;
+  }
+  .statTile {
+    padding: 10px 10px;
+  }
+  .statTileValue {
+    font-size: 15px;
+  }
 }
 
 .statTileLabel {
@@ -731,17 +1038,27 @@
   right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  min-width: 190px;
-  z-index: 20;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  min-width: 210px;
+  z-index: 40;
   overflow: hidden;
+  padding: 4px;
+  transform-origin: top right;
   animation: scaleIn 0.15s ease backwards;
 }
 
 .menuItem {
-  display: block;
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 9px 12px;
   font-size: 14px;
   font-weight: 500;
   color: var(--foreground);
@@ -751,4 +1068,1129 @@
 .menuItem:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.menuIcon {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--muted);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.menuHeading {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- Landing page --- */
+
+.hero {
+  text-align: center;
+  padding: 24px 0 8px;
+  animation: fadeInUp 0.4s ease backwards;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.heroTitle {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: clamp(32px, 7vw, 50px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+}
+
+.heroAccent {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.heroSubtitle {
+  color: var(--muted);
+  font-size: clamp(15px, 2.4vw, 18px);
+  max-width: 540px;
+  margin: 0 auto 28px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.featureCard {
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow);
+  animation: fadeInUp 0.4s ease backwards;
+}
+
+.featureIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  margin-bottom: 12px;
+}
+
+.featureTitle {
+  font-weight: 650;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.featureText {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* --- Onboarding: welcome tour + getting-started checklist --- */
+
+.tourBox {
+  composes: modalBox;
+  max-width: 460px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tourArt {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  background:
+    radial-gradient(circle at 30% 20%, var(--glow-2), transparent 60%),
+    radial-gradient(circle at 70% 80%, var(--glow-1), transparent 60%),
+    var(--accent-soft);
+}
+
+.tourArt {
+  color: var(--accent);
+}
+
+.tourArt span {
+  animation: popIn 0.35s ease backwards;
+}
+
+.tourBody {
+  padding: 24px 28px 8px;
+}
+
+.tourStepLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.tourTitle {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tourText {
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.tourFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 28px 24px;
+}
+
+.tourDots {
+  display: flex;
+  gap: 6px;
+}
+
+.tourDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.tourDotActive {
+  composes: tourDot;
+  width: 20px;
+  background: var(--accent);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+a.checklistItem:hover,
+button.checklistItem:hover {
+  background: var(--accent-soft);
+}
+
+button.checklistItem {
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.checkCircleDone {
+  composes: checkCircle;
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: popIn 0.3s ease;
+}
+
+.checklistText {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.checklistTextDone {
+  composes: checklistText;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checklistArrow {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.emptyIllustration {
+  color: var(--muted);
+  font-size: 46px;
+  margin-bottom: 12px;
+  animation: popIn 0.4s ease backwards;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: -6px;
+  transition: color 0.15s ease;
+  align-self: flex-start;
+}
+
+.backLink:hover {
+  color: var(--accent);
+}
+
+/* --- PDF viewer (pdf.js) --- */
+
+.pdfViewerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: #3a3b3d;
+  animation: fadeIn 0.15s ease backwards;
+}
+
+.pdfToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 1;
+}
+
+.pdfTitle {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pdfPageCounter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pdfZoomLabel {
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  min-width: 52px;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfZoomLabel:hover {
+  background: var(--accent-soft);
+}
+
+.pdfBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.pdfThumbs {
+  width: 150px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #2e2f31;
+}
+
+.pdfThumb {
+  border: 2px solid transparent;
+  background: none;
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #c9c7c0;
+  font-size: 12px;
+}
+
+.pdfThumb canvas {
+  width: 100%;
+  min-height: 60px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.pdfThumbActive {
+  composes: pdfThumb;
+  color: white;
+}
+
+.pdfThumbActive canvas {
+  outline: 3px solid #6fae9c;
+  outline-offset: 1px;
+}
+
+.pdfScroll {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  /* flex-start + auto margins on the pages instead of align-items: center:
+     a centered page wider than the screen (zoomed in) would overflow to
+     the left, where it can't be scrolled to. */
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.pdfPage {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdfPage canvas {
+  display: block;
+  transition: opacity 0.15s ease;
+}
+
+.pdfMessage {
+  margin: auto;
+  text-align: center;
+  color: #e7e5df;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .pdfScroll {
+    padding: 8px;
+    gap: 8px;
+  }
+}
+
+/* --- Live connection status on the setup pages --- */
+
+.connectionBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 14px;
+  animation: fadeIn 0.2s ease backwards;
+}
+
+.connectionBox .statusDot {
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.connectionBoxSuccess {
+  composes: connectionBox;
+  align-items: center;
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  flex-wrap: wrap;
+}
+
+.connectionBoxError {
+  composes: connectionBox;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.connectionIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: white;
+  background: var(--accent);
+  animation: popIn 0.3s ease;
+}
+
+.connectionBoxError .connectionIcon {
+  background: var(--danger);
+}
+
+.connectionNote {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.connectionBoxError .connectionNote {
+  color: var(--danger);
+  opacity: 0.85;
+}
+
+.inlineLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.qrRow {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qrRow img {
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+  background: white;
+  padding: 6px;
+  border: 1px solid var(--border);
+}
+
+/* --- Backup calendar heatmap --- */
+
+.calendarScroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.calendar {
+  display: flex;
+  gap: 3px;
+  width: max-content;
+}
+
+.calendarWeek,
+.calendarWeekdays {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calendarWeekdays span {
+  height: 14px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--muted);
+  width: 18px;
+}
+
+.calendarCell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--accent-soft);
+}
+
+.calendarCell[data-level="1"] {
+  background: color-mix(in srgb, var(--accent) 35%, var(--accent-soft));
+}
+.calendarCell[data-level="2"] {
+  background: color-mix(in srgb, var(--accent) 60%, var(--accent-soft));
+}
+.calendarCell[data-level="3"] {
+  background: color-mix(in srgb, var(--accent) 80%, var(--accent-soft));
+}
+.calendarCell[data-level="4"] {
+  background: var(--accent);
+}
+.calendarCell[data-level="future"] {
+  background: transparent;
+}
+
+.calendarLegend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+/* --- Audit log --- */
+
+.auditList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.auditRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.auditRow:last-child {
+  border-bottom: none;
+}
+
+.auditRow[data-warning] {
+  background: var(--danger-soft);
+}
+
+.auditIcon {
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.auditLabel {
+  font-weight: 600;
+}
+
+.auditAccount {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.auditDetail {
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.auditTime {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 28px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: #2b2a27;
+  color: #f1efe9;
+  font-size: 14px;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.25s ease backwards;
+}
+
+.toastAction {
+  border: none;
+  background: none;
+  color: #8fd1bd;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.toastAction:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toastClose {
+  border: none;
+  background: none;
+  color: #a3a096;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.dropZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.dropZone:hover {
+  border-color: var(--accent);
+}
+
+.dropZoneActive {
+  composes: dropZone;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(1.01);
+}
+
+/* --- Tags --- */
+
+.tagChip {
+  --tag: #5b8f7f;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--tag) 16%, transparent);
+  white-space: nowrap;
+}
+
+.tagChip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tag);
+}
+
+.tagChipSmall {
+  composes: tagChip;
+  font-size: 11px;
+  padding: 1px 7px 1px 6px;
+}
+
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.tagPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.tagPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.tagPickerRow:hover {
+  background: var(--accent-soft);
+}
+
+.colorSwatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--tag);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+}
+
+.colorSwatchActive {
+  composes: colorSwatch;
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--tag);
+}
+
+.chip[data-color]::before,
+.chipActive[data-color]::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tag);
+}
+
+.langSwitch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+}
+
+.langSwitchItem {
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 5px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.langSwitchActive {
+  composes: langSwitchItem;
+  background: var(--accent);
+  color: white;
+}
+
+.chip svg,
+.navLink svg,
+.segmentedItem svg,
+.smallButton svg {
+  margin-top: -2px;
+}
+
+.pdfBookmarkList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pdfBookmarkHeading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a3a096;
+  margin-bottom: 4px;
+}
+
+.pdfBookmarkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  border: none;
+  background: none;
+  color: #e7e5df;
+  font-size: 12px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.pdfBookmarkItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pdfBookmarkItem svg {
+  color: #c8932f;
+  margin-top: 1px;
+}
+
+.pdfThumb span svg {
+  color: #c8932f;
+}
+
+/* --- Recently viewed strip --- */
+
+.stripHeading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.recentStrip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+}
+
+.recentCard {
+  flex: 0 0 180px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--foreground);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.recentCard:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.recentIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recentName {
+  font-weight: 600;
+  font-size: 14px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentMeta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.recentProgress {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.recentProgress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.currentBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.inlineCode {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  background: var(--accent-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+/* --- Lernzettel --- */
+
+.sheetMenu {
+  width: 290px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 460px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sheetMenuForm {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.sheetMenuForm .input {
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.sheetMenuForm .input,
+.sheetNewForm .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheetNewForm {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sheetMenuNote {
+  padding: 6px 12px 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sheetMenuCount {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheetLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheetListItem,
+.sheetListItemActive {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.sheetListItem:hover {
+  background: var(--surface-muted, var(--accent-soft));
+}
+
+.sheetListItemActive {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sheetPageRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sheetPageNumber {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .sheetLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

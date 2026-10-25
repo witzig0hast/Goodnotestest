@@ -4,6 +4,10 @@ import { v2 as webdav } from "webdav-server";
 import { findRepositoryById } from "./repositories.js";
 import { ensureRepositoryDir } from "./storage.js";
 import { snapshotBeforeOverwrite } from "./versions.js";
+import { recordUpload } from "./backup-history.js";
+import { moveToTrash } from "./trash.js";
+import { noteUpload, wouldExceedQuota } from "./quota.js";
+import { recordWebdavFailure, recordWebdavSuccess } from "./webdav-status.js";
 
 /**
  * Keeps GoodNotes' own habit of just re-uploading a file with the same
@@ -31,7 +35,73 @@ class VersioningPhysicalFileSystem extends webdav.PhysicalFileSystem {
         // Never block a GoodNotes sync just because we couldn't snapshot
         // the previous version — the new write should still go through.
       })
-      .then(() => super._openWriteStream(path, ctx, callback));
+      .then(() => {
+        try {
+          recordUpload(this.repositoryId);
+        } catch {
+          // statistics only — never fail the upload over it
+        }
+        super._openWriteStream(path, ctx, callback);
+      });
+  }
+}
+
+/**
+ * Deletions GoodNotes makes over WebDAV go to the trash too, so a note
+ * deleted on the iPad can still be recovered here. The one exception is a
+ * MOVE that overwrites its destination (an upload via temp file + rename):
+ * that's an overwrite, not a deletion, so the old file is only snapshotted
+ * into the version history like any other overwrite.
+ */
+class TrashingFileSystem extends VersioningPhysicalFileSystem {
+  private readonly overwriteTargets = new Set<string>();
+
+  constructor(
+    private readonly trashRepositoryId: string,
+    rootPath: string
+  ) {
+    super(trashRepositoryId, rootPath);
+  }
+
+  protected _move(
+    pathFrom: webdav.Path,
+    pathTo: webdav.Path,
+    ctx: webdav.MoveInfo,
+    callback: webdav.ReturnCallback<boolean>
+  ) {
+    const target = pathTo.toString();
+    this.overwriteTargets.add(target);
+    super._move(pathFrom, pathTo, ctx, (e, overwritten) => {
+      this.overwriteTargets.delete(target);
+      callback(e, overwritten);
+    });
+  }
+
+  protected _delete(path: webdav.Path, ctx: webdav.DeleteInfo, callback: webdav.SimpleCallback) {
+    const key = path.toString();
+    const relativePath = key.replace(/^\/+/, "");
+    const fallback = () => super._delete(path, ctx, callback);
+
+    if (!relativePath) return fallback();
+
+    if (this.overwriteTargets.has(key)) {
+      const { realPath } = this.getRealPath(path);
+      snapshotBeforeOverwrite(this.trashRepositoryId, relativePath, realPath)
+        .catch(() => {})
+        .then(fallback);
+      return;
+    }
+
+    moveToTrash(this.trashRepositoryId, relativePath, "goodnotes")
+      .then(() => {
+        // webdav-server caches per-path resource metadata; drop the entry
+        // the same way its own _delete does on success.
+        delete (this as unknown as { resources: Record<string, unknown> }).resources[key];
+        callback();
+      })
+      // If moving to the trash fails for whatever reason, still honour
+      // the delete rather than leaving GoodNotes' backup half-applied.
+      .catch(fallback);
   }
 }
 
@@ -62,17 +132,21 @@ class RepositoryUserManager implements webdav.ITestableUserManager {
   ) {
     const repo = findRepositoryById(this.repositoryId);
     if (!repo || repo.webdavUsername !== name) {
+      if (repo) recordWebdavFailure(repo.id, "unknown_user");
       callback(new Error("Unbekannter Benutzer."));
       return;
     }
     if (!bcrypt.compareSync(password, repo.webdavPasswordHash)) {
+      recordWebdavFailure(repo.id, "wrong_password");
       callback(new Error("Falsches Passwort."));
       return;
     }
     if (repo.approvalStatus !== "approved") {
+      recordWebdavFailure(repo.id, "pending_approval");
       callback(new Error("Konto wartet noch auf Freigabe."));
       return;
     }
+    recordWebdavSuccess(repo.id);
     callback(null as unknown as Error, {
       uid: repo.id,
       username: repo.webdavUsername,
@@ -94,7 +168,7 @@ function getServerForRepository(repositoryId: string): webdav.WebDAVServer {
       new RepositoryUserManager(repositoryId),
       "GoodShare"
     ),
-    rootFileSystem: new VersioningPhysicalFileSystem(repositoryId, dir),
+    rootFileSystem: new TrashingFileSystem(repositoryId, dir),
   });
 
   serverCache.set(repositoryId, server);
@@ -114,5 +188,23 @@ export function handleWebdavRequest(req: Request, res: Response) {
   }
 
   const server = getServerForRepository(repositoryId);
+
+  if (req.method === "PUT") {
+    const incoming = Number(req.headers["content-length"] ?? 0) || 0;
+    wouldExceedQuota(repositoryId, incoming)
+      .then((exceeded) => {
+        if (exceeded) {
+          recordWebdavFailure(repositoryId, "quota_exceeded");
+          res.status(507).send("Speicherlimit erreicht.");
+          return;
+        }
+        noteUpload(repositoryId, incoming);
+        server.executeRequest(req, res, `/webdav/${repositoryId}`);
+      })
+      // Never block a backup because the usage couldn't be computed.
+      .catch(() => server.executeRequest(req, res, `/webdav/${repositoryId}`));
+    return;
+  }
+
   server.executeRequest(req, res, `/webdav/${repositoryId}`);
 }

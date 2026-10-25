@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   addFavorite,
@@ -12,6 +13,17 @@ import {
   downloadZipUrl,
   fetchFavorites,
   fetchStats,
+  fetchTrash,
+  fetchTags,
+  fetchBookmarks,
+  deleteBookmark,
+  type Bookmark,
+  fetchIndexStatus,
+  type IndexStatus,
+  assignTag,
+  unassignTag,
+  type Tag,
+  restoreTrashItem,
   fetchTree,
   fetchVersions,
   removeFavorite,
@@ -26,14 +38,28 @@ import {
   type TreeNode,
 } from "../lib/api";
 import { formatDate, formatFileSize } from "../lib/format";
+import { ActionMenu, type ActionMenuItem } from "./ActionMenu";
+import { Icon } from "./Icon";
+import { RecentStrip } from "./RecentStrip";
 import { PdfPreviewModal } from "./PdfPreviewModal";
+import { openTour } from "./WelcomeTour";
+import { clearOffline, isOfflineEnabled, offlineSupported, syncOfflineFavorites } from "../lib/offline";
 import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
+import { UploadLinkForm } from "./UploadLinkForm";
+import { TagChip, TagPicker } from "./TagPicker";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 type SortBy = "name" | "date";
 type ViewMode = "list" | "grid";
-type Mode = "browse" | "favorites" | "search" | "recent";
+type Mode = "browse" | "favorites" | "search" | "recent" | "tag" | "bookmarks";
+
+interface Toast {
+  text: string;
+  actionLabel?: string;
+  action?: () => void;
+}
 
 function findChildrenAtPath(tree: TreeNode[], segments: string[]): TreeNode[] | null {
   if (segments.length === 0) return tree;
@@ -41,6 +67,15 @@ function findChildrenAtPath(tree: TreeNode[], segments: string[]): TreeNode[] | 
   const match = tree.find((node) => node.type === "folder" && node.name === head);
   if (!match || !match.children) return null;
   return findChildrenAtPath(match.children, rest);
+}
+
+function flattenAll(nodes: TreeNode[]): TreeNode[] {
+  const all: TreeNode[] = [];
+  for (const node of nodes) {
+    all.push(node);
+    if (node.children) all.push(...flattenAll(node.children));
+  }
+  return all;
 }
 
 function flattenFiles(nodes: TreeNode[]): TreeNode[] {
@@ -54,6 +89,12 @@ function flattenFiles(nodes: TreeNode[]): TreeNode[] {
 
 function isPdf(name: string): boolean {
   return name.toLowerCase().endsWith(".pdf");
+}
+
+// GoodNotes' own backup format: a proprietary archive no browser (and no
+// PDF library) can display — only GoodNotes itself can open it.
+function isGoodnotesFile(name: string): boolean {
+  return name.toLowerCase().endsWith(".goodnotes");
 }
 
 function sortNodes(nodes: TreeNode[], sortBy: SortBy, sortDir: "asc" | "desc"): TreeNode[] {
@@ -71,6 +112,7 @@ function sortNodes(nodes: TreeNode[], sortBy: SortBy, sortDir: "asc" | "desc"): 
 }
 
 export function FileBrowser() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("path") ?? "";
@@ -82,14 +124,22 @@ export function FileBrowser() {
   const [tree, setTree] = useState<TreeNode[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeSharePath, setActiveSharePath] = useState<string | null>(null);
+  const [uploadLinkPath, setUploadLinkPath] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewPage, setPreviewPage] = useState<number | undefined>(undefined);
+  const [formatHintPath, setFormatHintPath] = useState<string | null>(null);
   const [stats, setStats] = useState<RepositoryStats | null>(null);
 
   const [mode, setMode] = useState<Mode>("browse");
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagAssignments, setTagAssignments] = useState<Record<string, string[]>>({});
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [tagPickerPath, setTagPickerPath] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
 
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -100,6 +150,18 @@ export function FileBrowser() {
   const [busyPath, setBusyPath] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [allBookmarks, setAllBookmarks] = useState<Bookmark[] | null>(null);
+  // Bumped when the viewer closes, so "Zuletzt angesehen" reflects it.
+  const [recentKey, setRecentKey] = useState(0);
+  const closePreview = () => {
+    setPreviewPath(null);
+    setRecentKey((k) => k + 1);
+  };
+  const [offlineState, setOfflineState] = useState<{ enabled: boolean; busy: boolean; stored?: number }>(
+    () => ({ enabled: typeof window !== "undefined" && isOfflineEnabled(), busy: false })
+  );
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkSharing, setBulkSharing] = useState(false);
 
   const [versionsPath, setVersionsPath] = useState<string | null>(null);
@@ -110,7 +172,7 @@ export function FileBrowser() {
     fetchTree()
       .then((res) => setTree(res.tree))
       .catch((err) =>
-        setError(err instanceof ApiError ? err.message : "Notizen konnten nicht geladen werden.")
+        setError(err instanceof ApiError ? err.message : t("Notizen konnten nicht geladen werden."))
       );
     fetchStats()
       .then(setStats)
@@ -122,8 +184,60 @@ export function FileBrowser() {
     fetchFavorites()
       .then((res) => setFavorites(new Set(res.paths)))
       .catch(() => {});
+    fetchTags()
+      .then((res) => {
+        setTags(res.tags);
+        setTagAssignments(res.assignments);
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function tagsFor(path: string): Tag[] {
+    const ids = tagAssignments[path] ?? [];
+    return tags.filter((t) => ids.includes(t.id));
+  }
+
+  function renderTags(path: string) {
+    const list = tagsFor(path);
+    if (list.length === 0) return null;
+    return (
+      <span className={styles.tagRow}>
+        {list.map((t) => (
+          <TagChip key={t.id} tag={t} small />
+        ))}
+      </span>
+    );
+  }
+
+  async function toggleTag(path: string, tagId: string, on: boolean) {
+    const apply = (add: boolean) =>
+      setTagAssignments((current) => {
+        const ids = new Set(current[path] ?? []);
+        if (add) ids.add(tagId);
+        else ids.delete(tagId);
+        return { ...current, [path]: Array.from(ids) };
+      });
+    apply(on);
+    try {
+      if (on) await assignTag(tagId, path);
+      else await unassignTag(tagId, path);
+    } catch {
+      apply(!on);
+    }
+  }
+
+  function handleTagsChanged(next: Tag[]) {
+    setTags(next);
+    const ids = new Set(next.map((t) => t.id));
+    setTagAssignments((current) =>
+      Object.fromEntries(Object.entries(current).map(([p, list]) => [p, list.filter((id) => ids.has(id))]))
+    );
+    if (activeTagId && !ids.has(activeTagId)) {
+      setActiveTagId(null);
+      setMode("browse");
+    }
+  }
 
   useEffect(() => {
     setSelected(new Set());
@@ -140,6 +254,31 @@ export function FileBrowser() {
     setActiveSharePath((current) => (current === path ? null : path));
   }
 
+  async function setOfflineMode(on: boolean, files: TreeNode[]) {
+    setOfflineState({ enabled: on, busy: true });
+    try {
+      if (on) {
+        const stored = await syncOfflineFavorites(files.map((f) => ({ path: f.path, name: f.name })));
+        setOfflineState({ enabled: true, busy: false, stored });
+      } else {
+        await clearOffline();
+        setOfflineState({ enabled: false, busy: false });
+      }
+    } catch {
+      setOfflineState({ enabled: false, busy: false });
+      window.alert(t("Offline-Speichern wird von diesem Browser nicht unterstützt."));
+    }
+  }
+
+  // Keeps the offline copies in step when favorites change.
+  function resyncOffline(nextFavorites: Set<string>) {
+    if (!isOfflineEnabled() || !tree) return;
+    const files = flattenFiles(tree).filter((f) => nextFavorites.has(f.path));
+    syncOfflineFavorites(files.map((f) => ({ path: f.path, name: f.name })))
+      .then((stored) => setOfflineState({ enabled: true, busy: false, stored }))
+      .catch(() => {});
+  }
+
   async function toggleFavorite(path: string) {
     const isFav = favorites.has(path);
     setFavorites((current) => {
@@ -151,6 +290,10 @@ export function FileBrowser() {
     try {
       if (isFav) await removeFavorite(path);
       else await addFavorite(path);
+      const next = new Set(favorites);
+      if (isFav) next.delete(path);
+      else next.add(path);
+      resyncOffline(next);
     } catch {
       // revert on failure
       setFavorites((current) => {
@@ -170,6 +313,7 @@ export function FileBrowser() {
     try {
       const res = await searchFiles(searchQuery.trim());
       setSearchResults(res.results);
+      fetchIndexStatus().then(setIndexStatus).catch(() => {});
     } catch {
       setSearchResults([]);
     } finally {
@@ -177,9 +321,29 @@ export function FileBrowser() {
     }
   }
 
+  function showToast(next: Toast) {
+    setToast(next);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 7000);
+  }
+
+  async function undoDelete(path: string) {
+    setToast(null);
+    try {
+      const { items } = await fetchTrash();
+      const item = items.find((i) => i.originalPath === path);
+      if (item) await restoreTrashItem(item.id);
+      reloadTree();
+    } catch {
+      window.alert(t("Rückgängig machen hat nicht geklappt — schau im Papierkorb nach."));
+    }
+  }
+
   async function handleDelete(path: string, isFolder: boolean) {
-    const label = isFolder ? "diesen Ordner samt Inhalt" : "diese Datei";
-    if (!window.confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} wirklich löschen?`)) {
+    const question = isFolder
+      ? t("Diesen Ordner samt Inhalt in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.")
+      : t("Diese Datei in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.");
+    if (!window.confirm(question)) {
       return;
     }
     setBusyPath(path);
@@ -191,8 +355,13 @@ export function FileBrowser() {
         return next;
       });
       reloadTree();
+      showToast({
+        text: t("„{name}“ liegt jetzt im Papierkorb.", { name: path.split("/").pop() ?? "" }),
+        actionLabel: t("Rückgängig"),
+        action: () => undoDelete(path),
+      });
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Löschen ist fehlgeschlagen."));
     } finally {
       setBusyPath(null);
     }
@@ -215,7 +384,7 @@ export function FileBrowser() {
       setRenamingPath(null);
       reloadTree();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Umbenennen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Umbenennen ist fehlgeschlagen."));
     } finally {
       setBusyPath(null);
     }
@@ -240,7 +409,7 @@ export function FileBrowser() {
 
   async function handleRestoreVersion(timestamp: string) {
     if (!versionsPath) return;
-    if (!window.confirm("Diese Version wiederherstellen? Die aktuelle Version wird dabei ebenfalls gesichert.")) {
+    if (!window.confirm(t("Diese Version wiederherstellen? Die aktuelle Version wird dabei ebenfalls gesichert."))) {
       return;
     }
     setVersionsBusy(true);
@@ -249,19 +418,94 @@ export function FileBrowser() {
       setVersionsPath(null);
       reloadTree();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Wiederherstellen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Wiederherstellen ist fehlgeschlagen."));
     } finally {
       setVersionsBusy(false);
     }
   }
 
+  function openFile(node: { name: string; path: string }, page?: number) {
+    if (isPdf(node.name)) {
+      setPreviewPage(page);
+      setPreviewPath(node.path);
+    } else if (isGoodnotesFile(node.name)) {
+      setFormatHintPath(node.path);
+    } else {
+      window.location.assign(downloadFileUrl(node.path));
+    }
+  }
+
+  function renderRenameInput(path: string) {
+    return (
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          className={styles.input}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitRename(path);
+            if (e.key === "Escape") setRenamingPath(null);
+          }}
+          autoFocus
+          style={{ flex: 1, minWidth: 140, padding: "7px 10px", fontSize: 15 }}
+        />
+        <button
+          className={styles.smallButtonAccent}
+          onClick={() => submitRename(path)}
+          disabled={busyPath === path}
+        >
+          {t("Speichern")}
+        </button>
+        <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
+          {t("Abbrechen")}
+        </button>
+      </div>
+    );
+  }
+
+  function favoriteButton(path: string) {
+    const isFav = favorites.has(path);
+    return (
+      <button
+        className={isFav ? styles.iconButtonActive : styles.iconButton}
+        onClick={() => toggleFavorite(path)}
+        title={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
+        aria-label={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
+      >
+        <Icon name="star" size={17} filled={isFav} />
+      </button>
+    );
+  }
+
   function renderFileRow(
     node: { name: string; path: string; size?: number; modifiedAt?: string },
-    options: { snippet?: string; selectable?: boolean } = {}
+    options: {
+      snippet?: string;
+      selectable?: boolean;
+      page?: number;
+      matchedIn?: SearchResult["matchedIn"];
+    } = {}
   ) {
-    const isFav = favorites.has(node.path);
     const isRenaming = renamingPath === node.path;
     const isBusy = busyPath === node.path;
+    const menuItems: (ActionMenuItem | "divider")[] = [
+      ...(isPdf(node.name)
+        ? [{ label: t("Ansehen"), icon: "eye", onClick: () => setPreviewPath(node.path) } as ActionMenuItem]
+        : []),
+      { label: t("Herunterladen"), icon: "download", href: downloadFileUrl(node.path) },
+      { label: t("Teilen"), icon: "share", onClick: () => toggleShare(node.path) },
+      { label: t("Ältere Versionen"), icon: "clock", onClick: () => openVersions(node.path) },
+      { label: t("Tags …"), icon: "tag", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "pencil", onClick: () => startRename(node.path, node.name) },
+      "divider",
+      {
+        label: t("In den Papierkorb"),
+        icon: "trash",
+        danger: true,
+        disabled: isBusy,
+        onClick: () => handleDelete(node.path, false),
+      },
+    ];
     return (
       <Fragment key={node.path}>
         <div className={styles.fileRow}>
@@ -270,93 +514,128 @@ export function FileBrowser() {
               type="checkbox"
               checked={selected.has(node.path)}
               onChange={() => toggleSelect(node.path)}
+              aria-label={t("{name} auswählen", { name: node.name })}
             />
           )}
-          <div className={styles.fileIcon}>📄</div>
-          <div className={styles.fileMain}>
-            {isRenaming ? (
-              <input
-                className={styles.input}
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitRename(node.path);
-                  if (e.key === "Escape") setRenamingPath(null);
-                }}
-                autoFocus
-                style={{ maxWidth: 260 }}
-              />
-            ) : (
-              <span className={styles.fileNameText}>{node.name}</span>
-            )}
-            <span className={styles.fileMeta}>
-              {mode !== "browse" ? `${node.path} · ` : ""}
-              {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
-              {node.modifiedAt ? formatDate(node.modifiedAt) : ""}
-            </span>
-            {options.snippet && (
-              <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
-                „…{options.snippet}…“
+          <div className={styles.fileIcon}>
+            <Icon name={isPdf(node.name) ? "file" : isGoodnotesFile(node.name) ? "notebook" : "paperclip"} />
+          </div>
+          {isRenaming ? (
+            <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
+          ) : (
+            <div
+              className={styles.fileMainClickable}
+              onClick={() => openFile(node, options.page)}
+              title={isPdf(node.name) ? t("Ansehen") : t("Herunterladen")}
+            >
+              <span className={styles.fileNameText}>
+                {node.name.replace(/\.(pdf|goodnotes)$/i, "")}
               </span>
-            )}
-          </div>
-          <div className={styles.fileActions}>
-            {isRenaming ? (
-              <>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => submitRename(node.path)}
-                  disabled={isBusy}
-                >
-                  Speichern
-                </button>
-                <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
-                  Abbrechen
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => toggleFavorite(node.path)}
-                  title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
-                >
-                  {isFav ? "★" : "☆"}
-                </button>
-                {isPdf(node.name) && (
-                  <button className={styles.smallButton} onClick={() => setPreviewPath(node.path)}>
-                    Vorschau
-                  </button>
-                )}
-                <a className={styles.smallButton} href={downloadFileUrl(node.path)}>
-                  Herunterladen
-                </a>
-                <button className={styles.smallButton} onClick={() => toggleShare(node.path)}>
-                  Teilen
-                </button>
-                <button className={styles.smallButton} onClick={() => openVersions(node.path)}>
-                  Verlauf
-                </button>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => startRename(node.path, node.name)}
-                >
-                  Umbenennen
-                </button>
-                <button
-                  className={styles.smallButton}
-                  onClick={() => handleDelete(node.path, false)}
-                  disabled={isBusy}
-                >
-                  Löschen
-                </button>
-              </>
-            )}
-          </div>
+              <span className={styles.fileMeta}>
+                {mode !== "browse" ? `${node.path} · ` : ""}
+                {node.size !== undefined ? `${formatFileSize(node.size)} · ` : ""}
+                {node.modifiedAt ? formatDate(node.modifiedAt) : ""}
+              </span>
+              {renderTags(node.path)}
+              {options.snippet && (
+                <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
+                  {options.matchedIn === "handwriting" && `${t("in deiner Handschrift erkannt")} · `}
+                  {options.page ? `${t("Seite {page}", { page: options.page })}: ` : ""}„{options.snippet}“
+                </span>
+              )}
+            </div>
+          )}
+          {!isRenaming && (
+            <div className={styles.fileActions}>
+              {favoriteButton(node.path)}
+              <button
+                className={`${styles.smallButton} ${styles.hideOnMobile}`}
+                onClick={() => toggleShare(node.path)}
+              >
+                {t("Teilen")}
+              </button>
+              <ActionMenu items={menuItems} />
+            </div>
+          )}
         </div>
         {activeSharePath === node.path && (
           <div style={{ padding: "0 16px 16px" }}>
             <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
+          </div>
+        )}
+      </Fragment>
+    );
+  }
+
+  function renderFolderRow(node: TreeNode) {
+    const isRenaming = renamingPath === node.path;
+    const isBusy = busyPath === node.path;
+    const count = node.children?.length ?? 0;
+    const menuItems: (ActionMenuItem | "divider")[] = [
+      { label: t("Als ZIP herunterladen"), icon: "archive", href: downloadZipUrl(node.path) },
+      { label: t("Als eine PDF herunterladen"), icon: "layers", href: downloadPdfUrl(node.path) },
+      { label: t("Ordner teilen"), icon: "share", onClick: () => toggleShare(node.path) },
+      {
+        label: t("Upload-Link erstellen"),
+        icon: "inbox",
+        onClick: () => {
+          setActiveSharePath(null);
+          setUploadLinkPath(node.path);
+        },
+      },
+      { label: t("Tags …"), icon: "tag", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "pencil", onClick: () => startRename(node.path, node.name) },
+      "divider",
+      {
+        label: t("In den Papierkorb"),
+        icon: "trash",
+        danger: true,
+        disabled: isBusy,
+        onClick: () => handleDelete(node.path, true),
+      },
+    ];
+    return (
+      <Fragment key={node.path}>
+        <div className={styles.fileRow}>
+          {mode === "browse" && (
+            <input
+              type="checkbox"
+              checked={selected.has(node.path)}
+              onChange={() => toggleSelect(node.path)}
+              aria-label={t("{name} auswählen", { name: node.name })}
+            />
+          )}
+          <div className={styles.fileIconFolder}><Icon name="folder" /></div>
+          {isRenaming ? (
+            <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
+          ) : (
+            <div
+              className={styles.fileMainClickable}
+              onClick={() => navigateTo([...segments, node.name])}
+            >
+              <span className={styles.fileNameText}>{node.name}</span>
+              <span className={styles.fileMeta}>
+                {mode !== "browse" ? `${node.path} · ` : ""}
+                {count} {count === 1 ? t("Eintrag") : t("Einträge")}
+              </span>
+              {renderTags(node.path)}
+            </div>
+          )}
+          {!isRenaming && (
+            <div className={styles.fileActions}>
+              {favoriteButton(node.path)}
+              <ActionMenu items={menuItems} />
+            </div>
+          )}
+        </div>
+        {activeSharePath === node.path && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
+          </div>
+        )}
+        {uploadLinkPath === node.path && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <UploadLinkForm path={node.path} onClose={() => setUploadLinkPath(null)} />
           </div>
         )}
       </Fragment>
@@ -370,7 +649,7 @@ export function FileBrowser() {
         className={styles.gridItem}
         onClick={() => {
           if (node.type === "folder") navigateTo([...segments, node.name]);
-          else if (isPdf(node.name)) setPreviewPath(node.path);
+          else openFile(node);
         }}
       >
         {selectable && (
@@ -380,86 +659,169 @@ export function FileBrowser() {
             checked={selected.has(node.path)}
             onClick={(e) => e.stopPropagation()}
             onChange={() => toggleSelect(node.path)}
+            aria-label={t("{name} auswählen", { name: node.name })}
           />
         )}
         <div className={styles.gridThumb}>
           {node.type === "folder" ? (
-            "📁"
+            <Icon name="folder" size={34} strokeWidth={1.4} />
           ) : isPdf(node.name) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- backend-generated thumbnail, not a static asset
-            <img
-              src={thumbnailUrl(node.path)}
-              alt=""
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
+            <>
+              {/* Stays visible underneath while the thumbnail is still being
+                  rendered (first view of a PDF takes a moment) or if it fails. */}
+              <Icon name="file" size={34} strokeWidth={1.4} />
+              {/* eslint-disable-next-line @next/next/no-img-element -- backend-generated thumbnail, not a static asset */}
+              <img
+                src={thumbnailUrl(node.path)}
+                alt=""
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </>
           ) : (
-            "📄"
+            <Icon name="file" size={34} strokeWidth={1.4} />
           )}
         </div>
         <span className={styles.gridName} title={node.name}>
-          {node.name}
+          {node.name.replace(/\.pdf$/i, "")}
         </span>
       </div>
     );
   }
 
   if (error) {
-    return <div className={styles.errorBox}>{error}</div>;
+    return <div className={styles.errorBox}>{t(error)}</div>;
   }
 
   if (!tree) {
-    return <LoadingState text="Notizen werden geladen …" />;
+    return <LoadingState text={t("Notizen werden geladen …")} />;
   }
 
   const searchBar = (
-    <form
-      onSubmit={handleSearchSubmit}
-      style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}
-    >
-      <input
-        className={styles.input}
-        placeholder="Suchen (Dateiname oder Inhalt) …"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{ flex: 1, minWidth: 180 }}
-      />
-      <button className={styles.smallButton} type="submit" disabled={searching}>
-        {searching ? "Sucht …" : "Suchen"}
-      </button>
-      <button
-        type="button"
-        className={mode === "favorites" ? styles.smallButtonAccent : styles.smallButton}
-        onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
+    <>
+      <form
+        onSubmit={handleSearchSubmit}
+        style={{ display: "flex", gap: 8, marginBottom: 12 }}
+        role="search"
       >
-        ★ Favoriten
-      </button>
-      <button
-        type="button"
-        className={mode === "recent" ? styles.smallButtonAccent : styles.smallButton}
-        onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
-      >
-        🕓 Neu (7 Tage)
-      </button>
-    </form>
+        <div className={styles.searchField}>
+          <span className={styles.searchIcon}><Icon name="search" size={16} /></span>
+          <input
+            className={styles.input}
+            placeholder={t("Notizen durchsuchen …")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label={t("Notizen durchsuchen")}
+          />
+        </div>
+        <button
+          className={styles.button}
+          type="submit"
+          disabled={searching || !searchQuery.trim()}
+          style={{ padding: "0 18px" }}
+        >
+          {searching ? t("Sucht …") : t("Suchen")}
+        </button>
+      </form>
+      <div className={styles.chipRow}>
+        <button
+          type="button"
+          className={mode === "browse" ? styles.chipActive : styles.chip}
+          onClick={() => navigateTo(segments)}
+        >
+          <Icon name="book" size={14} /> {t("Alle Notizen")}
+        </button>
+        <button
+          type="button"
+          className={mode === "favorites" ? styles.chipActive : styles.chip}
+          onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
+        >
+          <Icon name="star" size={14} /> {t("Favoriten")}
+        </button>
+        <button
+          type="button"
+          className={mode === "recent" ? styles.chipActive : styles.chip}
+          onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
+        >
+          <Icon name="clock" size={14} /> {t("Neu (7 Tage)")}
+        </button>
+        <button
+          type="button"
+          className={mode === "bookmarks" ? styles.chipActive : styles.chip}
+          onClick={() => {
+            if (mode === "bookmarks") {
+              setMode("browse");
+              return;
+            }
+            setMode("bookmarks");
+            fetchBookmarks()
+              .then((r) => setAllBookmarks(r.bookmarks))
+              .catch(() => setAllBookmarks([]));
+          }}
+        >
+          <Icon name="bookmark" size={14} /> {t("Lesezeichen")}
+        </button>
+        <Link href="/dashboard/lernzettel" className={styles.chip}>
+          <Icon name="layers" size={14} /> {t("Lernzettel")}
+        </Link>
+        {tags.map((tag) => {
+          const active = mode === "tag" && activeTagId === tag.id;
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              className={active ? styles.chipActive : styles.chip}
+              data-color={tag.color}
+              onClick={() => {
+                if (active) {
+                  setMode("browse");
+                  setActiveTagId(null);
+                } else {
+                  setActiveTagId(tag.id);
+                  setMode("tag");
+                }
+              }}
+            >
+              {tag.name}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 
   const statsBar = stats && mode === "browse" && segments.length === 0 && (
     <div className={styles.statsTiles}>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{stats.totalFiles}</div>
-        <div className={styles.statTileLabel}>Dateien</div>
+        <div className={styles.statTileLabel}>{t("Notizen")}</div>
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{formatFileSize(stats.totalSize)}</div>
-        <div className={styles.statTileLabel}>Gesamtgröße</div>
+        <div className={styles.statTileLabel}>
+          {stats.quotaBytes
+            ? t("von {quota} belegt", { quota: formatFileSize(stats.quotaBytes) })
+            : t("Speicher")}
+        </div>
+        {stats.quotaBytes && (
+          <div className={styles.progressTrack} style={{ marginTop: 6, height: 4 }}>
+            <div
+              className={styles.progressFill}
+              style={{
+                width: `${Math.min(100, (stats.totalSize / stats.quotaBytes) * 100)}%`,
+                background:
+                  stats.totalSize / stats.quotaBytes > 0.9 ? "var(--danger)" : undefined,
+              }}
+            />
+          </div>
+        )}
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>
           {stats.lastBackupAt ? formatDate(stats.lastBackupAt) : "—"}
         </div>
-        <div className={styles.statTileLabel}>Letztes Backup</div>
+        <div className={styles.statTileLabel}>{t("Letztes Backup")}</div>
       </div>
     </div>
   );
@@ -467,37 +829,41 @@ export function FileBrowser() {
   const versionsModal = versionsPath && (
     <div className={styles.modalOverlay} onClick={() => setVersionsPath(null)}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Versionsverlauf</h2>
+        <h2 className={styles.sectionTitle}>{t("Ältere Versionen")}</h2>
         <p className={styles.hint} style={{ marginBottom: 16 }}>
-          {versionsPath} — die letzten Versionen vor einem Überschreiben werden
-          automatisch aufbewahrt.
+          {t(
+            "{path} — bevor GoodNotes eine Notiz überschreibt, wird die vorherige Fassung automatisch aufbewahrt.",
+            { path: versionsPath }
+          )}
         </p>
         {versions === null ? (
           <LoadingState />
         ) : versions.length === 0 ? (
-          <p className={styles.hint}>Für diese Datei gibt es noch keine älteren Versionen.</p>
+          <p className={styles.hint}>{t("Für diese Datei gibt es noch keine älteren Versionen.")}</p>
         ) : (
           <div className={styles.fileList}>
             {versions.map((v) => (
               <div className={styles.fileRow} key={v.timestamp}>
-                <div className={styles.fileIcon}>🕓</div>
+                <div className={styles.fileIcon}><Icon name="clock" /></div>
                 <div className={styles.fileMain}>
                   <span className={styles.fileNameText}>{formatDate(v.timestamp)}</span>
                   <span className={styles.fileMeta}>{formatFileSize(v.size)}</span>
                 </div>
                 <div className={styles.fileActions}>
                   <a
-                    className={styles.smallButton}
+                    className={styles.iconButton}
                     href={versionDownloadUrl(versionsPath, v.timestamp)}
+                    title={t("Herunterladen")}
+                    aria-label={t("Herunterladen")}
                   >
-                    Herunterladen
+                    <Icon name="download" />
                   </a>
                   <button
                     className={styles.smallButton}
                     onClick={() => handleRestoreVersion(v.timestamp)}
                     disabled={versionsBusy}
                   >
-                    Wiederherstellen
+                    {t("Wiederherstellen")}
                   </button>
                 </div>
               </div>
@@ -509,10 +875,83 @@ export function FileBrowser() {
           onClick={() => setVersionsPath(null)}
           style={{ marginTop: 16 }}
         >
-          Schließen
+          {t("Schließen")}
         </button>
       </div>
     </div>
+  );
+
+  const overlays = (
+    <>
+      {tagPickerPath && (
+        <TagPicker
+          path={tagPickerPath}
+          tags={tags}
+          assigned={tagAssignments[tagPickerPath] ?? []}
+          onToggle={(tagId, on) => toggleTag(tagPickerPath, tagId, on)}
+          onTagsChanged={handleTagsChanged}
+          onClose={() => setTagPickerPath(null)}
+        />
+      )}
+      {toast && (
+        <div className={styles.toast} role="status">
+          <span>{toast.text}</span>
+          {toast.action && (
+            <button type="button" className={styles.toastAction} onClick={toast.action}>
+              {toast.actionLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            className={styles.toastClose}
+            onClick={() => setToast(null)}
+            aria-label={t("Schließen")}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {previewPath && (
+        <PdfPreviewModal
+          path={previewPath}
+          initialPage={previewPage}
+          onClose={closePreview}
+        />
+      )}
+      {formatHintPath && (
+        <div className={styles.modalOverlay} onClick={() => setFormatHintPath(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.emptyIllustration} style={{ textAlign: "center" }}>
+              <Icon name="notebook" size={40} strokeWidth={1.4} />
+            </div>
+            <h2 className={styles.sectionTitle} style={{ marginBottom: 8 }}>
+              {t("Das ist eine GoodNotes-Datei, kein PDF")}
+            </h2>
+            <p className={styles.hint} style={{ marginBottom: 12, fontSize: 14 }}>
+              {t(
+                "„{name}“ liegt im GoodNotes-eigenen Format vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es anzeigen.",
+                { name: formatHintPath.split("/").pop() ?? "" }
+              )}
+            </p>
+            <p className={styles.hint} style={{ marginBottom: 20, fontSize: 14 }}>
+              <strong style={{ color: "var(--foreground)" }}>{t("So klappt die Vorschau:")}</strong>{" "}
+              {t("Stell in GoodNotes unter Einstellungen → Backup das")}{" "}
+              <strong style={{ color: "var(--foreground)" }}>{t("Backup-Format auf „PDF“")}</strong>{" "}
+              {t("um. Ab dem nächsten Backup kannst du alle Notizen hier ansehen und durchsuchen.")}
+            </p>
+            <div className={styles.actionRowInline}>
+              <a className={styles.buttonSecondary} href={downloadFileUrl(formatHintPath)}>
+                {t("Trotzdem herunterladen")}
+              </a>
+              <button className={styles.button} onClick={() => setFormatHintPath(null)}>
+                {t("Verstanden")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {versionsModal}
+    </>
   );
 
   if (mode === "search") {
@@ -521,23 +960,82 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {searchResults?.length ?? 0} Treffer für „{searchQuery}“
+            {t("{n} Treffer für „{query}“", { n: searchResults?.length ?? 0, query: searchQuery })}
+            {indexStatus && indexStatus.indexed < indexStatus.pdfCount && (
+              <>
+                {" "}
+                ·{" "}
+                {t("Texterkennung läuft noch ({indexed} von {total} Notizen durchsucht)", {
+                  indexed: indexStatus.indexed,
+                  total: indexStatus.pdfCount,
+                })}
+              </>
+            )}
           </div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
         </div>
         {searchResults && searchResults.length > 0 ? (
           <div className={styles.fileList}>
-            {searchResults.map((r) => renderFileRow(r, { snippet: r.snippet }))}
+            {searchResults.map((r) =>
+              renderFileRow(r, { snippet: r.snippet, page: r.page, matchedIn: r.matchedIn })
+            )}
           </div>
         ) : (
-          <div className={styles.emptyState}>Keine Treffer.</div>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}><Icon name="search" size={40} strokeWidth={1.4} /></div>
+            {t("Nichts gefunden. Versuch es mit einem anderen Wort.")}
+          </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
+        {overlays}
+      </div>
+    );
+  }
+
+  if (mode === "bookmarks") {
+    return (
+      <div>
+        {searchBar}
+        {allBookmarks === null ? (
+          <LoadingState />
+        ) : allBookmarks.length === 0 ? (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}><Icon name="bookmark" size={40} strokeWidth={1.4} /></div>
+            {t("Noch keine Lesezeichen — setze eins im Viewer über das Lesezeichen-Symbol oben.")}
+          </div>
+        ) : (
+          <div className={styles.fileList}>
+            {allBookmarks.map((b) => (
+              <div key={b.id} className={styles.fileRow}>
+                <div className={styles.fileIcon}><Icon name="bookmark" /></div>
+                <div
+                  className={styles.fileMainClickable}
+                  onClick={() => {
+                    setPreviewPage(b.page);
+                    setPreviewPath(b.path);
+                  }}
+                >
+                  <span className={styles.fileNameText}>
+                    {b.note || t("Seite {page}", { page: b.page })}
+                  </span>
+                  <span className={styles.fileMeta}>
+                    {b.path.replace(/\.pdf$/i, "")} · {t("Seite {page}", { page: b.page })}
+                  </span>
+                </div>
+                <button
+                  className={styles.iconButton}
+                  title={t("Lesezeichen entfernen")}
+                  aria-label={t("Lesezeichen entfernen")}
+                  onClick={() => {
+                    setAllBookmarks((list) => list?.filter((x) => x.id !== b.id) ?? null);
+                    deleteBookmark(b.id).catch(() => {});
+                  }}
+                >
+                  <Icon name="trash" size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
@@ -547,23 +1045,84 @@ export function FileBrowser() {
     return (
       <div>
         {searchBar}
+        {offlineSupported() && favoriteFiles.length > 0 && (
+          <div className={styles.connectionBox} style={{ marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <Icon name="wifiOff" size={20} />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              {offlineState.enabled ? (
+                <>
+                  <strong>{t("Offline verfügbar")}</strong>
+                  <div className={styles.connectionNote}>
+                    {offlineState.busy
+                      ? t("Wird gespeichert …")
+                      : t(
+                          "{n} Favoriten sind auf diesem Gerät gespeichert und auch ohne Internet lesbar. Neue Favoriten kommen automatisch dazu.",
+                          { n: offlineState.stored ?? "—" }
+                        )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>{t("Favoriten offline verfügbar machen")}</strong>
+                  <div className={styles.connectionNote}>
+                    {t(
+                      "Speichert deine Favoriten auf diesem Gerät — praktisch im Hörsaal oder unterwegs ohne Netz. Beim Abmelden wird alles wieder gelöscht."
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            {offlineState.enabled ? (
+              <button className={styles.smallButton} onClick={() => setOfflineMode(false, favoriteFiles)} disabled={offlineState.busy}>
+                {t("Ausschalten")}
+              </button>
+            ) : (
+              <button className={styles.smallButtonAccent} onClick={() => setOfflineMode(true, favoriteFiles)} disabled={offlineState.busy}>
+                {t("Einschalten")}
+              </button>
+            )}
+          </div>
+        )}
         <div className={styles.toolbar}>
-          <div className={styles.hint}>{favoriteFiles.length} Favoriten</div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
+          <div className={styles.hint}>{t("{n} Favoriten", { n: favoriteFiles.length })}</div>
         </div>
         {favoriteFiles.length > 0 ? (
           <div className={styles.fileList}>{favoriteFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
-            Noch keine Favoriten — markiere Dateien mit dem Stern.
+            <div className={styles.emptyIllustration}><Icon name="star" size={40} strokeWidth={1.4} /></div>
+            {t("Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.")}
           </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
+        {overlays}
+      </div>
+    );
+  }
+
+  if (mode === "tag" && activeTagId) {
+    const tag = tags.find((t) => t.id === activeTagId);
+    const tagged = flattenAll(tree).filter((n) => (tagAssignments[n.path] ?? []).includes(activeTagId));
+    return (
+      <div>
+        {searchBar}
+        <div className={styles.toolbar}>
+          <div className={styles.hint}>
+            {tagged.length === 1
+              ? t("{n} Eintrag mit „{name}“", { n: tagged.length, name: tag?.name ?? "" })
+              : t("{n} Einträge mit „{name}“", { n: tagged.length, name: tag?.name ?? "" })}
+          </div>
+        </div>
+        {tagged.length > 0 ? (
+          <div className={styles.fileList}>
+            {tagged.map((n) => (n.type === "folder" ? renderFolderRow(n) : renderFileRow(n)))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}><Icon name="tag" size={40} strokeWidth={1.4} /></div>
+            {t("Noch nichts mit diesem Tag — vergib ihn über „⋯“ → „Tags …“.")}
+          </div>
         )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
@@ -578,38 +1137,44 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {recentFiles.length} {recentFiles.length === 1 ? "Datei" : "Dateien"} der letzten 7 Tage
+            {recentFiles.length === 1
+              ? t("{n} Notiz der letzten 7 Tage", { n: recentFiles.length })
+              : t("{n} Notizen der letzten 7 Tage", { n: recentFiles.length })}
           </div>
-          <button className={styles.smallButton} onClick={() => navigateTo(segments)}>
-            Zurück zum Ordner
-          </button>
         </div>
         {recentFiles.length > 0 ? (
           <div className={styles.fileList}>{recentFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
-            In den letzten 7 Tagen ist nichts Neues dazugekommen.
+            <div className={styles.emptyIllustration}><Icon name="clock" size={40} strokeWidth={1.4} /></div>
+            {t("In den letzten 7 Tagen ist nichts Neues dazugekommen.")}
           </div>
         )}
-        {previewPath && (
-          <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-        )}
-        {versionsModal}
+        {overlays}
       </div>
     );
   }
 
   if (tree.length === 0) {
     return (
-      <div className={styles.emptyState}>
-        <p style={{ marginBottom: 8, fontWeight: 600, color: "var(--foreground)" }}>
-          Hier ist noch nichts angekommen.
+      <div className={styles.emptyState} style={{ padding: "24px 8px" }}>
+        <div className={styles.emptyIllustration}><Icon name="inbox" size={40} strokeWidth={1.4} /></div>
+        <h2 className={styles.sectionTitle} style={{ color: "var(--foreground)", marginBottom: 8 }}>
+          {t("Noch keine Notizen da")}
+        </h2>
+        <p className={styles.hint} style={{ maxWidth: 440, margin: "0 auto 20px" }}>
+          {t(
+            "Sobald GoodNotes sein erstes Backup hierher geschickt hat, erscheinen deine Notizbücher automatisch auf dieser Seite. Dafür musst du GoodNotes einmalig mit deinem Konto verbinden — das dauert etwa zwei Minuten."
+          )}
         </p>
-        <p className={styles.hint}>
-          Richte in GoodNotes unter Einstellungen → Backup → WebDAV die Zugangsdaten
-          von der Erstellungs-Seite ein und tippe auf „Jetzt sichern“ — deine Notizen
-          erscheinen hier automatisch.
-        </p>
+        <div className={styles.heroActions}>
+          <Link href="/dashboard/webdav" className={styles.button}>
+            {t("GoodNotes jetzt verbinden")}
+          </Link>
+          <button type="button" className={styles.buttonSecondary} onClick={openTour}>
+            {t("Wie funktioniert das?")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -619,9 +1184,9 @@ export function FileBrowser() {
   if (rawChildren === null) {
     return (
       <div className={styles.errorBox}>
-        Dieser Ordner wurde nicht gefunden.{" "}
+        {t("Dieser Ordner wurde nicht gefunden.")}{" "}
         <a onClick={() => navigateTo([])} style={{ cursor: "pointer", fontWeight: 600 }}>
-          Zurück zur Übersicht
+          {t("Zurück zur Übersicht")}
         </a>
       </div>
     );
@@ -632,16 +1197,25 @@ export function FileBrowser() {
   return (
     <div>
       {searchBar}
+      {segments.length === 0 && (
+        <RecentStrip
+          key={recentKey}
+          onOpen={(path, page) => {
+            setPreviewPage(page);
+            setPreviewPath(path);
+          }}
+        />
+      )}
       {statsBar}
-      <div className={styles.breadcrumb}>
+      <div className={styles.breadcrumb} style={{ marginBottom: 12 }}>
         <span className={styles.breadcrumbLink} onClick={() => navigateTo([])}>
-          Meine Notizen
+          {t("Meine Notizen")}
         </span>
         {segments.map((segment, index) => {
           const isLast = index === segments.length - 1;
           return (
             <span key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span>/</span>
+              <span>›</span>
               {isLast ? (
                 <span className={styles.breadcrumbCurrent}>{segment}</span>
               ) : (
@@ -657,68 +1231,87 @@ export function FileBrowser() {
         })}
       </div>
 
-      <div className={styles.toolbar}>
-        <div className={styles.hint}>
-          {children.length} {children.length === 1 ? "Eintrag" : "Einträge"}
+      <div className={styles.toolbar} style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div className={styles.segmented} role="group" aria-label={t("Sortierung")}>
+            <button
+              className={sortBy === "name" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => {
+                if (sortBy === "name") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                else {
+                  setSortBy("name");
+                  setSortDir("asc");
+                }
+              }}
+            >
+              {t("Name")} {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+            </button>
+            <button
+              className={sortBy === "date" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => {
+                if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                else {
+                  setSortBy("date");
+                  setSortDir("desc");
+                }
+              }}
+            >
+              {t("Datum")} {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+            </button>
+          </div>
+          <div className={styles.segmented} role="group" aria-label={t("Ansicht")}>
+            <button
+              className={viewMode === "list" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => setViewMode("list")}
+              title={t("Liste")}
+            >
+              <Icon name="list" size={14} /> {t("Liste")}
+            </button>
+            <button
+              className={viewMode === "grid" ? styles.segmentedItemActive : styles.segmentedItem}
+              onClick={() => setViewMode("grid")}
+              title={t("Raster mit Vorschaubildern")}
+            >
+              <Icon name="grid" size={14} /> {t("Raster")}
+            </button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            className={styles.smallButton}
-            onClick={() => {
-              if (sortBy === "name") setSortDir(sortDir === "asc" ? "desc" : "asc");
-              else {
-                setSortBy("name");
-                setSortDir("asc");
-              }
-            }}
-          >
-            Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-          </button>
-          <button
-            className={styles.smallButton}
-            onClick={() => {
-              if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
-              else {
-                setSortBy("date");
-                setSortDir("desc");
-              }
-            }}
-          >
-            Datum {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-          </button>
-          <button
-            className={styles.smallButton}
-            onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-          >
-            {viewMode === "list" ? "Rasteransicht" : "Listenansicht"}
-          </button>
-          <a className={styles.smallButtonAccent} href={downloadZipUrl(currentPath)}>
-            Als ZIP herunterladen
-          </a>
-          <a className={styles.smallButton} href={downloadPdfUrl(currentPath)}>
-            Als eine PDF
-          </a>
-          <button className={styles.smallButton} onClick={() => toggleShare(currentPath || ".")}>
-            Diesen Ordner teilen
-          </button>
-        </div>
+        <ActionMenu
+          trigger={<><Icon name="download" size={15} /> {t("Exportieren & teilen")} ▾</>}
+          items={[
+            { label: t("Als ZIP herunterladen"), icon: "archive", href: downloadZipUrl(currentPath) },
+            { label: t("Als eine PDF herunterladen"), icon: "layers", href: downloadPdfUrl(currentPath) },
+            {
+              label: segments.length ? t("Ordner teilen") : t("Alles teilen"),
+              icon: "share",
+              onClick: () => toggleShare(currentPath || "."),
+            },
+            {
+              label: t("Upload-Link für diesen Ordner"),
+              icon: "inbox",
+              onClick: () => setUploadLinkPath(currentPath),
+            },
+          ]}
+        />
       </div>
 
       {selected.size > 0 && (
-        <div className={styles.toolbar} style={{ background: "var(--accent-soft)", borderRadius: 8, padding: 10 }}>
-          <div className={styles.hint}>{selected.size} ausgewählt</div>
+        <div className={styles.toolbar} style={{ background: "var(--accent-soft)", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+          <div className={styles.hint} style={{ fontWeight: 600, color: "var(--accent)" }}>
+            {t("{n} ausgewählt", { n: selected.size })}
+          </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <a
               className={styles.smallButtonAccent}
               href={downloadZipMultiUrl(Array.from(selected))}
             >
-              Auswahl als ZIP
+              {t("Als ZIP")}
             </a>
             <button className={styles.smallButton} onClick={() => setBulkSharing(true)}>
-              Auswahl teilen
+              {t("Teilen")}
             </button>
             <button className={styles.smallButton} onClick={() => setSelected(new Set())}>
-              Auswahl aufheben
+              {t("Aufheben")}
             </button>
           </div>
         </div>
@@ -730,6 +1323,12 @@ export function FileBrowser() {
         </div>
       )}
 
+      {uploadLinkPath === currentPath && (
+        <div style={{ marginBottom: 20 }}>
+          <UploadLinkForm path={currentPath} onClose={() => setUploadLinkPath(null)} />
+        </div>
+      )}
+
       {activeSharePath === (currentPath || ".") && (
         <div style={{ marginBottom: 20 }}>
           <ShareForm path={currentPath || "."} onClose={() => setActiveSharePath(null)} />
@@ -737,117 +1336,26 @@ export function FileBrowser() {
       )}
 
       {children.length === 0 ? (
-        <div className={styles.emptyState}>Dieser Ordner ist leer.</div>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIllustration}><Icon name="folder" size={40} strokeWidth={1.4} /></div>
+          {t("Dieser Ordner ist leer.")}
+
+        </div>
       ) : viewMode === "grid" ? (
         <div className={styles.gridList}>
           {children.map((node) => renderGridItem(node, true))}
         </div>
       ) : (
         <div className={styles.fileList}>
-          {children.map((node) => {
-            if (node.type === "file") return renderFileRow(node, { selectable: true });
-
-            const isFav = favorites.has(node.path);
-            const isRenaming = renamingPath === node.path;
-            const isBusy = busyPath === node.path;
-            return (
-              <Fragment key={node.path}>
-                <div className={styles.fileRow}>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(node.path)}
-                    onChange={() => toggleSelect(node.path)}
-                  />
-                  <div className={styles.fileIcon}>📁</div>
-                  {isRenaming ? (
-                    <div className={styles.fileMain}>
-                      <input
-                        className={styles.input}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") submitRename(node.path);
-                          if (e.key === "Escape") setRenamingPath(null);
-                        }}
-                        autoFocus
-                        style={{ maxWidth: 260 }}
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={styles.fileMainClickable}
-                      onClick={() => navigateTo([...segments, node.name])}
-                    >
-                      <span className={styles.fileNameText}>{node.name}</span>
-                      <span className={styles.fileMeta}>
-                        {node.children?.length ?? 0} Einträge
-                      </span>
-                    </div>
-                  )}
-                  <div className={styles.fileActions}>
-                    {isRenaming ? (
-                      <>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => submitRename(node.path)}
-                          disabled={isBusy}
-                        >
-                          Speichern
-                        </button>
-                        <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
-                          Abbrechen
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => toggleFavorite(node.path)}
-                          title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
-                        >
-                          {isFav ? "★" : "☆"}
-                        </button>
-                        <a className={styles.smallButton} href={downloadZipUrl(node.path)}>
-                          Als ZIP
-                        </a>
-                        <a className={styles.smallButton} href={downloadPdfUrl(node.path)}>
-                          Als PDF
-                        </a>
-                        <button className={styles.smallButton} onClick={() => toggleShare(node.path)}>
-                          Teilen
-                        </button>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => startRename(node.path, node.name)}
-                        >
-                          Umbenennen
-                        </button>
-                        <button
-                          className={styles.smallButton}
-                          onClick={() => handleDelete(node.path, true)}
-                          disabled={isBusy}
-                        >
-                          Löschen
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {activeSharePath === node.path && (
-                  <div style={{ padding: "0 16px 16px" }}>
-                    <ShareForm path={node.path} onClose={() => setActiveSharePath(null)} />
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
+          {children.map((node) =>
+            node.type === "file"
+              ? renderFileRow(node, { selectable: true })
+              : renderFolderRow(node)
+          )}
         </div>
       )}
 
-      {previewPath && (
-        <PdfPreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
-      )}
-      {versionsModal}
+      {overlays}
     </div>
   );
 }

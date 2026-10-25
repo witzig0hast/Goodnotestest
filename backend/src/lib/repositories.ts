@@ -10,6 +10,7 @@ import {
   generateWebdavUsername,
 } from "./ids.js";
 import { ensureRepositoryDir } from "./storage.js";
+import { isTotpEnabled } from "./totp.js";
 
 export interface RepositoryRecord {
   id: string;
@@ -161,6 +162,7 @@ export function toSessionJson(repo: RepositoryRecord) {
     isAdmin: repo.isAdmin,
     webdavUsername: repo.webdavUsername,
     hasPassword: repo.passwordHash !== null,
+    totpEnabled: isTotpEnabled(repo.id),
   };
 }
 

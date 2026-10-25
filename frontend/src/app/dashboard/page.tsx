@@ -1,39 +1,56 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/PageHeader";
 import { LoadingState } from "../../components/LoadingState";
 import { FileBrowser } from "../../components/FileBrowser";
-import { SettingsMenu } from "../../components/SettingsMenu";
-import { fetchCurrentRepository, logout } from "../../lib/api";
+import { GettingStarted } from "../../components/GettingStarted";
+import { hasSeenTour, openTour } from "../../components/WelcomeTour";
+import { ApiError, fetchCurrentRepository } from "../../lib/api";
+import { isOfflineEnabled } from "../../lib/offline";
+import { OfflineView } from "../../components/OfflineView";
+import { useT } from "../../lib/i18n";
 import styles from "../ui.module.css";
 
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 11) return "Guten Morgen";
+  if (hour < 18) return "Hallo";
+  return "Guten Abend";
+}
+
 export default function DashboardPage() {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [hello, setHello] = useState("Hallo");
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     fetchCurrentRepository()
       .then((session) => {
         setName(session.name);
-        setIsAdmin(session.isAdmin);
+        setHello(greeting());
+        // First visit after signing up: start the guided tour once, so a
+        // brand-new user isn't left guessing what this page is for.
+        if (!hasSeenTour()) setTimeout(openTour, 400);
       })
-      .catch(() => router.replace("/login"))
+      .catch((err) => {
+        // A network failure (not a "not signed in" answer) with offline
+        // favorites switched on: show those instead of the login page.
+        if (!(err instanceof ApiError) && isOfflineEnabled()) setOffline(true);
+        else router.replace("/login");
+      })
       .finally(() => setChecking(false));
   }, [router]);
 
-  async function handleLogout() {
-    await logout().catch(() => {});
-    router.replace("/login");
-  }
+  if (offline) return <OfflineView />;
 
   if (checking) {
     return (
-      <div className={styles.shell}>
+      <div className={styles.shellWide}>
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
@@ -45,33 +62,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className={styles.shell}>
-      <PageHeader />
-      <main className={styles.main} style={{ maxWidth: 820 }}>
-        <section className={styles.card}>
-          <div className={styles.toolbar} style={{ marginBottom: 4 }}>
-            <div>
-              <div className={styles.eyebrow}>Angemeldet</div>
-              <h1 className={styles.title} style={{ marginBottom: 0 }}>
-                {name}
-              </h1>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <SettingsMenu />
-              {isAdmin && (
-                <Link href="/dashboard/admin" className={styles.smallButtonAccent}>
-                  Admin
-                </Link>
-              )}
-              <button className={styles.smallButton} onClick={handleLogout}>
-                Abmelden
-              </button>
-            </div>
+    <div className={styles.shellWide}>
+      <PageHeader app />
+      <main className={styles.main}>
+        <div style={{ padding: "0 4px" }}>
+          <div className={styles.eyebrow} style={{ marginBottom: 4 }}>
+            {t(hello)}
           </div>
-        </section>
+          <h1 className={styles.title} style={{ marginBottom: 0 }}>
+            {name}
+          </h1>
+        </div>
+
+        <GettingStarted />
 
         <section className={styles.card}>
-          <Suspense fallback={<LoadingState text="Notizen werden geladen …" />}>
+          <Suspense fallback={<LoadingState text={t("Notizen werden geladen …")} />}>
             <FileBrowser />
           </Suspense>
         </section>

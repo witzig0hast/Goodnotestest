@@ -17,6 +17,7 @@ import {
 } from "../lib/webauthn.js";
 import { requireSession } from "../middleware/require-session.js";
 import { loginLimiter } from "../middleware/rate-limit.js";
+import { logAudit } from "../lib/audit.js";
 
 export const webauthnRouter = Router();
 
@@ -85,6 +86,7 @@ webauthnRouter.post("/registration-verify", requireSession, async (req, res) => 
       transports: credential.transports,
     });
 
+    logAudit(req, "passkey.added");
     res.status(201).json({ verified: true });
   } catch {
     res.status(400).json({ error: "Passkey konnte nicht eingerichtet werden." });
@@ -146,7 +148,8 @@ webauthnRouter.post("/login-verify", loginLimiter, async (req, res) => {
     }
 
     updateCredentialCounter(stored.id, result.authenticationInfo.newCounter);
-    issueSession(res, repo.id);
+    issueSession(res, repo.id, req, "passkey");
+    logAudit(req, "login.passkey", null, repo.id);
     res.json(toSessionJson(repo));
   } catch {
     res.status(401).json({ error: "Passkey-Anmeldung fehlgeschlagen." });

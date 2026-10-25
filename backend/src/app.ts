@@ -15,6 +15,12 @@ import { shareRouter } from "./routes/share.js";
 import { shortcutsRouter } from "./routes/shortcuts.js";
 import { ssoRouter } from "./routes/sso.js";
 import { webauthnRouter } from "./routes/webauthn.js";
+import { trashRouter } from "./routes/trash.js";
+import { activityRouter } from "./routes/activity.js";
+import { uploadLinksRouter } from "./routes/upload-links.js";
+import { tagsRouter } from "./routes/tags.js";
+import { studySheetsRouter } from "./routes/study-sheets.js";
+import { readingRouter } from "./routes/reading.js";
 
 export function createApp() {
   const app = express();
@@ -74,6 +80,12 @@ export function createApp() {
   api.use("/auth/sso", ssoRouter);
   api.use("/admin", adminRouter);
   api.use("/announcements", publicAnnouncementsRouter);
+  api.use("/trash", trashRouter);
+  api.use("/activity", activityRouter);
+  api.use("/upload-links", uploadLinksRouter);
+  api.use("/tags", tagsRouter);
+  api.use("/reading", readingRouter);
+  api.use("/study-sheets", studySheetsRouter);
 
   app.use("/api", api);
 

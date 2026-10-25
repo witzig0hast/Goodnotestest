@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "../../../components/PageHeader";
 import { LoadingState } from "../../../components/LoadingState";
-import { SettingsMenu } from "../../../components/SettingsMenu";
 import {
   ApiError,
   deleteAccount,
@@ -19,6 +18,8 @@ import {
 } from "../../../lib/api";
 import { browserSupportsWebAuthn, registerPasskey } from "../../../lib/passkeys";
 import styles from "../../ui.module.css";
+import { SessionsCard, TwoFactorCard } from "../../../components/SecurityCards";
+import { translate, useT } from "../../../lib/i18n";
 
 const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
   already_linked: "Diese Anmeldung ist bereits mit einem anderen Konto verknüpft.",
@@ -27,6 +28,7 @@ const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function SicherheitPageInner() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
@@ -62,7 +64,7 @@ function SicherheitPageInner() {
 
   useEffect(() => {
     if (searchParams.get("sso_linked")) {
-      setSsoLinkMessage("Verknüpfung erfolgreich — du kannst dich ab jetzt auch darüber anmelden.");
+      setSsoLinkMessage(translate("Verknüpfung erfolgreich — du kannst dich ab jetzt auch darüber anmelden."));
     }
     const linkError = searchParams.get("sso_link_error");
     if (linkError) {
@@ -85,7 +87,7 @@ function SicherheitPageInner() {
   async function handleRegeneratePin() {
     if (
       !window.confirm(
-        "Einen neuen Notfall-Code erzeugen? Der alte Code funktioniert danach sofort nicht mehr."
+        translate("Einen neuen Notfall-Code erzeugen? Der alte Code funktioniert danach sofort nicht mehr.")
       )
     ) {
       return;
@@ -96,7 +98,7 @@ function SicherheitPageInner() {
       const res = await regeneratePin();
       setNewPin(res.pin);
     } catch (err) {
-      setPinError(err instanceof ApiError ? err.message : "Das hat nicht geklappt.");
+      setPinError(err instanceof ApiError ? err.message : translate("Das hat nicht geklappt."));
     } finally {
       setRegeneratingPin(false);
     }
@@ -106,7 +108,7 @@ function SicherheitPageInner() {
     e.preventDefault();
     if (
       !window.confirm(
-        "Konto wirklich endgültig löschen? Alle Notizen, Freigabe-Links und Einstellungen gehen dabei unwiderruflich verloren."
+        translate("Konto wirklich endgültig löschen? Alle Notizen, Freigabe-Links und Einstellungen gehen dabei unwiderruflich verloren.")
       )
     ) {
       return;
@@ -118,7 +120,7 @@ function SicherheitPageInner() {
       await logout().catch(() => {});
       router.replace("/");
     } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
+      setDeleteError(err instanceof ApiError ? err.message : translate("Löschen ist fehlgeschlagen."));
       setDeleting(false);
     }
   }
@@ -126,8 +128,11 @@ function SicherheitPageInner() {
   if (checking || !session) {
     return (
       <div className={styles.shell}>
-        <PageHeader />
+        <PageHeader app />
         <main className={styles.main}>
+          <Link href="/dashboard" className={styles.backLink}>
+            {t("← Zurück zu meinen Notizen")}
+          </Link>
           <section className={styles.card}>
             <LoadingState />
           </section>
@@ -138,18 +143,21 @@ function SicherheitPageInner() {
 
   return (
     <div className={styles.shell}>
-      <PageHeader />
+      <PageHeader app />
       <main className={styles.main}>
+        <Link href="/dashboard" className={styles.backLink}>
+          {t("← Zurück zu meinen Notizen")}
+        </Link>
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>Sicherheit</h1>
+          <div className={styles.eyebrow}>{t("Einstellungen")}</div>
+          <h1 className={styles.title}>{t("Sicherheit")}</h1>
           <p className={styles.subtitle}>
-            So meldest du dich bei „{session.name}“ an.
+            {t("So meldest du dich bei „")}{session.name}{t("“ an.")}
           </p>
 
           <div className={styles.secretGrid}>
             <div className={styles.secretItem}>
-              <span className={styles.secretLabel}>E-Mail-Adresse</span>
+              <span className={styles.secretLabel}>{t("E-Mail-Adresse")}</span>
               <div className={styles.secretValue}>
                 <span>{session.email}</span>
               </div>
@@ -158,22 +166,21 @@ function SicherheitPageInner() {
         </section>
 
         <section className={styles.card}>
-          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Passkeys</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>{t("Passkeys")}</h2>
           <p className={styles.hint} style={{ marginBottom: 16 }}>
-            Mit einem Passkey meldest du dich mit Face ID, Fingerabdruck oder
-            deinem Gerätecode an — ohne Passwort einzutippen.
+            {t("Mit einem Passkey meldest du dich mit Face ID, Fingerabdruck oder deinem Gerätecode an — ohne Passwort einzutippen.")}
           </p>
 
           {passkeyCount !== null && passkeyCount > 0 && (
             <div className={styles.statusBadge} style={{ marginBottom: 16 }}>
               <span className={styles.statusDot} />
-              {passkeyCount} {passkeyCount === 1 ? "Passkey eingerichtet" : "Passkeys eingerichtet"}
+              {passkeyCount} {passkeyCount === 1 ? t("Passkey eingerichtet") : t("Passkeys eingerichtet")}
             </div>
           )}
 
           {status === "error" && (
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
-              Das hat nicht geklappt. Bitte nochmal versuchen.
+              {t("Das hat nicht geklappt. Bitte nochmal versuchen.")}
             </div>
           )}
 
@@ -183,12 +190,11 @@ function SicherheitPageInner() {
               onClick={handleAddPasskey}
               disabled={status === "loading"}
             >
-              {status === "loading" ? "Wird eingerichtet …" : "Neuen Passkey hinzufügen"}
+              {status === "loading" ? t("Wird eingerichtet …") : t("Neuen Passkey hinzufügen")}
             </button>
           ) : (
             <p className={styles.hint}>
-              Dieses Gerät oder dieser Browser unterstützt leider keine
-              Passkeys.
+              {t("Dieses Gerät oder dieser Browser unterstützt leider keine Passkeys.")}
             </p>
           )}
         </section>
@@ -196,11 +202,10 @@ function SicherheitPageInner() {
         {sso?.enabled && (
           <section className={styles.card}>
             <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-              Single Sign-On ({sso.providerName ?? "SSO"})
+              {t("Single Sign-On (")}{sso.providerName ?? t("SSO")})
             </h2>
             <p className={styles.hint} style={{ marginBottom: 16 }}>
-              Verknüpfe dein Konto mit {sso.providerName ?? "deinem SSO-Dienst"}, um dich
-              künftig auch darüber anmelden zu können.
+              {t("Verknüpfe dein Konto mit")} {sso.providerName ?? t("deinem SSO-Dienst")}{t(", um dich künftig auch darüber anmelden zu können.")}
             </p>
 
             {ssoLinkMessage && (
@@ -217,21 +222,17 @@ function SicherheitPageInner() {
             )}
 
             <a href={ssoLinkStartUrl} className={styles.buttonSecondary}>
-              Mit {sso.providerName ?? "SSO"} verknüpfen
+              {t("Mit {provider} verknüpfen", { provider: sso.providerName ?? "SSO" })}
             </a>
           </section>
         )}
 
         <section className={styles.card}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-            Notfall-Zugang
+            {t("Notfall-Zugang")}
           </h2>
           <p className={styles.hint} style={{ marginBottom: 16 }}>
-            Falls du E-Mail, Passwort und Passkey mal nicht zur Hand hast,
-            kommst du mit deiner Konto-Kennung (<strong>{session.repositoryId}</strong>)
-            und einem 4-stelligen Notfall-Code trotzdem rein. Den Code hast
-            du nur bei der Kontoerstellung gesehen — hier kannst du bei
-            Bedarf einen neuen erzeugen.
+            {t("Falls du E-Mail, Passwort und Passkey mal nicht zur Hand hast, kommst du mit deiner Konto-Kennung (")}<strong>{session.repositoryId}</strong>{t(") und einem 4-stelligen Notfall-Code trotzdem rein. Den Code hast du nur bei der Kontoerstellung gesehen — hier kannst du bei Bedarf einen neuen erzeugen.")}
           </p>
 
           {pinError && (
@@ -244,13 +245,12 @@ function SicherheitPageInner() {
             <div className={styles.secretGrid}>
               <div className={`${styles.secretItem} ${styles.onlyOnceItem}`}>
                 <span className={styles.secretLabel}>
-                  Neuer Notfall-Code
-                  <span className={styles.onlyOnceBadge}>Nur jetzt sichtbar</span>
+                  {t("Neuer Notfall-Code")}
+                  <span className={styles.onlyOnceBadge}>{t("Nur jetzt sichtbar")}</span>
                 </span>
                 <div className={styles.pinBig}>{newPin}</div>
                 <span className={styles.hint}>
-                  Notier ihn dir jetzt sicher — er wird danach nirgendwo mehr
-                  angezeigt.
+                  {t("Notier ihn dir jetzt sicher — er wird danach nirgendwo mehr angezeigt.")}
                 </span>
               </div>
             </div>
@@ -260,32 +260,30 @@ function SicherheitPageInner() {
               onClick={handleRegeneratePin}
               disabled={regeneratingPin}
             >
-              {regeneratingPin ? "Wird erzeugt …" : "Neuen Notfall-Code erzeugen"}
+              {regeneratingPin ? t("Wird erzeugt …") : t("Neuen Notfall-Code erzeugen")}
             </button>
           )}
         </section>
 
-        <section className={styles.card}>
-          <Link href="/dashboard" className={styles.buttonSecondary}>
-            Zurück zu meinen Notizen
-          </Link>
-          <div style={{ marginTop: 12 }}><SettingsMenu /></div>
-        </section>
+
+        <TwoFactorCard
+          enabled={Boolean(session.totpEnabled)}
+          onChange={(on) => setSession((s) => (s ? { ...s, totpEnabled: on } : s))}
+        />
+
+        <SessionsCard />
 
         <section className={`${styles.card} ${styles.dangerZone}`}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: "var(--danger)" }}>
-            Konto löschen
+            {t("Konto löschen")}
           </h2>
           <p className={styles.hint} style={{ marginBottom: 16 }}>
-            Löscht dein Konto endgültig — alle Notizen, Freigabe-Links und
-            Einstellungen gehen dabei unwiderruflich verloren. Das kann
-            nicht rückgängig gemacht werden.
+            {t("Löscht dein Konto endgültig — alle Notizen, Freigabe-Links und Einstellungen gehen dabei unwiderruflich verloren. Das kann nicht rückgängig gemacht werden.")}
           </p>
 
           {session.isAdmin ? (
             <p className={styles.hint}>
-              Als Administrator kannst du dein Konto nicht selbst löschen,
-              solange es keinen anderen Administrator gibt.
+              {t("Als Administrator kannst du dein Konto nicht selbst löschen, solange es keinen anderen Administrator gibt.")}
             </p>
           ) : (
             <form onSubmit={handleDeleteAccount}>
@@ -297,7 +295,7 @@ function SicherheitPageInner() {
               {session.hasPassword ? (
                 <div className={styles.field} style={{ marginBottom: 16, maxWidth: 320 }}>
                   <label className={styles.label} htmlFor="deletePassword">
-                    Passwort zur Bestätigung
+                    {t("Passwort zur Bestätigung")}
                   </label>
                   <input
                     id="deletePassword"
@@ -310,8 +308,7 @@ function SicherheitPageInner() {
                 </div>
               ) : (
                 <p className={styles.hint} style={{ marginBottom: 16 }}>
-                  Dieses Konto hat kein Passwort (angelegt über SSO) — zum
-                  Löschen reicht die Bestätigung unten.
+                  {t("Dieses Konto hat kein Passwort (angelegt über SSO) — zum Löschen reicht die Bestätigung unten.")}
                 </p>
               )}
               <button
@@ -320,7 +317,7 @@ function SicherheitPageInner() {
                 style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
                 disabled={deleting}
               >
-                {deleting ? "Wird gelöscht …" : "Konto endgültig löschen"}
+                {deleting ? t("Wird gelöscht …") : t("Konto endgültig löschen")}
               </button>
             </form>
           )}

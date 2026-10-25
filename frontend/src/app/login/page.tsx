@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
+import { TotpLoginStep } from "../../components/TotpLoginStep";
 import { ApiError, fetchSsoStatus, loginWithPassword, ssoStartUrl } from "../../lib/api";
 import { browserSupportsWebAuthn, loginWithPasskey } from "../../lib/passkeys";
+import { translate, useT } from "../../lib/i18n";
 import styles from "../ui.module.css";
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
@@ -15,7 +17,10 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
   failed: "Die Anmeldung über den Single-Sign-On-Dienst hat nicht geklappt. Bitte nochmal versuchen.",
 };
 
+const noopSubscribe = () => () => {};
+
 function LoginPageInner() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -23,7 +28,15 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [supportsPasskeys] = useState(() => browserSupportsWebAuthn());
+  // The server render has no WebAuthn — reading it via an external store
+  // with a `false` server snapshot keeps the first client render identical
+  // to the server HTML (computing it in useState caused a hydration error
+  // on every visit to this page).
+  const supportsPasskeys = useSyncExternalStore(
+    noopSubscribe,
+    browserSupportsWebAuthn,
+    () => false
+  );
   const [sso, setSso] = useState<{ enabled: boolean; providerName?: string } | null>(null);
 
   useEffect(() => {
@@ -39,18 +52,24 @@ function LoginPageInner() {
     }
   }, [searchParams]);
 
+  const [totpTicket, setTotpTicket] = useState<string | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await loginWithPassword(email.trim(), password);
+      const res = await loginWithPassword(email.trim(), password);
+      if ("totpRequired" in res) {
+        setTotpTicket(res.ticket);
+        return;
+      }
       router.push("/dashboard");
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal."
+          : translate("Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.")
       );
     } finally {
       setLoading(false);
@@ -64,10 +83,28 @@ function LoginPageInner() {
       await loginWithPasskey();
       router.push("/dashboard");
     } catch {
-      setError("Passkey-Anmeldung hat nicht geklappt. Versuch es nochmal oder nutze dein Passwort.");
+      setError(translate("Passkey-Anmeldung hat nicht geklappt. Versuch es nochmal oder nutze dein Passwort."));
     } finally {
       setPasskeyLoading(false);
     }
+  }
+
+  if (totpTicket) {
+    return (
+      <div className={styles.shell}>
+        <PageHeader />
+        <main className={styles.main}>
+          <TotpLoginStep
+            ticket={totpTicket}
+            onDone={() => router.push("/dashboard")}
+            onCancel={() => {
+              setTotpTicket(null);
+              setPassword("");
+            }}
+          />
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -75,12 +112,12 @@ function LoginPageInner() {
       <PageHeader />
       <main className={styles.main}>
         <form className={styles.card} onSubmit={handleSubmit}>
-          <div className={styles.eyebrow}>Willkommen zurück</div>
-          <h1 className={styles.title}>Anmelden</h1>
+          <div className={styles.eyebrow}>{t("Willkommen zurück")}</div>
+          <h1 className={styles.title}>{t("Anmelden")}</h1>
 
           {error && (
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
-              {error}
+              {t(error)}
             </div>
           )}
 
@@ -91,7 +128,7 @@ function LoginPageInner() {
                 className={styles.button}
                 style={{ width: "100%", marginBottom: 20, display: "block", textAlign: "center" }}
               >
-                Mit {sso.providerName ?? "SSO"} anmelden
+                {t("Mit {provider} anmelden", { provider: sso.providerName ?? t("SSO") })}
               </a>
               <div
                 style={{
@@ -104,7 +141,7 @@ function LoginPageInner() {
                 }}
               >
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                oder
+                {t("oder")}
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
               </div>
             </>
@@ -119,7 +156,7 @@ function LoginPageInner() {
                 disabled={passkeyLoading}
                 style={{ width: "100%", marginBottom: 20 }}
               >
-                {passkeyLoading ? "Wird geprüft …" : "Mit Passkey anmelden"}
+                {passkeyLoading ? t("Wird geprüft …") : t("Mit Passkey anmelden")}
               </button>
               <div
                 style={{
@@ -132,7 +169,7 @@ function LoginPageInner() {
                 }}
               >
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                oder
+                {t("oder")}
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
               </div>
             </>
@@ -141,12 +178,14 @@ function LoginPageInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="email">
-                E-Mail-Adresse
+                {t("E-Mail-Adresse")}
               </label>
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 className={styles.input}
+                placeholder={t("du@beispiel.de")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -155,11 +194,12 @@ function LoginPageInner() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="password">
-                Passwort
+                {t("Passwort")}
               </label>
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 className={styles.input}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -170,16 +210,16 @@ function LoginPageInner() {
 
           <div className={styles.actionRowInline}>
             <button className={styles.button} type="submit" disabled={loading}>
-              {loading ? "Wird geprüft …" : "Anmelden"}
+              {loading ? t("Wird geprüft …") : t("Anmelden")}
             </button>
             <Link href="/erstellen" className={styles.buttonSecondary}>
-              Noch kein Konto?
+              {t("Noch kein Konto?")}
             </Link>
           </div>
 
           <p className={styles.hint} style={{ marginTop: 20, textAlign: "center" }}>
             <Link href="/login/code" style={{ color: "var(--accent)", fontWeight: 600 }}>
-              Kein Zugriff auf E-Mail oder Passkey?
+              {t("Kein Zugriff auf E-Mail oder Passkey?")}
             </Link>
           </p>
         </form>
