@@ -15,6 +15,7 @@ import {
 import { formatDateTime, formatFileSize } from "../../../lib/format";
 import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
+import { Icon } from "../../../components/Icon";
 
 function daysLeft(expiresAt: string): number {
   return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000));
@@ -124,7 +125,7 @@ function TrashList() {
         !error && <LoadingState />
       ) : items.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIllustration}>🗑</div>
+          <div className={styles.emptyIllustration}><Icon name="trash" size={40} strokeWidth={1.4} /></div>
           {t("Der Papierkorb ist leer.")}
         </div>
       ) : (
@@ -134,7 +135,7 @@ function TrashList() {
             return (
               <div key={item.id} className={styles.fileRow}>
                 <div className={item.isDirectory ? styles.fileIconFolder : styles.fileIcon}>
-                  {item.isDirectory ? "📁" : "📄"}
+                  <Icon name={item.isDirectory ? "folder" : "file"} />
                 </div>
                 <div className={styles.fileMain}>
                   <span className={styles.fileNameText}>{item.name}</span>
@@ -170,7 +171,7 @@ function TrashList() {
                     title={t("Endgültig löschen")}
                     aria-label={t("Endgültig löschen")}
                   >
-                    🗑
+                    <Icon name="trash" />
                   </button>
                 </div>
               </div>

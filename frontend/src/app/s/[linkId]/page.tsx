@@ -14,6 +14,7 @@ import {
 } from "../../../lib/api";
 import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
+import { Icon } from "../../../components/Icon";
 
 export default function SharePage() {
   const t = useT();
@@ -60,7 +61,7 @@ export default function SharePage() {
         <PageHeader />
         <main className={styles.main}>
           <section className={styles.card}>
-            <div className={styles.emptyIllustration}>{limitReached ? "⛔" : "🔗"}</div>
+            <div className={styles.emptyIllustration}><Icon name={limitReached ? "ban" : "link"} size={40} strokeWidth={1.4} /></div>
             <h1 className={styles.title}>
               {limitReached ? t("Download-Limit erreicht") : t("Link nicht gefunden")}
             </h1>
@@ -99,7 +100,7 @@ export default function SharePage() {
         <section className={styles.card}>
           <div className={styles.eyebrow}>{t("Geteilt")}</div>
           <h1 className={styles.title}>
-            {info.type === "folder" ? "📁" : info.type === "bundle" ? "🗂️" : "📄"} {info.name}
+            <Icon name={info.type === "file" ? "file" : "folder"} size={26} style={{ marginRight: 6, marginTop: -4 }} />{info.name}
           </h1>
           <p className={styles.subtitle}>
             {info.type === "folder"
@@ -113,7 +114,7 @@ export default function SharePage() {
             <ul className={styles.hint} style={{ marginBottom: 16, listStyle: "none", padding: 0 }}>
               {info.items.map((item) => (
                 <li key={item.name}>
-                  {item.type === "folder" ? "📁" : "📄"} {item.name}
+                  <Icon name={item.type === "folder" ? "folder" : "file"} size={14} style={{ marginRight: 6 }} />{item.name}
                 </li>
               ))}
             </ul>

@@ -5,16 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { setLocale, useLocale, useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
+import { Icon, type IconName } from "./Icon";
 
 const ITEMS = [
-  { href: "/dashboard/webdav", label: "GoodNotes verbinden", icon: "🔗" },
-  { href: "/dashboard/sicherheit", label: "Anmeldung & Sicherheit", icon: "🔐" },
-  { href: "/dashboard/freigaben", label: "Meine Freigaben", icon: "📤" },
-  { href: "/dashboard/papierkorb", label: "Papierkorb", icon: "🗑" },
-  { href: "/dashboard/aktivitaet", label: "Aktivität & Backups", icon: "📈" },
-  { href: "/dashboard/benachrichtigungen", label: "Backup-Erinnerung", icon: "🔔" },
-  { href: "/dashboard/nextcloud", label: "Nextcloud", icon: "☁️" },
-  { href: "/dashboard/kurzbefehl", label: "iOS-Kurzbefehl", icon: "⚡" },
+  { href: "/dashboard/webdav", label: "GoodNotes verbinden", icon: "link" as IconName },
+  { href: "/dashboard/sicherheit", label: "Anmeldung & Sicherheit", icon: "lock" as IconName },
+  { href: "/dashboard/freigaben", label: "Meine Freigaben", icon: "share" as IconName },
+  { href: "/dashboard/papierkorb", label: "Papierkorb", icon: "trash" as IconName },
+  { href: "/dashboard/aktivitaet", label: "Aktivität & Backups", icon: "activity" as IconName },
+  { href: "/dashboard/benachrichtigungen", label: "Backup-Erinnerung", icon: "bell" as IconName },
+  { href: "/dashboard/nextcloud", label: "Nextcloud", icon: "cloud" as IconName },
+  { href: "/dashboard/kurzbefehl", label: "iOS-Kurzbefehl", icon: "zap" as IconName },
 ];
 
 export function SettingsMenu({
@@ -60,7 +61,7 @@ export function SettingsMenu({
         aria-haspopup="menu"
         title={t("Einstellungen")}
       >
-        ⚙️ <span className={styles.navLabel}>{t("Einstellungen")}</span>
+        <Icon name="settings" /> <span className={styles.navLabel}>{t("Einstellungen")}</span>
       </button>
       {open && (
         <div className={styles.menuPanel} role="menu">
@@ -74,7 +75,7 @@ export function SettingsMenu({
               role="menuitem"
               style={pathname === item.href ? { color: "var(--accent)" } : undefined}
             >
-              <span className={styles.menuIcon}>{item.icon}</span>
+              <span className={styles.menuIcon}><Icon name={item.icon} size={16} /></span>
               {t(item.label)}
             </Link>
           ))}
@@ -87,7 +88,7 @@ export function SettingsMenu({
                 className={styles.menuItem}
                 role="menuitem"
               >
-                <span className={styles.menuIcon}>👑</span>
+                <span className={styles.menuIcon}><Icon name="shield" size={16} /></span>
                 {t("Verwaltung")}
               </Link>
             </>
@@ -99,7 +100,7 @@ export function SettingsMenu({
             role="menuitem"
             onClick={() => setLocale(locale === "de" ? "en" : "de")}
           >
-            <span className={styles.menuIcon}>🌐</span>
+            <span className={styles.menuIcon}><Icon name="globe" size={16} /></span>
             {locale === "de" ? "English" : "Deutsch"}
           </button>
           {onLogout && (
@@ -114,7 +115,7 @@ export function SettingsMenu({
                   onLogout();
                 }}
               >
-                <span className={styles.menuIcon}>↩</span>
+                <span className={styles.menuIcon}><Icon name="logout" size={16} /></span>
                 {t("Abmelden")}
               </button>
             </>

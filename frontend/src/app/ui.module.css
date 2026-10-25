@@ -618,6 +618,7 @@
   height: 38px;
   border-radius: 10px;
   background: var(--accent-soft);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -627,6 +628,7 @@
 .fileIconFolder {
   composes: fileIcon;
   background: rgba(214, 170, 92, 0.18);
+  color: #b07d22;
 }
 
 .fileMain {
@@ -899,6 +901,7 @@
 }
 
 .gridThumb {
+  color: var(--muted);
   width: 100%;
   aspect-ratio: 3 / 4;
   border-radius: 6px;
@@ -1067,6 +1070,9 @@
 }
 
 .menuIcon {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--muted);
   width: 18px;
   text-align: center;
   flex-shrink: 0;
@@ -1154,6 +1160,7 @@
   align-items: center;
   justify-content: center;
   font-size: 20px;
+  color: var(--accent);
   background: var(--accent-soft);
   margin-bottom: 12px;
 }
@@ -1188,6 +1195,10 @@
     radial-gradient(circle at 30% 20%, var(--glow-2), transparent 60%),
     radial-gradient(circle at 70% 80%, var(--glow-1), transparent 60%),
     var(--accent-soft);
+}
+
+.tourArt {
+  color: var(--accent);
 }
 
 .tourArt span {
@@ -1332,6 +1343,7 @@ button.checklistItem {
 }
 
 .emptyIllustration {
+  color: var(--muted);
   font-size: 46px;
   margin-bottom: 12px;
   animation: popIn 0.4s ease backwards;
@@ -1902,4 +1914,11 @@ button.checklistItem {
   composes: langSwitchItem;
   background: var(--accent);
   color: white;
+}
+
+.chip svg,
+.navLink svg,
+.segmentedItem svg,
+.smallButton svg {
+  margin-top: -2px;
 }

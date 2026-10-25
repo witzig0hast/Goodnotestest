@@ -4,25 +4,26 @@ import Link from "next/link";
 import { PageHeader } from "../components/PageHeader";
 import { useT } from "../lib/i18n";
 import styles from "./ui.module.css";
+import { Icon, type IconName } from "../components/Icon";
 
 const FEATURES = [
   {
-    icon: "🔄",
+    icon: "refresh" as IconName,
     title: "Automatisches Backup",
     text: "GoodNotes sichert sich selbst hierher — du musst nichts mehr exportieren.",
   },
   {
-    icon: "🔎",
+    icon: "pen" as IconName,
     title: "Sucht in deiner Handschrift",
     text: "Texterkennung macht auch Handgeschriebenes durchsuchbar — Treffer öffnen direkt auf der richtigen Seite.",
   },
   {
-    icon: "📤",
+    icon: "share" as IconName,
     title: "Sicher teilen",
     text: "Links für einzelne Notizen oder ganze Ordner, auf Wunsch mit Passwort und Ablaufdatum.",
   },
   {
-    icon: "🕓",
+    icon: "clock" as IconName,
     title: "Versionsverlauf",
     text: "Versehentlich überschrieben? Ältere Fassungen lassen sich wiederherstellen.",
   },
@@ -50,7 +51,7 @@ export default function LandingPage() {
       <PageHeader />
       <main className={styles.main} style={{ gap: 28 }}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>✍️ {t("Für GoodNotes-Nutzer")}</div>
+          <div className={styles.heroBadge}><Icon name="pen" size={14} /> {t("Für GoodNotes-Nutzer")}</div>
           <h1 className={styles.heroTitle}>
             {t("Deine handschriftlichen Notizen,")}
             <br />
@@ -78,7 +79,7 @@ export default function LandingPage() {
               className={styles.featureCard}
               style={{ animationDelay: `${0.08 + i * 0.05}s` }}
             >
-              <div className={styles.featureIcon}>{f.icon}</div>
+              <div className={styles.featureIcon}><Icon name={f.icon} size={20} /></div>
               <div className={styles.featureTitle}>{t(f.title)}</div>
               <div className={styles.featureText}>{t(f.text)}</div>
             </div>

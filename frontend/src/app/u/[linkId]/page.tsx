@@ -14,6 +14,7 @@ import {
 import { formatFileSize } from "../../../lib/format";
 import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
+import { Icon } from "../../../components/Icon";
 
 interface QueuedFile {
   key: string;
@@ -114,7 +115,7 @@ export default function UploadPage() {
   if (notFound) {
     return shell(
       <section className={styles.card}>
-        <div className={styles.emptyIllustration}>🔗</div>
+        <div className={styles.emptyIllustration}><Icon name="link" size={40} strokeWidth={1.4} /></div>
         <h1 className={styles.title}>{t("Upload-Link nicht gefunden")}</h1>
         <p className={styles.subtitle}>
           {t(
@@ -176,7 +177,7 @@ export default function UploadPage() {
               if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
             }}
           >
-            <div style={{ fontSize: 36, marginBottom: 6 }}>📥</div>
+            <div style={{ marginBottom: 8, color: "var(--accent)" }}><Icon name="inbox" size={36} strokeWidth={1.5} /></div>
             <strong>{full ? t("Limit erreicht") : t("Dateien hierher ziehen oder tippen zum Auswählen")}</strong>
             <div className={styles.hint} style={{ marginTop: 4 }}>
               {t("PDF, Bilder, GoodNotes-Dateien · bis {mb} MB pro Datei", { mb: info.maxFileMb })}
@@ -201,7 +202,7 @@ export default function UploadPage() {
               {queue.map((item) => (
                 <div key={item.key} className={styles.fileRow}>
                   <div className={styles.fileIcon}>
-                    {item.state === "done" ? "✅" : item.state === "error" ? "⚠️" : "📄"}
+                    <Icon name={item.state === "done" ? "checkCircle" : item.state === "error" ? "alert" : "file"} style={item.state === "done" ? { color: "var(--accent)" } : item.state === "error" ? { color: "var(--danger)" } : undefined} />
                   </div>
                   <div className={styles.fileMain}>
                     <span className={styles.fileNameText}>{item.file.name}</span>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import styles from "../app/ui.module.css";
 import { translate, useT } from "../lib/i18n";
+import { Icon } from "./Icon";
 
 // pdf.js is large — load it only when someone actually opens a PDF.
 // The "legacy" build also runs on older iPad/iPhone Safari versions.
@@ -319,7 +320,7 @@ export function PdfViewer({
             aria-label={t("Seitenübersicht ein-/ausblenden")}
             disabled={!doc}
           >
-            ▤
+            <Icon name="list" />
           </button>
           <strong className={styles.pdfTitle}>{title}</strong>
         </div>
@@ -362,7 +363,7 @@ export function PdfViewer({
               title={t("Herunterladen")}
               aria-label={t("Herunterladen")}
             >
-              ⬇
+              <Icon name="download" />
             </a>
           )}
           <button
@@ -395,7 +396,7 @@ export function PdfViewer({
         <div ref={scrollRef} className={styles.pdfScroll}>
           {error ? (
             <div className={styles.pdfMessage}>
-              <div className={styles.emptyIllustration}>📄</div>
+              <div className={styles.emptyIllustration}><Icon name="file" size={40} strokeWidth={1.4} /></div>
               <p style={{ marginBottom: 16 }}>{error}</p>
               {downloadUrl && (
                 <a href={downloadUrl} className={styles.button}>

@@ -9,6 +9,7 @@ import { SettingsMenu } from "./SettingsMenu";
 import { OPEN_TOUR_EVENT, WelcomeTour } from "./WelcomeTour";
 import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
+import { Icon } from "./Icon";
 
 export function AppNav() {
   const t = useT();
@@ -46,7 +47,7 @@ export function AppNav() {
         className={pathname === "/dashboard" ? styles.navLinkActive : styles.navLink}
         title={t("Meine Notizen")}
       >
-        📒 <span className={styles.navLabel}>{t("Notizen")}</span>
+        <Icon name="book" /> <span className={styles.navLabel}>{t("Notizen")}</span>
       </Link>
       <button
         type="button"
@@ -54,7 +55,7 @@ export function AppNav() {
         onClick={() => setTourOpen(true)}
         title={t("Kurze Einführung anzeigen")}
       >
-        💡 <span className={styles.navLabel}>{t("Hilfe")}</span>
+        <Icon name="help" /> <span className={styles.navLabel}>{t("Hilfe")}</span>
       </button>
       <SettingsMenu isAdmin={isAdmin} onLogout={handleLogout} />
       {tourOpen && <WelcomeTour onClose={() => setTourOpen(false)} />}

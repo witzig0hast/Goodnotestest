@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { ApiError, createUploadLink, fetchShareOptions } from "../lib/api";
 import styles from "../app/ui.module.css";
 import { translate, useT } from "../lib/i18n";
+import { Icon } from "./Icon";
 
 // Creates an upload link for one folder: others can send files into it
 // (without seeing what's already there). Same look as the share form.
@@ -64,7 +65,7 @@ export function UploadLinkForm({ path, onClose }: { path: string; onClose: () =>
 
   return (
     <div className={styles.sharePanel}>
-      <div style={{ fontWeight: 650 }}>{t("📥 Upload-Link für „")}{folderName}“</div>
+      <div style={{ fontWeight: 650, display: "flex", alignItems: "center", gap: 8 }}><Icon name="inbox" size={16} /> {t("Upload-Link für „")}{folderName}“</div>
       {link ? (
         <>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>

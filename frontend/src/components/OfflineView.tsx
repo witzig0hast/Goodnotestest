@@ -7,6 +7,7 @@ import { PageHeader } from "./PageHeader";
 import { PdfViewer } from "./PdfViewer";
 import styles from "../app/ui.module.css";
 import { useT } from "../lib/i18n";
+import { Icon } from "./Icon";
 
 // Shown instead of the dashboard when the server can't be reached but
 // offline favorites are switched on: lists what's stored on this device.
@@ -21,7 +22,7 @@ export function OfflineView() {
       <main className={styles.main}>
         <section className={styles.card}>
           <div className={styles.connectionBox} style={{ marginBottom: 20 }}>
-            <span style={{ fontSize: 20 }}>📴</span>
+            <Icon name="wifiOff" size={20} />
             <div style={{ flex: 1 }}>
               <strong>{t("Du bist offline.")}</strong>
               <div className={styles.connectionNote}>
@@ -38,7 +39,7 @@ export function OfflineView() {
             <div className={styles.fileList}>
               {files.map((f) => (
                 <div key={f.path} className={styles.fileRow}>
-                  <div className={styles.fileIcon}>📄</div>
+                  <div className={styles.fileIcon}><Icon name="file" /></div>
                   <div className={styles.fileMainClickable} onClick={() => setOpen(f.path)}>
                     <span className={styles.fileNameText}>{f.name.replace(/\.pdf$/i, "")}</span>
                     <span className={styles.fileMeta}>{f.path}</span>

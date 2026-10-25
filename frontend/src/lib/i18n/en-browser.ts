@@ -194,5 +194,5 @@ export const enBrowser: Record<string, string> = {
   "“ — Tags gelten über Ordner hinweg, z. B. „Prüfungsrelevant“.": "” — tags work across folders, e.g. “Exam-relevant”.",
   "„{name}“ liegt im GoodNotes-eigenen Format vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es anzeigen.": "“{name}” is in GoodNotes' own format. Only the GoodNotes app can open it — no browser can display it.",
   "„{name}“ liegt jetzt im Papierkorb.": "“{name}” is now in the trash.",
-  "📥 Upload-Link für „": "📥 Upload link for “",
+  "Upload-Link für „": "Upload link for “",
 };

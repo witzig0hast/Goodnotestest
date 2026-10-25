@@ -70,7 +70,6 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
           .
           {status.goodnotesFormatCount > 0 && (
             <div className={styles.connectionNote}>
-              ⚠️{" "}
               {t("{n} davon im GoodNotes-Format — die lassen sich hier nicht ansehen.", {
                 n: status.goodnotesFormatCount,
               })}{" "}

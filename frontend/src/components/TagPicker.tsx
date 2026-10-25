@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ApiError, TAG_COLORS, createTag, deleteTag, type Tag, type TagColor } from "../lib/api";
 import styles from "../app/ui.module.css";
 import { translate, useT } from "../lib/i18n";
+import { Icon } from "./Icon";
 
 export function TagChip({ tag, small = false }: { tag: Tag; small?: boolean }) {
   return (
@@ -86,7 +87,7 @@ export function TagPicker({
                     title={t("Tag löschen")}
                     style={{ width: 30, height: 30, fontSize: 14 }}
                   >
-                    🗑
+                    <Icon name="trash" size={15} />
                   </button>
                 </div>
               );

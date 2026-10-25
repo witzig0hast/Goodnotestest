@@ -36,6 +36,7 @@ import {
 } from "../lib/api";
 import { formatDate, formatFileSize } from "../lib/format";
 import { ActionMenu, type ActionMenuItem } from "./ActionMenu";
+import { Icon } from "./Icon";
 import { PdfPreviewModal } from "./PdfPreviewModal";
 import { openTour } from "./WelcomeTour";
 import { clearOffline, isOfflineEnabled, offlineSupported, syncOfflineFavorites } from "../lib/offline";
@@ -460,7 +461,7 @@ export function FileBrowser() {
         title={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
         aria-label={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
       >
-        {isFav ? "★" : "☆"}
+        <Icon name="star" size={17} filled={isFav} />
       </button>
     );
   }
@@ -478,17 +479,17 @@ export function FileBrowser() {
     const isBusy = busyPath === node.path;
     const menuItems: (ActionMenuItem | "divider")[] = [
       ...(isPdf(node.name)
-        ? [{ label: t("Ansehen"), icon: "👁", onClick: () => setPreviewPath(node.path) }]
+        ? [{ label: t("Ansehen"), icon: "eye", onClick: () => setPreviewPath(node.path) } as ActionMenuItem]
         : []),
-      { label: t("Herunterladen"), icon: "⬇", href: downloadFileUrl(node.path) },
-      { label: t("Teilen"), icon: "📤", onClick: () => toggleShare(node.path) },
-      { label: t("Ältere Versionen"), icon: "🕓", onClick: () => openVersions(node.path) },
-      { label: t("Tags …"), icon: "🏷", onClick: () => setTagPickerPath(node.path) },
-      { label: t("Umbenennen"), icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      { label: t("Herunterladen"), icon: "download", href: downloadFileUrl(node.path) },
+      { label: t("Teilen"), icon: "share", onClick: () => toggleShare(node.path) },
+      { label: t("Ältere Versionen"), icon: "clock", onClick: () => openVersions(node.path) },
+      { label: t("Tags …"), icon: "tag", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "pencil", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
         label: t("In den Papierkorb"),
-        icon: "🗑",
+        icon: "trash",
         danger: true,
         disabled: isBusy,
         onClick: () => handleDelete(node.path, false),
@@ -506,7 +507,7 @@ export function FileBrowser() {
             />
           )}
           <div className={styles.fileIcon}>
-            {isPdf(node.name) ? "📄" : isGoodnotesFile(node.name) ? "📓" : "📎"}
+            <Icon name={isPdf(node.name) ? "file" : isGoodnotesFile(node.name) ? "notebook" : "paperclip"} />
           </div>
           {isRenaming ? (
             <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
@@ -527,7 +528,7 @@ export function FileBrowser() {
               {renderTags(node.path)}
               {options.snippet && (
                 <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
-                  {options.matchedIn === "handwriting" && `✍️ ${t("in deiner Handschrift erkannt")} · `}
+                  {options.matchedIn === "handwriting" && `${t("in deiner Handschrift erkannt")} · `}
                   {options.page ? `${t("Seite {page}", { page: options.page })}: ` : ""}„{options.snippet}“
                 </span>
               )}
@@ -560,23 +561,23 @@ export function FileBrowser() {
     const isBusy = busyPath === node.path;
     const count = node.children?.length ?? 0;
     const menuItems: (ActionMenuItem | "divider")[] = [
-      { label: t("Als ZIP herunterladen"), icon: "🗜", href: downloadZipUrl(node.path) },
-      { label: t("Als eine PDF herunterladen"), icon: "📑", href: downloadPdfUrl(node.path) },
-      { label: t("Ordner teilen"), icon: "📤", onClick: () => toggleShare(node.path) },
+      { label: t("Als ZIP herunterladen"), icon: "archive", href: downloadZipUrl(node.path) },
+      { label: t("Als eine PDF herunterladen"), icon: "layers", href: downloadPdfUrl(node.path) },
+      { label: t("Ordner teilen"), icon: "share", onClick: () => toggleShare(node.path) },
       {
         label: t("Upload-Link erstellen"),
-        icon: "📥",
+        icon: "inbox",
         onClick: () => {
           setActiveSharePath(null);
           setUploadLinkPath(node.path);
         },
       },
-      { label: t("Tags …"), icon: "🏷", onClick: () => setTagPickerPath(node.path) },
-      { label: t("Umbenennen"), icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      { label: t("Tags …"), icon: "tag", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "pencil", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
         label: t("In den Papierkorb"),
-        icon: "🗑",
+        icon: "trash",
         danger: true,
         disabled: isBusy,
         onClick: () => handleDelete(node.path, true),
@@ -593,7 +594,7 @@ export function FileBrowser() {
               aria-label={t("{name} auswählen", { name: node.name })}
             />
           )}
-          <div className={styles.fileIconFolder}>📁</div>
+          <div className={styles.fileIconFolder}><Icon name="folder" /></div>
           {isRenaming ? (
             <div className={styles.fileMain}>{renderRenameInput(node.path)}</div>
           ) : (
@@ -652,12 +653,12 @@ export function FileBrowser() {
         )}
         <div className={styles.gridThumb}>
           {node.type === "folder" ? (
-            "📁"
+            <Icon name="folder" size={34} strokeWidth={1.4} />
           ) : isPdf(node.name) ? (
             <>
               {/* Stays visible underneath while the thumbnail is still being
                   rendered (first view of a PDF takes a moment) or if it fails. */}
-              📄
+              <Icon name="file" size={34} strokeWidth={1.4} />
               {/* eslint-disable-next-line @next/next/no-img-element -- backend-generated thumbnail, not a static asset */}
               <img
                 src={thumbnailUrl(node.path)}
@@ -668,7 +669,7 @@ export function FileBrowser() {
               />
             </>
           ) : (
-            "📄"
+            <Icon name="file" size={34} strokeWidth={1.4} />
           )}
         </div>
         <span className={styles.gridName} title={node.name}>
@@ -694,7 +695,7 @@ export function FileBrowser() {
         role="search"
       >
         <div className={styles.searchField}>
-          <span className={styles.searchIcon}>🔎</span>
+          <span className={styles.searchIcon}><Icon name="search" size={16} /></span>
           <input
             className={styles.input}
             placeholder={t("Notizen durchsuchen …")}
@@ -718,21 +719,21 @@ export function FileBrowser() {
           className={mode === "browse" ? styles.chipActive : styles.chip}
           onClick={() => navigateTo(segments)}
         >
-          📒 {t("Alle Notizen")}
+          <Icon name="book" size={14} /> {t("Alle Notizen")}
         </button>
         <button
           type="button"
           className={mode === "favorites" ? styles.chipActive : styles.chip}
           onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
         >
-          ★ {t("Favoriten")}
+          <Icon name="star" size={14} /> {t("Favoriten")}
         </button>
         <button
           type="button"
           className={mode === "recent" ? styles.chipActive : styles.chip}
           onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
         >
-          🕓 {t("Neu (7 Tage)")}
+          <Icon name="clock" size={14} /> {t("Neu (7 Tage)")}
         </button>
         {tags.map((tag) => {
           const active = mode === "tag" && activeTagId === tag.id;
@@ -813,7 +814,7 @@ export function FileBrowser() {
           <div className={styles.fileList}>
             {versions.map((v) => (
               <div className={styles.fileRow} key={v.timestamp}>
-                <div className={styles.fileIcon}>🕓</div>
+                <div className={styles.fileIcon}><Icon name="clock" /></div>
                 <div className={styles.fileMain}>
                   <span className={styles.fileNameText}>{formatDate(v.timestamp)}</span>
                   <span className={styles.fileMeta}>{formatFileSize(v.size)}</span>
@@ -825,7 +826,7 @@ export function FileBrowser() {
                     title={t("Herunterladen")}
                     aria-label={t("Herunterladen")}
                   >
-                    ⬇
+                    <Icon name="download" />
                   </a>
                   <button
                     className={styles.smallButton}
@@ -891,7 +892,7 @@ export function FileBrowser() {
         <div className={styles.modalOverlay} onClick={() => setFormatHintPath(null)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.emptyIllustration} style={{ textAlign: "center" }}>
-              📓
+              <Icon name="notebook" size={40} strokeWidth={1.4} />
             </div>
             <h2 className={styles.sectionTitle} style={{ marginBottom: 8 }}>
               {t("Das ist eine GoodNotes-Datei, kein PDF")}
@@ -950,7 +951,7 @@ export function FileBrowser() {
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIllustration}>🔍</div>
+            <div className={styles.emptyIllustration}><Icon name="search" size={40} strokeWidth={1.4} /></div>
             {t("Nichts gefunden. Versuch es mit einem anderen Wort.")}
           </div>
         )}
@@ -966,7 +967,7 @@ export function FileBrowser() {
         {searchBar}
         {offlineSupported() && favoriteFiles.length > 0 && (
           <div className={styles.connectionBox} style={{ marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 20 }}>📴</span>
+            <Icon name="wifiOff" size={20} />
             <div style={{ flex: 1, minWidth: 200 }}>
               {offlineState.enabled ? (
                 <>
@@ -1009,7 +1010,7 @@ export function FileBrowser() {
           <div className={styles.fileList}>{favoriteFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIllustration}>⭐</div>
+            <div className={styles.emptyIllustration}><Icon name="star" size={40} strokeWidth={1.4} /></div>
             {t("Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.")}
           </div>
         )}
@@ -1037,7 +1038,7 @@ export function FileBrowser() {
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIllustration}>🏷</div>
+            <div className={styles.emptyIllustration}><Icon name="tag" size={40} strokeWidth={1.4} /></div>
             {t("Noch nichts mit diesem Tag — vergib ihn über „⋯“ → „Tags …“.")}
           </div>
         )}
@@ -1065,7 +1066,7 @@ export function FileBrowser() {
           <div className={styles.fileList}>{recentFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIllustration}>🌙</div>
+            <div className={styles.emptyIllustration}><Icon name="clock" size={40} strokeWidth={1.4} /></div>
             {t("In den letzten 7 Tagen ist nichts Neues dazugekommen.")}
           </div>
         )}
@@ -1077,7 +1078,7 @@ export function FileBrowser() {
   if (tree.length === 0) {
     return (
       <div className={styles.emptyState} style={{ padding: "24px 8px" }}>
-        <div className={styles.emptyIllustration}>📭</div>
+        <div className={styles.emptyIllustration}><Icon name="inbox" size={40} strokeWidth={1.4} /></div>
         <h2 className={styles.sectionTitle} style={{ color: "var(--foreground)", marginBottom: 8 }}>
           {t("Noch keine Notizen da")}
         </h2>
@@ -1175,30 +1176,30 @@ export function FileBrowser() {
               onClick={() => setViewMode("list")}
               title={t("Liste")}
             >
-              ☰ {t("Liste")}
+              <Icon name="list" size={14} /> {t("Liste")}
             </button>
             <button
               className={viewMode === "grid" ? styles.segmentedItemActive : styles.segmentedItem}
               onClick={() => setViewMode("grid")}
               title={t("Raster mit Vorschaubildern")}
             >
-              ▦ {t("Raster")}
+              <Icon name="grid" size={14} /> {t("Raster")}
             </button>
           </div>
         </div>
         <ActionMenu
-          trigger={<>⬇ {t("Exportieren & teilen")} ▾</>}
+          trigger={<><Icon name="download" size={15} /> {t("Exportieren & teilen")} ▾</>}
           items={[
-            { label: t("Als ZIP herunterladen"), icon: "🗜", href: downloadZipUrl(currentPath) },
-            { label: t("Als eine PDF herunterladen"), icon: "📑", href: downloadPdfUrl(currentPath) },
+            { label: t("Als ZIP herunterladen"), icon: "archive", href: downloadZipUrl(currentPath) },
+            { label: t("Als eine PDF herunterladen"), icon: "layers", href: downloadPdfUrl(currentPath) },
             {
               label: segments.length ? t("Ordner teilen") : t("Alles teilen"),
-              icon: "📤",
+              icon: "share",
               onClick: () => toggleShare(currentPath || "."),
             },
             {
               label: t("Upload-Link für diesen Ordner"),
-              icon: "📥",
+              icon: "inbox",
               onClick: () => setUploadLinkPath(currentPath),
             },
           ]}
@@ -1247,7 +1248,7 @@ export function FileBrowser() {
 
       {children.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIllustration}>🗂</div>
+          <div className={styles.emptyIllustration}><Icon name="folder" size={40} strokeWidth={1.4} /></div>
           {t("Dieser Ordner ist leer.")}
 
         </div>

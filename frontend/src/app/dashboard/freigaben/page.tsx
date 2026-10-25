@@ -16,12 +16,13 @@ import {
 import { formatDate } from "../../../lib/format";
 import { useT, type Translate } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
+import { Icon } from "../../../components/Icon";
 
 function describeItems(link: MyShareLink, t: Translate): string {
   if (link.items.length === 1) {
     const item = link.items[0];
     if (item.relativePath === "") return t("Meine Notizen (alles)");
-    return `${item.isDirectory ? "📁" : "📄"} ${item.relativePath}`;
+    return item.relativePath;
   }
   return t("{n} Objekte", { n: link.items.length });
 }
@@ -103,7 +104,7 @@ export default function FreigabenPage() {
             <div className={styles.fileList}>
               {links.map((link) => (
                 <div className={styles.fileRow} key={link.id}>
-                  <div className={styles.fileIcon}>🔗</div>
+                  <div className={styles.fileIcon}><Icon name="link" /></div>
                   <div className={styles.fileMain}>
                     <span className={styles.fileNameText}>{describeItems(link, t)}</span>
                     <span className={styles.fileMeta}>
@@ -114,7 +115,7 @@ export default function FreigabenPage() {
                           : t("{n} Aufrufe", { n: link.viewCount })}{" "}
                       ·{" "}
                       {link.exhausted ? `${t("Limit erreicht")} · ` : ""}
-                      {link.notifyOnOpen ? `🔔 ${t("Benachrichtigung an")} · ` : ""}
+                      {link.notifyOnOpen ? `${t("Benachrichtigung an")} · ` : ""}
                       {link.requiresPassword ? `${t("Passwortgeschützt")} · ` : ""}
                       {link.expired
                         ? t("Abgelaufen")

@@ -24,6 +24,7 @@ import { formatDate, formatFileSize, formatRelative } from "../../../lib/format"
 import { AuditList } from "../../../components/AuditList";
 import { useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
+import { Icon } from "../../../components/Icon";
 
 function statusLabel(status: AdminUser["approvalStatus"]): string {
   if (status === "approved") return "Freigeschaltet";
@@ -217,7 +218,7 @@ export default function AdminPage() {
             <div className={styles.fileList}>
               {pending.map((user) => (
                 <div className={styles.fileRow} key={user.id}>
-                  <div className={styles.fileIcon}>⏳</div>
+                  <div className={styles.fileIcon}><Icon name="hourglass" /></div>
                   <div className={styles.fileMain}>
                     <span className={styles.fileNameText}>{user.name}</span>
                     <span className={styles.fileMeta}>
@@ -275,7 +276,7 @@ export default function AdminPage() {
             <div className={styles.fileList}>
               {announcements.map((a) => (
                 <div className={styles.fileRow} key={a.id}>
-                  <div className={styles.fileIcon}>📣</div>
+                  <div className={styles.fileIcon}><Icon name="megaphone" /></div>
                   <div className={styles.fileMain}>
                     <span className={styles.fileNameText}>{a.message}</span>
                     <span className={styles.fileMeta}>{t("seit {date}", { date: formatDate(a.createdAt) })}</span>
@@ -300,7 +301,7 @@ export default function AdminPage() {
           <div className={styles.fileList}>
             {others.map((user) => (
               <div className={styles.fileRow} key={user.id}>
-                <div className={styles.fileIcon}>{user.isAdmin ? "👑" : "👤"}</div>
+                <div className={styles.fileIcon}><Icon name={user.isAdmin ? "shield" : "user"} /></div>
                 <div className={styles.fileMain}>
                   <span className={styles.fileNameText}>
                     {user.name} {user.isAdmin && "(Admin)"}

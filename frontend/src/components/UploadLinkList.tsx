@@ -6,6 +6,7 @@ import { formatDate } from "../lib/format";
 import { LoadingState } from "./LoadingState";
 import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
+import { Icon } from "./Icon";
 
 export function UploadLinkList() {
   const t = useT();
@@ -55,13 +56,13 @@ export function UploadLinkList() {
     <div className={styles.fileList}>
       {links.map((link) => (
         <div key={link.id} className={styles.fileRow}>
-          <div className={styles.fileIcon}>📥</div>
+          <div className={styles.fileIcon}><Icon name="inbox" /></div>
           <div className={styles.fileMain}>
             <span className={styles.fileNameText}>
               {link.label ?? t("In „{folder}“", { folder: link.relativePath || t("Meine Notizen") })}
             </span>
             <span className={styles.fileMeta}>
-              📁 {link.relativePath || t("Meine Notizen")} ·{" "}
+              {link.relativePath || t("Meine Notizen")} ·{" "}
               {link.maxFiles !== null
                 ? link.uploadCount === 1
                   ? t("{n} von {max} Datei erhalten", { n: link.uploadCount, max: link.maxFiles })

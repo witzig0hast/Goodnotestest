@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "../app/ui.module.css";
+import { Icon, type IconName } from "./Icon";
 
 export interface ActionMenuItem {
   label: string;
-  icon: string;
+  icon: IconName;
   onClick?: () => void;
   href?: string;
   danger?: boolean;
@@ -78,7 +79,7 @@ export function ActionMenu({
             const className = item.danger ? styles.menuItemDanger : styles.menuItem;
             const content = (
               <>
-                <span className={styles.menuIcon}>{item.icon}</span>
+                <span className={styles.menuIcon}><Icon name={item.icon} size={16} /></span>
                 {item.label}
               </>
             );

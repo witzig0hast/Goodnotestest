@@ -5,6 +5,7 @@ import { auditLabel } from "../lib/audit-labels";
 import { formatDateTime } from "../lib/format";
 import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
+import { Icon } from "./Icon";
 
 export function AuditList({ entries, showAccount = false }: { entries: AuditEntry[]; showAccount?: boolean }) {
   const t = useT();
@@ -17,7 +18,7 @@ export function AuditList({ entries, showAccount = false }: { entries: AuditEntr
         const { icon, label } = auditLabel(e.action);
         return (
           <div key={e.id} className={styles.auditRow} data-warning={e.action === "login.failed" || undefined}>
-            <span className={styles.auditIcon}>{icon}</span>
+            <span className={styles.auditIcon}><Icon name={icon} size={16} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className={styles.auditLabel}>
                 {t(label)}

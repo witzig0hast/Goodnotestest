@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
+import { Icon, type IconName } from "./Icon";
 
 export const OPEN_TOUR_EVENT = "goodshare:open-tour";
 export const TOUR_CLOSED_EVENT = "goodshare:tour-closed";
@@ -31,32 +32,32 @@ export function openTour() {
 
 const STEPS = [
   {
-    art: "👋",
+    art: "bookOpen" as IconName,
     title: "Willkommen bei GoodShare",
     text: "GoodShare ist dein persönlicher Ablageplatz für GoodNotes-Backups. Einmal eingerichtet, landen deine Notizbücher automatisch hier — als PDF, in derselben Ordnerstruktur wie in der App.",
   },
   {
-    art: "🔗",
+    art: "link" as IconName,
     title: "1. GoodNotes verbinden",
     text: "In GoodNotes unter Einstellungen → Backup → WebDAV trägst du einmalig Adresse, Benutzername und Passwort ein. Die Angaben findest du jederzeit unter Einstellungen → „GoodNotes verbinden“.",
   },
   {
-    art: "📒",
+    art: "book" as IconName,
     title: "2. Notizen ansehen",
     text: "Tippe auf eine Notiz, um sie direkt im Browser anzusehen. Über das ⋯-Menü an jeder Zeile kannst du herunterladen, umbenennen, ältere Versionen wiederherstellen oder löschen.",
   },
   {
-    art: "🔎",
+    art: "search" as IconName,
     title: "3. Finden statt suchen",
     text: "Die Suche findet nicht nur Dateinamen, sondern auch Text in deinen Notizen — sogar deine Handschrift wird im Hintergrund erkannt. Treffer öffnen direkt auf der richtigen Seite. Mit ☆ markierst du Favoriten, mit Tags sortierst du über Ordner hinweg.",
   },
   {
-    art: "📤",
+    art: "share" as IconName,
     title: "4. Teilen — sicher",
     text: "Über „Teilen“ erzeugst du einen Link für eine Notiz, einen ganzen Ordner oder mehrere ausgewählte Einträge — auf Wunsch mit Passwort und Ablaufdatum. Alle Links verwaltest du unter „Meine Freigaben“.",
   },
   {
-    art: "🔐",
+    art: "lock" as IconName,
     title: "Fast geschafft!",
     text: "Tipp: Richte unter „Anmeldung & Sicherheit“ einen Passkey ein — dann meldest du dich künftig per Face ID oder Fingerabdruck an. Diese Einführung findest du jederzeit wieder oben unter „Hilfe“.",
   },
@@ -95,7 +96,7 @@ export function WelcomeTour({ onClose }: { onClose: () => void }) {
         aria-labelledby="tour-title"
       >
         <div className={styles.tourArt}>
-          <span key={step}>{current.art}</span>
+          <span key={step}><Icon name={current.art} size={56} strokeWidth={1.3} /></span>
         </div>
         <div className={styles.tourBody}>
           <div className={styles.tourStepLabel}>
