@@ -569,3 +569,46 @@ describe("page-level search and handwriting recognition", () => {
     expect(pages[0].text).toContain("Klausur");
   }, 60_000);
 });
+
+describe("reading position and bookmarks", () => {
+  it("remembers the last page and lists recently viewed notes", async () => {
+    const repo = await createRepository("Lesen");
+    const client = webdavClientFor(repo);
+    await client.putFileContents("/A.pdf", Buffer.from(await makeTestPdf("A")));
+    await client.putFileContents("/B.pdf", Buffer.from(await makeTestPdf("B")));
+    const save = (path: string, page: number) =>
+      api(repo.cookie, "/api/reading/position", { method: "POST", body: JSON.stringify({ path, page, pageCount: 10 }) });
+    expect((await save("A.pdf", 4)).status).toBe(204);
+    await new Promise((r) => setTimeout(r, 10));
+    await save("B.pdf", 2);
+    expect((await save("Gibts-nicht.pdf", 1)).status).toBe(400);
+
+    const { items } = await (await api(repo.cookie, "/api/reading/recent")).json();
+    expect(items.map((i: { path: string }) => i.path)).toEqual(["B.pdf", "A.pdf"]);
+    expect(items[1]).toMatchObject({ lastPage: 4, pageCount: 10 });
+    expect(await (await api(repo.cookie, "/api/reading/position?path=A.pdf")).json()).toEqual({ lastPage: 4 });
+
+    // follows renames, disappears with deletes
+    await api(repo.cookie, "/api/files/rename", { method: "POST", body: JSON.stringify({ path: "A.pdf", newName: "C.pdf" }) });
+    await api(repo.cookie, "/api/files/delete", { method: "POST", body: JSON.stringify({ path: "B.pdf" }) });
+    const after = await (await api(repo.cookie, "/api/reading/recent")).json();
+    expect(after.items.map((i: { path: string }) => i.path)).toEqual(["C.pdf"]);
+  });
+
+  it("stores page bookmarks with notes, per account", async () => {
+    const repo = await createRepository("Lesezeichen");
+    const other = await createRepository("Lesezeichen 2");
+    await webdavClientFor(repo).putFileContents("/Skript.pdf", Buffer.from(await makeTestPdf("x")));
+    const created = await (
+      await api(repo.cookie, "/api/reading/bookmarks", {
+        method: "POST",
+        body: JSON.stringify({ path: "Skript.pdf", page: 12, note: "Formel" }),
+      })
+    ).json();
+    expect(created).toMatchObject({ path: "Skript.pdf", page: 12, note: "Formel" });
+    expect((await api(other.cookie, `/api/reading/bookmarks/${created.id}`, { method: "DELETE" })).status).toBe(404);
+    const { bookmarks } = await (await api(repo.cookie, "/api/reading/bookmarks?path=Skript.pdf")).json();
+    expect(bookmarks).toHaveLength(1);
+    expect((await api(repo.cookie, `/api/reading/bookmarks/${created.id}`, { method: "DELETE" })).status).toBe(204);
+  });
+});

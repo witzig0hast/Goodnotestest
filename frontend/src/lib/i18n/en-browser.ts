@@ -195,4 +195,12 @@ export const enBrowser: Record<string, string> = {
   "„{name}“ liegt im GoodNotes-eigenen Format vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es anzeigen.": "“{name}” is in GoodNotes' own format. Only the GoodNotes app can open it — no browser can display it.",
   "„{name}“ liegt jetzt im Papierkorb.": "“{name}” is now in the trash.",
   "Upload-Link für „": "Upload link for “",
+  "Lesezeichen": "Bookmarks",
+  "Lesezeichen entfernen": "Remove bookmark",
+  "Lesezeichen für diese Seite": "Bookmark this page",
+  "Notiz zum Lesezeichen (optional):": "Note for the bookmark (optional):",
+  "S. {page}": "p. {page}",
+  "Zuletzt angesehen": "Recently viewed",
+  "Seite {page} von {count}": "Page {page} of {count}",
+  "Noch keine Lesezeichen — setze eins im Viewer über das Lesezeichen-Symbol oben.": "No bookmarks yet — set one in the viewer with the bookmark icon at the top.",
 };

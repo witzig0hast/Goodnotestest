@@ -279,3 +279,106 @@ addColumnsIfMissing("share_links", [
   ["download_count", "INTEGER NOT NULL DEFAULT 0"],
   ["last_notified_at", "TEXT"],
 ]);
+
+// --- Reading position, bookmarks, saved searches, sessions, 2FA, link
+// comments and events, shared folders, file health and push subscriptions.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS recent_views (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    last_page INTEGER NOT NULL DEFAULT 1,
+    page_count INTEGER,
+    viewed_at TEXT NOT NULL,
+    PRIMARY KEY (repository_id, relative_path)
+  );
+
+  CREATE TABLE IF NOT EXISTS page_bookmarks (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    page INTEGER NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS page_bookmarks_repo_idx ON page_bookmarks (repository_id, relative_path);
+
+  CREATE TABLE IF NOT EXISTS saved_searches (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    query TEXT,
+    tag_id TEXT,
+    days INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    user_agent TEXT,
+    ip TEXT,
+    method TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS sessions_repo_idx ON sessions (repository_id);
+
+  CREATE TABLE IF NOT EXISTS share_link_events (
+    share_id TEXT NOT NULL REFERENCES share_links(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS share_link_events_idx ON share_link_events (share_id, at);
+
+  CREATE TABLE IF NOT EXISTS share_comments (
+    id TEXT PRIMARY KEY,
+    share_id TEXT NOT NULL REFERENCES share_links(id) ON DELETE CASCADE,
+    author TEXT NOT NULL,
+    page INTEGER,
+    body TEXT NOT NULL,
+    from_owner INTEGER NOT NULL DEFAULT 0,
+    read_by_owner INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS share_comments_idx ON share_comments (share_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS folder_shares (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    member_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (owner_id, relative_path, member_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS file_issues (
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    mtime TEXT NOT NULL,
+    problem TEXT NOT NULL,
+    detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (repository_id, relative_path)
+  );
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS server_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`);
+
+addColumnsIfMissing("repositories", [
+  ["totp_secret_enc", "TEXT"],
+  ["totp_enabled", "INTEGER NOT NULL DEFAULT 0"],
+]);

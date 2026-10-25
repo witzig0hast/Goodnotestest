@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import styles from "../app/ui.module.css";
+import { addBookmark, deleteBookmark, fetchBookmarks, fetchLastPage, saveReadingPosition, type Bookmark } from "../lib/api";
 import { translate, useT } from "../lib/i18n";
 import { Icon } from "./Icon";
 
@@ -124,11 +125,13 @@ function PdfThumbnail({
   doc,
   pageNumber,
   active,
+  bookmarked = false,
   onClick,
 }: {
   doc: PDFDocumentProxy;
   pageNumber: number;
   active: boolean;
+  bookmarked?: boolean;
   onClick: () => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -178,7 +181,10 @@ function PdfThumbnail({
       aria-label={`Zu Seite ${pageNumber}`}
     >
       <canvas ref={canvasRef} />
-      <span>{pageNumber}</span>
+      <span>
+        {bookmarked && <Icon name="bookmark" size={11} filled style={{ marginRight: 3 }} />}
+        {pageNumber}
+      </span>
     </button>
   );
 }
@@ -187,20 +193,33 @@ export function PdfViewer({
   url,
   title,
   downloadUrl,
-  initialPage = 1,
+  initialPage,
+  filePath,
+  extraActions,
   onClose,
 }: {
   url: string;
   title: string;
   downloadUrl?: string;
+  /** Page to open at; without it the viewer resumes where you left off (needs filePath). */
   initialPage?: number;
+  /** The note's path in your own account — enables reading position and bookmarks. */
+  filePath?: string;
+  /** Extra toolbar buttons, given the current page (e.g. "add to study sheet"). */
+  extraActions?: (page: number) => React.ReactNode;
   onClose: () => void;
 }) {
   const t = useT();
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState(1.414);
-  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [currentPage, setCurrentPage] = useState(initialPage ?? 1);
+  const [targetPage, setTargetPage] = useState<number | null>(initialPage ?? null);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const currentPageRef = useRef(currentPage);
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
   const [zoom, setZoom] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
   // Thumbnails take too much room on a phone; start without them there.
@@ -271,12 +290,56 @@ export function PdfViewer({
     if (el) el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
   }, []);
 
+  // Resume where you left off, unless a specific page was asked for (e.g.
+  // a search hit), and load this note's bookmarks.
   useEffect(() => {
-    if (!doc || jumpedInitially.current || initialPage <= 1) return;
+    if (!filePath) return;
+    if (initialPage === undefined) {
+      fetchLastPage(filePath)
+        .then((r) => {
+          if (r.lastPage && r.lastPage > 1) setTargetPage(r.lastPage);
+        })
+        .catch(() => {});
+    }
+    fetchBookmarks(filePath)
+      .then((r) => setBookmarks(r.bookmarks))
+      .catch(() => {});
+  }, [filePath, initialPage]);
+
+  useEffect(() => {
+    if (!doc || jumpedInitially.current || !targetPage || targetPage <= 1) return;
     jumpedInitially.current = true;
     // wait one frame so the page placeholders exist
-    requestAnimationFrame(() => scrollToPage(initialPage, false));
-  }, [doc, initialPage, scrollToPage]);
+    requestAnimationFrame(() => scrollToPage(Math.min(targetPage, doc.numPages), false));
+  }, [doc, targetPage, scrollToPage]);
+
+  // Remember the reading position (debounced — scrolling passes many pages).
+  useEffect(() => {
+    if (!filePath || !doc) return;
+    const timer = setTimeout(() => {
+      saveReadingPosition(filePath, currentPage, doc.numPages).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [filePath, doc, currentPage]);
+
+  const bookmarkHere = bookmarks.find((b) => b.page === currentPage);
+
+  async function toggleBookmark() {
+    if (!filePath) return;
+    if (bookmarkHere) {
+      setBookmarks((list) => list.filter((b) => b.id !== bookmarkHere.id));
+      await deleteBookmark(bookmarkHere.id).catch(() => {});
+      return;
+    }
+    const note = window.prompt(t("Notiz zum Lesezeichen (optional):"), "");
+    if (note === null) return;
+    try {
+      const created = await addBookmark(filePath, currentPage, note.trim() || undefined);
+      setBookmarks((list) => [...list, created].sort((a, b) => a.page - b.page));
+    } catch {
+      // not fatal
+    }
+  }
 
   const zoomIn = useCallback(
     () => setZoom((z) => ZOOM_STEPS.find((s) => s > z + 0.001) ?? z),
@@ -289,9 +352,17 @@ export function PdfViewer({
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
       if (e.key === "Escape") onClose();
       else if (e.key === "+" || e.key === "=") zoomIn();
       else if (e.key === "-") zoomOut();
+      else if (e.key === "ArrowRight" || e.key === "PageDown") {
+        e.preventDefault();
+        scrollToPage(currentPageRef.current + 1);
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        scrollToPage(Math.max(1, currentPageRef.current - 1));
+      }
     }
     document.addEventListener("keydown", handleKey);
     const previousOverflow = document.body.style.overflow;
@@ -300,7 +371,7 @@ export function PdfViewer({
       document.removeEventListener("keydown", handleKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [onClose, zoomIn, zoomOut]);
+  }, [onClose, zoomIn, zoomOut, scrollToPage]);
 
   // Fit-to-width at 100 %, but never wider than a comfortable reading
   // width on big screens.
@@ -356,6 +427,19 @@ export function PdfViewer({
           >
             +
           </button>
+          {filePath && doc && (
+            <button
+              type="button"
+              className={bookmarkHere ? styles.iconButtonActive : styles.iconButton}
+              onClick={toggleBookmark}
+              title={bookmarkHere ? t("Lesezeichen entfernen") : t("Lesezeichen für diese Seite")}
+              aria-label={bookmarkHere ? t("Lesezeichen entfernen") : t("Lesezeichen für diese Seite")}
+              aria-pressed={Boolean(bookmarkHere)}
+            >
+              <Icon name="bookmark" filled={Boolean(bookmarkHere)} />
+            </button>
+          )}
+          {doc && extraActions?.(currentPage)}
           {downloadUrl && (
             <a
               className={styles.iconButton}
@@ -382,12 +466,27 @@ export function PdfViewer({
       <div className={styles.pdfBody}>
         {doc && showThumbs && (
           <div className={styles.pdfThumbs}>
+            {bookmarks.length > 0 && (
+              <div className={styles.pdfBookmarkList}>
+                <div className={styles.pdfBookmarkHeading}>{t("Lesezeichen")}</div>
+                {bookmarks.map((b) => (
+                  <button key={b.id} type="button" className={styles.pdfBookmarkItem} onClick={() => scrollToPage(b.page)}>
+                    <Icon name="bookmark" size={12} filled />
+                    <span>
+                      {t("S. {page}", { page: b.page })}
+                      {b.note ? ` · ${b.note}` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             {Array.from({ length: pageCount }, (_, i) => (
               <PdfThumbnail
                 key={i + 1}
                 doc={doc}
                 pageNumber={i + 1}
                 active={currentPage === i + 1}
+                bookmarked={bookmarks.some((b) => b.page === i + 1)}
                 onClick={() => scrollToPage(i + 1)}
               />
             ))}

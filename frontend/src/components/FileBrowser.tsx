@@ -15,6 +15,9 @@ import {
   fetchStats,
   fetchTrash,
   fetchTags,
+  fetchBookmarks,
+  deleteBookmark,
+  type Bookmark,
   fetchIndexStatus,
   type IndexStatus,
   assignTag,
@@ -37,6 +40,7 @@ import {
 import { formatDate, formatFileSize } from "../lib/format";
 import { ActionMenu, type ActionMenuItem } from "./ActionMenu";
 import { Icon } from "./Icon";
+import { RecentStrip } from "./RecentStrip";
 import { PdfPreviewModal } from "./PdfPreviewModal";
 import { openTour } from "./WelcomeTour";
 import { clearOffline, isOfflineEnabled, offlineSupported, syncOfflineFavorites } from "../lib/offline";
@@ -49,7 +53,7 @@ import styles from "../app/ui.module.css";
 
 type SortBy = "name" | "date";
 type ViewMode = "list" | "grid";
-type Mode = "browse" | "favorites" | "search" | "recent" | "tag";
+type Mode = "browse" | "favorites" | "search" | "recent" | "tag" | "bookmarks";
 
 interface Toast {
   text: string;
@@ -147,6 +151,13 @@ export function FileBrowser() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<Toast | null>(null);
+  const [allBookmarks, setAllBookmarks] = useState<Bookmark[] | null>(null);
+  // Bumped when the viewer closes, so "Zuletzt angesehen" reflects it.
+  const [recentKey, setRecentKey] = useState(0);
+  const closePreview = () => {
+    setPreviewPath(null);
+    setRecentKey((k) => k + 1);
+  };
   const [offlineState, setOfflineState] = useState<{ enabled: boolean; busy: boolean; stored?: number }>(
     () => ({ enabled: typeof window !== "undefined" && isOfflineEnabled(), busy: false })
   );
@@ -735,6 +746,22 @@ export function FileBrowser() {
         >
           <Icon name="clock" size={14} /> {t("Neu (7 Tage)")}
         </button>
+        <button
+          type="button"
+          className={mode === "bookmarks" ? styles.chipActive : styles.chip}
+          onClick={() => {
+            if (mode === "bookmarks") {
+              setMode("browse");
+              return;
+            }
+            setMode("bookmarks");
+            fetchBookmarks()
+              .then((r) => setAllBookmarks(r.bookmarks))
+              .catch(() => setAllBookmarks([]));
+          }}
+        >
+          <Icon name="bookmark" size={14} /> {t("Lesezeichen")}
+        </button>
         {tags.map((tag) => {
           const active = mode === "tag" && activeTagId === tag.id;
           return (
@@ -885,7 +912,7 @@ export function FileBrowser() {
         <PdfPreviewModal
           path={previewPath}
           initialPage={previewPage}
-          onClose={() => setPreviewPath(null)}
+          onClose={closePreview}
         />
       )}
       {formatHintPath && (
@@ -953,6 +980,56 @@ export function FileBrowser() {
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}><Icon name="search" size={40} strokeWidth={1.4} /></div>
             {t("Nichts gefunden. Versuch es mit einem anderen Wort.")}
+          </div>
+        )}
+        {overlays}
+      </div>
+    );
+  }
+
+  if (mode === "bookmarks") {
+    return (
+      <div>
+        {searchBar}
+        {allBookmarks === null ? (
+          <LoadingState />
+        ) : allBookmarks.length === 0 ? (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIllustration}><Icon name="bookmark" size={40} strokeWidth={1.4} /></div>
+            {t("Noch keine Lesezeichen — setze eins im Viewer über das Lesezeichen-Symbol oben.")}
+          </div>
+        ) : (
+          <div className={styles.fileList}>
+            {allBookmarks.map((b) => (
+              <div key={b.id} className={styles.fileRow}>
+                <div className={styles.fileIcon}><Icon name="bookmark" /></div>
+                <div
+                  className={styles.fileMainClickable}
+                  onClick={() => {
+                    setPreviewPage(b.page);
+                    setPreviewPath(b.path);
+                  }}
+                >
+                  <span className={styles.fileNameText}>
+                    {b.note || t("Seite {page}", { page: b.page })}
+                  </span>
+                  <span className={styles.fileMeta}>
+                    {b.path.replace(/\.pdf$/i, "")} · {t("Seite {page}", { page: b.page })}
+                  </span>
+                </div>
+                <button
+                  className={styles.iconButton}
+                  title={t("Lesezeichen entfernen")}
+                  aria-label={t("Lesezeichen entfernen")}
+                  onClick={() => {
+                    setAllBookmarks((list) => list?.filter((x) => x.id !== b.id) ?? null);
+                    deleteBookmark(b.id).catch(() => {});
+                  }}
+                >
+                  <Icon name="trash" size={16} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
         {overlays}
@@ -1117,6 +1194,15 @@ export function FileBrowser() {
   return (
     <div>
       {searchBar}
+      {segments.length === 0 && (
+        <RecentStrip
+          key={recentKey}
+          onOpen={(path, page) => {
+            setPreviewPage(page);
+            setPreviewPath(path);
+          }}
+        />
+      )}
       {statsBar}
       <div className={styles.breadcrumb} style={{ marginBottom: 12 }}>
         <span className={styles.breadcrumbLink} onClick={() => navigateTo([])}>

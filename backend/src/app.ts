@@ -19,6 +19,7 @@ import { trashRouter } from "./routes/trash.js";
 import { activityRouter } from "./routes/activity.js";
 import { uploadLinksRouter } from "./routes/upload-links.js";
 import { tagsRouter } from "./routes/tags.js";
+import { readingRouter } from "./routes/reading.js";
 
 export function createApp() {
   const app = express();
@@ -82,6 +83,7 @@ export function createApp() {
   api.use("/activity", activityRouter);
   api.use("/upload-links", uploadLinksRouter);
   api.use("/tags", tagsRouter);
+  api.use("/reading", readingRouter);
 
   app.use("/api", api);
 

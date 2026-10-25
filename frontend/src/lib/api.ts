@@ -693,3 +693,52 @@ export function assignTag(id: string, path: string) {
 export function unassignTag(id: string, path: string) {
   return request<void>(`/api/tags/${id}/assign`, { method: "DELETE", body: JSON.stringify({ path }) });
 }
+
+// --- Reading position, recently viewed, page bookmarks ---
+
+export interface RecentView {
+  path: string;
+  lastPage: number;
+  pageCount: number | null;
+  viewedAt: string;
+}
+
+export function fetchRecentViews(limit = 8) {
+  return request<{ items: RecentView[] }>(`/api/reading/recent?limit=${limit}`);
+}
+
+export function fetchLastPage(path: string) {
+  return request<{ lastPage: number | null }>(`/api/reading/position?path=${encodeURIComponent(path)}`);
+}
+
+export function saveReadingPosition(path: string, page: number, pageCount?: number) {
+  return request<void>("/api/reading/position", {
+    method: "POST",
+    body: JSON.stringify({ path, page, pageCount }),
+  });
+}
+
+export interface Bookmark {
+  id: string;
+  path: string;
+  page: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export function fetchBookmarks(path?: string) {
+  return request<{ bookmarks: Bookmark[] }>(
+    `/api/reading/bookmarks${path ? `?path=${encodeURIComponent(path)}` : ""}`
+  );
+}
+
+export function addBookmark(path: string, page: number, note?: string) {
+  return request<Bookmark>("/api/reading/bookmarks", {
+    method: "POST",
+    body: JSON.stringify({ path, page, note }),
+  });
+}
+
+export function deleteBookmark(id: string) {
+  return request<void>(`/api/reading/bookmarks/${id}`, { method: "DELETE" });
+}

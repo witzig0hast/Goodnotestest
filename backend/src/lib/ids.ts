@@ -43,3 +43,5 @@ const LONG_ID_ALPHABET = UNAMBIGUOUS_ALPHABET + "abcdefghjkmnpqrstuvwxyz";
 export const generateTrashItemId = customAlphabet(LONG_ID_ALPHABET, 12);
 export const generateUploadLinkId = customAlphabet(LONG_ID_ALPHABET, 12);
 export const generateTagId = customAlphabet(LONG_ID_ALPHABET, 10);
+/** Generic internal ID for rows that never show up in URLs handed to others. */
+export const generateId = customAlphabet(LONG_ID_ALPHABET, 14);

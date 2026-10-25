@@ -10,10 +10,12 @@ import { PdfViewer } from "./PdfViewer";
 export function PdfPreviewModal({
   path,
   initialPage,
+  extraActions,
   onClose,
 }: {
   path: string;
   initialPage?: number;
+  extraActions?: (page: number) => React.ReactNode;
   onClose: () => void;
 }) {
   return (
@@ -22,6 +24,8 @@ export function PdfPreviewModal({
       title={path.split("/").pop() ?? path}
       downloadUrl={downloadFileUrl(path)}
       initialPage={initialPage}
+      filePath={path}
+      extraActions={extraActions}
       onClose={onClose}
     />
   );
