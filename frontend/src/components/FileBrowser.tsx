@@ -43,6 +43,7 @@ import { LoadingState } from "./LoadingState";
 import { ShareForm } from "./ShareControl";
 import { UploadLinkForm } from "./UploadLinkForm";
 import { TagChip, TagPicker } from "./TagPicker";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 type SortBy = "name" | "date";
@@ -106,6 +107,7 @@ function sortNodes(nodes: TreeNode[], sortBy: SortBy, sortDir: "asc" | "desc"): 
 }
 
 export function FileBrowser() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("path") ?? "";
@@ -158,7 +160,7 @@ export function FileBrowser() {
     fetchTree()
       .then((res) => setTree(res.tree))
       .catch((err) =>
-        setError(err instanceof ApiError ? err.message : "Notizen konnten nicht geladen werden.")
+        setError(err instanceof ApiError ? err.message : t("Notizen konnten nicht geladen werden."))
       );
     fetchStats()
       .then(setStats)
@@ -252,7 +254,7 @@ export function FileBrowser() {
       }
     } catch {
       setOfflineState({ enabled: false, busy: false });
-      window.alert("Offline-Speichern wird von diesem Browser nicht unterstützt.");
+      window.alert(t("Offline-Speichern wird von diesem Browser nicht unterstützt."));
     }
   }
 
@@ -321,13 +323,15 @@ export function FileBrowser() {
       if (item) await restoreTrashItem(item.id);
       reloadTree();
     } catch {
-      window.alert("Rückgängig machen hat nicht geklappt — schau im Papierkorb nach.");
+      window.alert(t("Rückgängig machen hat nicht geklappt — schau im Papierkorb nach."));
     }
   }
 
   async function handleDelete(path: string, isFolder: boolean) {
-    const label = isFolder ? "Diesen Ordner samt Inhalt" : "Diese Datei";
-    if (!window.confirm(`${label} in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.`)) {
+    const question = isFolder
+      ? t("Diesen Ordner samt Inhalt in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.")
+      : t("Diese Datei in den Papierkorb verschieben? Dort bleibt sie 30 Tage wiederherstellbar.");
+    if (!window.confirm(question)) {
       return;
     }
     setBusyPath(path);
@@ -340,12 +344,12 @@ export function FileBrowser() {
       });
       reloadTree();
       showToast({
-        text: `„${path.split("/").pop()}“ liegt jetzt im Papierkorb.`,
-        actionLabel: "Rückgängig",
+        text: t("„{name}“ liegt jetzt im Papierkorb.", { name: path.split("/").pop() ?? "" }),
+        actionLabel: t("Rückgängig"),
         action: () => undoDelete(path),
       });
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Löschen ist fehlgeschlagen."));
     } finally {
       setBusyPath(null);
     }
@@ -368,7 +372,7 @@ export function FileBrowser() {
       setRenamingPath(null);
       reloadTree();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Umbenennen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Umbenennen ist fehlgeschlagen."));
     } finally {
       setBusyPath(null);
     }
@@ -393,7 +397,7 @@ export function FileBrowser() {
 
   async function handleRestoreVersion(timestamp: string) {
     if (!versionsPath) return;
-    if (!window.confirm("Diese Version wiederherstellen? Die aktuelle Version wird dabei ebenfalls gesichert.")) {
+    if (!window.confirm(t("Diese Version wiederherstellen? Die aktuelle Version wird dabei ebenfalls gesichert."))) {
       return;
     }
     setVersionsBusy(true);
@@ -402,7 +406,7 @@ export function FileBrowser() {
       setVersionsPath(null);
       reloadTree();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Wiederherstellen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Wiederherstellen ist fehlgeschlagen."));
     } finally {
       setVersionsBusy(false);
     }
@@ -438,10 +442,10 @@ export function FileBrowser() {
           onClick={() => submitRename(path)}
           disabled={busyPath === path}
         >
-          Speichern
+          {t("Speichern")}
         </button>
         <button className={styles.smallButton} onClick={() => setRenamingPath(null)}>
-          Abbrechen
+          {t("Abbrechen")}
         </button>
       </div>
     );
@@ -453,8 +457,8 @@ export function FileBrowser() {
       <button
         className={isFav ? styles.iconButtonActive : styles.iconButton}
         onClick={() => toggleFavorite(path)}
-        title={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
-        aria-label={isFav ? "Favorit entfernen" : "Als Favorit markieren"}
+        title={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
+        aria-label={isFav ? t("Favorit entfernen") : t("Als Favorit markieren")}
       >
         {isFav ? "★" : "☆"}
       </button>
@@ -474,16 +478,16 @@ export function FileBrowser() {
     const isBusy = busyPath === node.path;
     const menuItems: (ActionMenuItem | "divider")[] = [
       ...(isPdf(node.name)
-        ? [{ label: "Ansehen", icon: "👁", onClick: () => setPreviewPath(node.path) }]
+        ? [{ label: t("Ansehen"), icon: "👁", onClick: () => setPreviewPath(node.path) }]
         : []),
-      { label: "Herunterladen", icon: "⬇", href: downloadFileUrl(node.path) },
-      { label: "Teilen", icon: "📤", onClick: () => toggleShare(node.path) },
-      { label: "Ältere Versionen", icon: "🕓", onClick: () => openVersions(node.path) },
-      { label: "Tags …", icon: "🏷", onClick: () => setTagPickerPath(node.path) },
-      { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      { label: t("Herunterladen"), icon: "⬇", href: downloadFileUrl(node.path) },
+      { label: t("Teilen"), icon: "📤", onClick: () => toggleShare(node.path) },
+      { label: t("Ältere Versionen"), icon: "🕓", onClick: () => openVersions(node.path) },
+      { label: t("Tags …"), icon: "🏷", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
-        label: "In den Papierkorb",
+        label: t("In den Papierkorb"),
         icon: "🗑",
         danger: true,
         disabled: isBusy,
@@ -498,7 +502,7 @@ export function FileBrowser() {
               type="checkbox"
               checked={selected.has(node.path)}
               onChange={() => toggleSelect(node.path)}
-              aria-label={`${node.name} auswählen`}
+              aria-label={t("{name} auswählen", { name: node.name })}
             />
           )}
           <div className={styles.fileIcon}>
@@ -510,7 +514,7 @@ export function FileBrowser() {
             <div
               className={styles.fileMainClickable}
               onClick={() => openFile(node, options.page)}
-              title={isPdf(node.name) ? "Ansehen" : "Herunterladen"}
+              title={isPdf(node.name) ? t("Ansehen") : t("Herunterladen")}
             >
               <span className={styles.fileNameText}>
                 {node.name.replace(/\.(pdf|goodnotes)$/i, "")}
@@ -523,8 +527,8 @@ export function FileBrowser() {
               {renderTags(node.path)}
               {options.snippet && (
                 <span className={styles.fileMeta} style={{ fontStyle: "italic" }}>
-                  {options.matchedIn === "handwriting" && "✍️ in deiner Handschrift erkannt · "}
-                  {options.page ? `Seite ${options.page}: ` : ""}„{options.snippet}“
+                  {options.matchedIn === "handwriting" && `✍️ ${t("in deiner Handschrift erkannt")} · `}
+                  {options.page ? `${t("Seite {page}", { page: options.page })}: ` : ""}„{options.snippet}“
                 </span>
               )}
             </div>
@@ -536,7 +540,7 @@ export function FileBrowser() {
                 className={`${styles.smallButton} ${styles.hideOnMobile}`}
                 onClick={() => toggleShare(node.path)}
               >
-                Teilen
+                {t("Teilen")}
               </button>
               <ActionMenu items={menuItems} />
             </div>
@@ -556,22 +560,22 @@ export function FileBrowser() {
     const isBusy = busyPath === node.path;
     const count = node.children?.length ?? 0;
     const menuItems: (ActionMenuItem | "divider")[] = [
-      { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(node.path) },
-      { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(node.path) },
-      { label: "Ordner teilen", icon: "📤", onClick: () => toggleShare(node.path) },
+      { label: t("Als ZIP herunterladen"), icon: "🗜", href: downloadZipUrl(node.path) },
+      { label: t("Als eine PDF herunterladen"), icon: "📑", href: downloadPdfUrl(node.path) },
+      { label: t("Ordner teilen"), icon: "📤", onClick: () => toggleShare(node.path) },
       {
-        label: "Upload-Link erstellen",
+        label: t("Upload-Link erstellen"),
         icon: "📥",
         onClick: () => {
           setActiveSharePath(null);
           setUploadLinkPath(node.path);
         },
       },
-      { label: "Tags …", icon: "🏷", onClick: () => setTagPickerPath(node.path) },
-      { label: "Umbenennen", icon: "✏️", onClick: () => startRename(node.path, node.name) },
+      { label: t("Tags …"), icon: "🏷", onClick: () => setTagPickerPath(node.path) },
+      { label: t("Umbenennen"), icon: "✏️", onClick: () => startRename(node.path, node.name) },
       "divider",
       {
-        label: "In den Papierkorb",
+        label: t("In den Papierkorb"),
         icon: "🗑",
         danger: true,
         disabled: isBusy,
@@ -586,7 +590,7 @@ export function FileBrowser() {
               type="checkbox"
               checked={selected.has(node.path)}
               onChange={() => toggleSelect(node.path)}
-              aria-label={`${node.name} auswählen`}
+              aria-label={t("{name} auswählen", { name: node.name })}
             />
           )}
           <div className={styles.fileIconFolder}>📁</div>
@@ -600,7 +604,7 @@ export function FileBrowser() {
               <span className={styles.fileNameText}>{node.name}</span>
               <span className={styles.fileMeta}>
                 {mode !== "browse" ? `${node.path} · ` : ""}
-                {count} {count === 1 ? "Eintrag" : "Einträge"}
+                {count} {count === 1 ? t("Eintrag") : t("Einträge")}
               </span>
               {renderTags(node.path)}
             </div>
@@ -643,7 +647,7 @@ export function FileBrowser() {
             checked={selected.has(node.path)}
             onClick={(e) => e.stopPropagation()}
             onChange={() => toggleSelect(node.path)}
-            aria-label={`${node.name} auswählen`}
+            aria-label={t("{name} auswählen", { name: node.name })}
           />
         )}
         <div className={styles.gridThumb}>
@@ -675,11 +679,11 @@ export function FileBrowser() {
   }
 
   if (error) {
-    return <div className={styles.errorBox}>{error}</div>;
+    return <div className={styles.errorBox}>{t(error)}</div>;
   }
 
   if (!tree) {
-    return <LoadingState text="Notizen werden geladen …" />;
+    return <LoadingState text={t("Notizen werden geladen …")} />;
   }
 
   const searchBar = (
@@ -693,10 +697,10 @@ export function FileBrowser() {
           <span className={styles.searchIcon}>🔎</span>
           <input
             className={styles.input}
-            placeholder="Notizen durchsuchen …"
+            placeholder={t("Notizen durchsuchen …")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Notizen durchsuchen"
+            aria-label={t("Notizen durchsuchen")}
           />
         </div>
         <button
@@ -705,7 +709,7 @@ export function FileBrowser() {
           disabled={searching || !searchQuery.trim()}
           style={{ padding: "0 18px" }}
         >
-          {searching ? "Sucht …" : "Suchen"}
+          {searching ? t("Sucht …") : t("Suchen")}
         </button>
       </form>
       <div className={styles.chipRow}>
@@ -714,21 +718,21 @@ export function FileBrowser() {
           className={mode === "browse" ? styles.chipActive : styles.chip}
           onClick={() => navigateTo(segments)}
         >
-          📒 Alle Notizen
+          📒 {t("Alle Notizen")}
         </button>
         <button
           type="button"
           className={mode === "favorites" ? styles.chipActive : styles.chip}
           onClick={() => setMode(mode === "favorites" ? "browse" : "favorites")}
         >
-          ★ Favoriten
+          ★ {t("Favoriten")}
         </button>
         <button
           type="button"
           className={mode === "recent" ? styles.chipActive : styles.chip}
           onClick={() => setMode(mode === "recent" ? "browse" : "recent")}
         >
-          🕓 Neu (7 Tage)
+          🕓 {t("Neu (7 Tage)")}
         </button>
         {tags.map((tag) => {
           const active = mode === "tag" && activeTagId === tag.id;
@@ -760,12 +764,14 @@ export function FileBrowser() {
     <div className={styles.statsTiles}>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{stats.totalFiles}</div>
-        <div className={styles.statTileLabel}>Notizen</div>
+        <div className={styles.statTileLabel}>{t("Notizen")}</div>
       </div>
       <div className={styles.statTile}>
         <div className={styles.statTileValue}>{formatFileSize(stats.totalSize)}</div>
         <div className={styles.statTileLabel}>
-          {stats.quotaBytes ? `von ${formatFileSize(stats.quotaBytes)} belegt` : "Speicher"}
+          {stats.quotaBytes
+            ? t("von {quota} belegt", { quota: formatFileSize(stats.quotaBytes) })
+            : t("Speicher")}
         </div>
         {stats.quotaBytes && (
           <div className={styles.progressTrack} style={{ marginTop: 6, height: 4 }}>
@@ -784,7 +790,7 @@ export function FileBrowser() {
         <div className={styles.statTileValue}>
           {stats.lastBackupAt ? formatDate(stats.lastBackupAt) : "—"}
         </div>
-        <div className={styles.statTileLabel}>Letztes Backup</div>
+        <div className={styles.statTileLabel}>{t("Letztes Backup")}</div>
       </div>
     </div>
   );
@@ -792,15 +798,17 @@ export function FileBrowser() {
   const versionsModal = versionsPath && (
     <div className={styles.modalOverlay} onClick={() => setVersionsPath(null)}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-        <h2 className={styles.sectionTitle}>Ältere Versionen</h2>
+        <h2 className={styles.sectionTitle}>{t("Ältere Versionen")}</h2>
         <p className={styles.hint} style={{ marginBottom: 16 }}>
-          {versionsPath} — bevor GoodNotes eine Notiz überschreibt, wird die
-          vorherige Fassung automatisch aufbewahrt.
+          {t(
+            "{path} — bevor GoodNotes eine Notiz überschreibt, wird die vorherige Fassung automatisch aufbewahrt.",
+            { path: versionsPath }
+          )}
         </p>
         {versions === null ? (
           <LoadingState />
         ) : versions.length === 0 ? (
-          <p className={styles.hint}>Für diese Datei gibt es noch keine älteren Versionen.</p>
+          <p className={styles.hint}>{t("Für diese Datei gibt es noch keine älteren Versionen.")}</p>
         ) : (
           <div className={styles.fileList}>
             {versions.map((v) => (
@@ -814,8 +822,8 @@ export function FileBrowser() {
                   <a
                     className={styles.iconButton}
                     href={versionDownloadUrl(versionsPath, v.timestamp)}
-                    title="Herunterladen"
-                    aria-label="Herunterladen"
+                    title={t("Herunterladen")}
+                    aria-label={t("Herunterladen")}
                   >
                     ⬇
                   </a>
@@ -824,7 +832,7 @@ export function FileBrowser() {
                     onClick={() => handleRestoreVersion(v.timestamp)}
                     disabled={versionsBusy}
                   >
-                    Wiederherstellen
+                    {t("Wiederherstellen")}
                   </button>
                 </div>
               </div>
@@ -836,7 +844,7 @@ export function FileBrowser() {
           onClick={() => setVersionsPath(null)}
           style={{ marginTop: 16 }}
         >
-          Schließen
+          {t("Schließen")}
         </button>
       </div>
     </div>
@@ -866,7 +874,7 @@ export function FileBrowser() {
             type="button"
             className={styles.toastClose}
             onClick={() => setToast(null)}
-            aria-label="Schließen"
+            aria-label={t("Schließen")}
           >
             ×
           </button>
@@ -886,26 +894,26 @@ export function FileBrowser() {
               📓
             </div>
             <h2 className={styles.sectionTitle} style={{ marginBottom: 8 }}>
-              Das ist eine GoodNotes-Datei, kein PDF
+              {t("Das ist eine GoodNotes-Datei, kein PDF")}
             </h2>
             <p className={styles.hint} style={{ marginBottom: 12, fontSize: 14 }}>
-              „{formatHintPath.split("/").pop()}“ liegt im GoodNotes-eigenen Format
-              vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es
-              anzeigen.
+              {t(
+                "„{name}“ liegt im GoodNotes-eigenen Format vor. Das kann nur die GoodNotes-App öffnen — kein Browser kann es anzeigen.",
+                { name: formatHintPath.split("/").pop() ?? "" }
+              )}
             </p>
             <p className={styles.hint} style={{ marginBottom: 20, fontSize: 14 }}>
-              <strong style={{ color: "var(--foreground)" }}>So klappt die Vorschau:</strong>{" "}
-              Stell in GoodNotes unter Einstellungen → Backup das{" "}
-              <strong style={{ color: "var(--foreground)" }}>Backup-Format auf „PDF“</strong>{" "}
-              um. Ab dem nächsten Backup kannst du alle Notizen hier ansehen und
-              durchsuchen.
+              <strong style={{ color: "var(--foreground)" }}>{t("So klappt die Vorschau:")}</strong>{" "}
+              {t("Stell in GoodNotes unter Einstellungen → Backup das")}{" "}
+              <strong style={{ color: "var(--foreground)" }}>{t("Backup-Format auf „PDF“")}</strong>{" "}
+              {t("um. Ab dem nächsten Backup kannst du alle Notizen hier ansehen und durchsuchen.")}
             </p>
             <div className={styles.actionRowInline}>
               <a className={styles.buttonSecondary} href={downloadFileUrl(formatHintPath)}>
-                Trotzdem herunterladen
+                {t("Trotzdem herunterladen")}
               </a>
               <button className={styles.button} onClick={() => setFormatHintPath(null)}>
-                Verstanden
+                {t("Verstanden")}
               </button>
             </div>
           </div>
@@ -921,9 +929,16 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {searchResults?.length ?? 0} Treffer für „{searchQuery}“
+            {t("{n} Treffer für „{query}“", { n: searchResults?.length ?? 0, query: searchQuery })}
             {indexStatus && indexStatus.indexed < indexStatus.pdfCount && (
-              <> · Texterkennung läuft noch ({indexStatus.indexed} von {indexStatus.pdfCount} Notizen durchsucht)</>
+              <>
+                {" "}
+                ·{" "}
+                {t("Texterkennung läuft noch ({indexed} von {total} Notizen durchsucht)", {
+                  indexed: indexStatus.indexed,
+                  total: indexStatus.pdfCount,
+                })}
+              </>
             )}
           </div>
         </div>
@@ -936,7 +951,7 @@ export function FileBrowser() {
         ) : (
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}>🔍</div>
-            Nichts gefunden. Versuch es mit einem anderen Wort.
+            {t("Nichts gefunden. Versuch es mit einem anderen Wort.")}
           </div>
         )}
         {overlays}
@@ -955,43 +970,47 @@ export function FileBrowser() {
             <div style={{ flex: 1, minWidth: 200 }}>
               {offlineState.enabled ? (
                 <>
-                  <strong>Offline verfügbar</strong>
+                  <strong>{t("Offline verfügbar")}</strong>
                   <div className={styles.connectionNote}>
                     {offlineState.busy
-                      ? "Wird gespeichert …"
-                      : `${offlineState.stored ?? "—"} Favoriten sind auf diesem Gerät gespeichert und auch ohne Internet lesbar. Neue Favoriten kommen automatisch dazu.`}
+                      ? t("Wird gespeichert …")
+                      : t(
+                          "{n} Favoriten sind auf diesem Gerät gespeichert und auch ohne Internet lesbar. Neue Favoriten kommen automatisch dazu.",
+                          { n: offlineState.stored ?? "—" }
+                        )}
                   </div>
                 </>
               ) : (
                 <>
-                  <strong>Favoriten offline verfügbar machen</strong>
+                  <strong>{t("Favoriten offline verfügbar machen")}</strong>
                   <div className={styles.connectionNote}>
-                    Speichert deine Favoriten auf diesem Gerät — praktisch im Hörsaal oder
-                    unterwegs ohne Netz. Beim Abmelden wird alles wieder gelöscht.
+                    {t(
+                      "Speichert deine Favoriten auf diesem Gerät — praktisch im Hörsaal oder unterwegs ohne Netz. Beim Abmelden wird alles wieder gelöscht."
+                    )}
                   </div>
                 </>
               )}
             </div>
             {offlineState.enabled ? (
               <button className={styles.smallButton} onClick={() => setOfflineMode(false, favoriteFiles)} disabled={offlineState.busy}>
-                Ausschalten
+                {t("Ausschalten")}
               </button>
             ) : (
               <button className={styles.smallButtonAccent} onClick={() => setOfflineMode(true, favoriteFiles)} disabled={offlineState.busy}>
-                Einschalten
+                {t("Einschalten")}
               </button>
             )}
           </div>
         )}
         <div className={styles.toolbar}>
-          <div className={styles.hint}>{favoriteFiles.length} Favoriten</div>
+          <div className={styles.hint}>{t("{n} Favoriten", { n: favoriteFiles.length })}</div>
         </div>
         {favoriteFiles.length > 0 ? (
           <div className={styles.fileList}>{favoriteFiles.map((f) => renderFileRow(f))}</div>
         ) : (
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}>⭐</div>
-            Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.
+            {t("Noch keine Favoriten — tippe bei einer Notiz auf ☆, um sie hier zu sammeln.")}
           </div>
         )}
         {overlays}
@@ -1007,7 +1026,9 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {tagged.length} {tagged.length === 1 ? "Eintrag" : "Einträge"} mit „{tag?.name}“
+            {tagged.length === 1
+              ? t("{n} Eintrag mit „{name}“", { n: tagged.length, name: tag?.name ?? "" })
+              : t("{n} Einträge mit „{name}“", { n: tagged.length, name: tag?.name ?? "" })}
           </div>
         </div>
         {tagged.length > 0 ? (
@@ -1017,7 +1038,7 @@ export function FileBrowser() {
         ) : (
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}>🏷</div>
-            Noch nichts mit diesem Tag — vergib ihn über „⋯“ → „Tags …“.
+            {t("Noch nichts mit diesem Tag — vergib ihn über „⋯“ → „Tags …“.")}
           </div>
         )}
         {overlays}
@@ -1035,7 +1056,9 @@ export function FileBrowser() {
         {searchBar}
         <div className={styles.toolbar}>
           <div className={styles.hint}>
-            {recentFiles.length} {recentFiles.length === 1 ? "Notiz" : "Notizen"} der letzten 7 Tage
+            {recentFiles.length === 1
+              ? t("{n} Notiz der letzten 7 Tage", { n: recentFiles.length })
+              : t("{n} Notizen der letzten 7 Tage", { n: recentFiles.length })}
           </div>
         </div>
         {recentFiles.length > 0 ? (
@@ -1043,7 +1066,7 @@ export function FileBrowser() {
         ) : (
           <div className={styles.emptyState}>
             <div className={styles.emptyIllustration}>🌙</div>
-            In den letzten 7 Tagen ist nichts Neues dazugekommen.
+            {t("In den letzten 7 Tagen ist nichts Neues dazugekommen.")}
           </div>
         )}
         {overlays}
@@ -1056,19 +1079,19 @@ export function FileBrowser() {
       <div className={styles.emptyState} style={{ padding: "24px 8px" }}>
         <div className={styles.emptyIllustration}>📭</div>
         <h2 className={styles.sectionTitle} style={{ color: "var(--foreground)", marginBottom: 8 }}>
-          Noch keine Notizen da
+          {t("Noch keine Notizen da")}
         </h2>
         <p className={styles.hint} style={{ maxWidth: 440, margin: "0 auto 20px" }}>
-          Sobald GoodNotes sein erstes Backup hierher geschickt hat, erscheinen
-          deine Notizbücher automatisch auf dieser Seite. Dafür musst du GoodNotes
-          einmalig mit deinem Konto verbinden — das dauert etwa zwei Minuten.
+          {t(
+            "Sobald GoodNotes sein erstes Backup hierher geschickt hat, erscheinen deine Notizbücher automatisch auf dieser Seite. Dafür musst du GoodNotes einmalig mit deinem Konto verbinden — das dauert etwa zwei Minuten."
+          )}
         </p>
         <div className={styles.heroActions}>
           <Link href="/dashboard/webdav" className={styles.button}>
-            GoodNotes jetzt verbinden
+            {t("GoodNotes jetzt verbinden")}
           </Link>
           <button type="button" className={styles.buttonSecondary} onClick={openTour}>
-            Wie funktioniert das?
+            {t("Wie funktioniert das?")}
           </button>
         </div>
       </div>
@@ -1080,9 +1103,9 @@ export function FileBrowser() {
   if (rawChildren === null) {
     return (
       <div className={styles.errorBox}>
-        Dieser Ordner wurde nicht gefunden.{" "}
+        {t("Dieser Ordner wurde nicht gefunden.")}{" "}
         <a onClick={() => navigateTo([])} style={{ cursor: "pointer", fontWeight: 600 }}>
-          Zurück zur Übersicht
+          {t("Zurück zur Übersicht")}
         </a>
       </div>
     );
@@ -1096,7 +1119,7 @@ export function FileBrowser() {
       {statsBar}
       <div className={styles.breadcrumb} style={{ marginBottom: 12 }}>
         <span className={styles.breadcrumbLink} onClick={() => navigateTo([])}>
-          Meine Notizen
+          {t("Meine Notizen")}
         </span>
         {segments.map((segment, index) => {
           const isLast = index === segments.length - 1;
@@ -1120,7 +1143,7 @@ export function FileBrowser() {
 
       <div className={styles.toolbar} style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <div className={styles.segmented} role="group" aria-label="Sortierung">
+          <div className={styles.segmented} role="group" aria-label={t("Sortierung")}>
             <button
               className={sortBy === "name" ? styles.segmentedItemActive : styles.segmentedItem}
               onClick={() => {
@@ -1131,7 +1154,7 @@ export function FileBrowser() {
                 }
               }}
             >
-              Name {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+              {t("Name")} {sortBy === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
             </button>
             <button
               className={sortBy === "date" ? styles.segmentedItemActive : styles.segmentedItem}
@@ -1143,38 +1166,38 @@ export function FileBrowser() {
                 }
               }}
             >
-              Datum {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+              {t("Datum")} {sortBy === "date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
             </button>
           </div>
-          <div className={styles.segmented} role="group" aria-label="Ansicht">
+          <div className={styles.segmented} role="group" aria-label={t("Ansicht")}>
             <button
               className={viewMode === "list" ? styles.segmentedItemActive : styles.segmentedItem}
               onClick={() => setViewMode("list")}
-              title="Liste"
+              title={t("Liste")}
             >
-              ☰ Liste
+              ☰ {t("Liste")}
             </button>
             <button
               className={viewMode === "grid" ? styles.segmentedItemActive : styles.segmentedItem}
               onClick={() => setViewMode("grid")}
-              title="Raster mit Vorschaubildern"
+              title={t("Raster mit Vorschaubildern")}
             >
-              ▦ Raster
+              ▦ {t("Raster")}
             </button>
           </div>
         </div>
         <ActionMenu
-          trigger={<>⬇ Exportieren & teilen ▾</>}
+          trigger={<>⬇ {t("Exportieren & teilen")} ▾</>}
           items={[
-            { label: "Als ZIP herunterladen", icon: "🗜", href: downloadZipUrl(currentPath) },
-            { label: "Als eine PDF herunterladen", icon: "📑", href: downloadPdfUrl(currentPath) },
+            { label: t("Als ZIP herunterladen"), icon: "🗜", href: downloadZipUrl(currentPath) },
+            { label: t("Als eine PDF herunterladen"), icon: "📑", href: downloadPdfUrl(currentPath) },
             {
-              label: segments.length ? "Ordner teilen" : "Alles teilen",
+              label: segments.length ? t("Ordner teilen") : t("Alles teilen"),
               icon: "📤",
               onClick: () => toggleShare(currentPath || "."),
             },
             {
-              label: "Upload-Link für diesen Ordner",
+              label: t("Upload-Link für diesen Ordner"),
               icon: "📥",
               onClick: () => setUploadLinkPath(currentPath),
             },
@@ -1185,20 +1208,20 @@ export function FileBrowser() {
       {selected.size > 0 && (
         <div className={styles.toolbar} style={{ background: "var(--accent-soft)", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
           <div className={styles.hint} style={{ fontWeight: 600, color: "var(--accent)" }}>
-            {selected.size} ausgewählt
+            {t("{n} ausgewählt", { n: selected.size })}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <a
               className={styles.smallButtonAccent}
               href={downloadZipMultiUrl(Array.from(selected))}
             >
-              Als ZIP
+              {t("Als ZIP")}
             </a>
             <button className={styles.smallButton} onClick={() => setBulkSharing(true)}>
-              Teilen
+              {t("Teilen")}
             </button>
             <button className={styles.smallButton} onClick={() => setSelected(new Set())}>
-              Aufheben
+              {t("Aufheben")}
             </button>
           </div>
         </div>
@@ -1225,7 +1248,8 @@ export function FileBrowser() {
       {children.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIllustration}>🗂</div>
-          Dieser Ordner ist leer.
+          {t("Dieser Ordner ist leer.")}
+
         </div>
       ) : viewMode === "grid" ? (
         <div className={styles.gridList}>

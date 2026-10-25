@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ApiError, TAG_COLORS, createTag, deleteTag, type Tag, type TagColor } from "../lib/api";
 import styles from "../app/ui.module.css";
+import { translate, useT } from "../lib/i18n";
 
 export function TagChip({ tag, small = false }: { tag: Tag; small?: boolean }) {
   return (
@@ -29,6 +30,7 @@ export function TagPicker({
   onTagsChanged: (tags: Tag[]) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [color, setColor] = useState<TagColor>("green");
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function TagPicker({
       onToggle(tag.id, true);
       setName("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Tag konnte nicht erstellt werden.");
+      setError(err instanceof ApiError ? err.message : translate("Tag konnte nicht erstellt werden."));
     }
   }
 
@@ -53,19 +55,19 @@ export function TagPicker({
       await deleteTag(tag.id);
       onTagsChanged(tags.filter((t) => t.id !== tag.id));
     } catch {
-      setError("Löschen hat nicht geklappt.");
+      setError(translate("Löschen hat nicht geklappt."));
     }
   }
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <h2 className={styles.sectionTitle}>Tags</h2>
+        <h2 className={styles.sectionTitle}>{t("Tags")}</h2>
         <p className={styles.hint} style={{ marginBottom: 16 }}>
-          für „{path.split("/").pop()}“ — Tags gelten über Ordner hinweg, z. B. „Prüfungsrelevant“.
+          {t("für „")}{path.split("/").pop()}{t("“ — Tags gelten über Ordner hinweg, z. B. „Prüfungsrelevant“.")}
         </p>
         {tags.length === 0 ? (
-          <p className={styles.hint} style={{ marginBottom: 16 }}>Noch keine Tags — leg unten den ersten an.</p>
+          <p className={styles.hint} style={{ marginBottom: 16 }}>{t("Noch keine Tags — leg unten den ersten an.")}</p>
         ) : (
           <div className={styles.tagPickerList}>
             {tags.map((tag) => {
@@ -81,7 +83,7 @@ export function TagPicker({
                     className={styles.iconButton}
                     onClick={() => handleDelete(tag)}
                     aria-label={`Tag ${tag.name} löschen`}
-                    title="Tag löschen"
+                    title={t("Tag löschen")}
                     style={{ width: 30, height: 30, fontSize: 14 }}
                   >
                     🗑
@@ -92,18 +94,18 @@ export function TagPicker({
           </div>
         )}
         <form onSubmit={handleCreate} style={{ marginTop: 16 }}>
-          <label className={styles.label}>Neuer Tag</label>
+          <label className={styles.label}>{t("Neuer Tag")}</label>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <input
               className={styles.input}
               style={{ flex: 1, minWidth: 0, padding: "8px 12px", fontSize: 15 }}
-              placeholder="z. B. Prüfungsrelevant"
+              placeholder={t("z. B. Prüfungsrelevant")}
               value={name}
               maxLength={40}
               onChange={(e) => setName(e.target.value)}
             />
             <button className={styles.smallButtonAccent} type="submit" disabled={!name.trim()}>
-              Hinzufügen
+              {t("Hinzufügen")}
             </button>
           </div>
           <div className={styles.colorSwatches}>
@@ -121,7 +123,7 @@ export function TagPicker({
         </form>
         {error && <div className={styles.errorBox} style={{ marginTop: 12 }}>{error}</div>}
         <button className={styles.smallButton} onClick={onClose} style={{ marginTop: 16 }}>
-          Fertig
+          {t("Fertig")}
         </button>
       </div>
     </div>

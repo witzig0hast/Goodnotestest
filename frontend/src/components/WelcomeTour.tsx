@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 export const OPEN_TOUR_EVENT = "goodshare:open-tour";
@@ -62,6 +63,7 @@ const STEPS = [
 ];
 
 export function WelcomeTour({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
@@ -97,12 +99,12 @@ export function WelcomeTour({ onClose }: { onClose: () => void }) {
         </div>
         <div className={styles.tourBody}>
           <div className={styles.tourStepLabel}>
-            Einführung · {step + 1} von {STEPS.length}
+            {t("Einführung · {step} von {total}", { step: step + 1, total: STEPS.length })}
           </div>
           <h2 id="tour-title" className={styles.tourTitle}>
-            {current.title}
+            {t(current.title)}
           </h2>
-          <p className={styles.tourText}>{current.text}</p>
+          <p className={styles.tourText}>{t(current.text)}</p>
         </div>
         <div className={styles.tourFooter}>
           <div className={styles.tourDots}>
@@ -112,14 +114,14 @@ export function WelcomeTour({ onClose }: { onClose: () => void }) {
                 type="button"
                 className={i === step ? styles.tourDotActive : styles.tourDot}
                 onClick={() => setStep(i)}
-                aria-label={`Schritt ${i + 1}`}
+                aria-label={t("Schritt {n}", { n: i + 1 })}
               />
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {step === 0 ? (
               <button type="button" className={styles.smallButton} onClick={close}>
-                Überspringen
+                {t("Überspringen")}
               </button>
             ) : (
               <button
@@ -127,7 +129,7 @@ export function WelcomeTour({ onClose }: { onClose: () => void }) {
                 className={styles.smallButton}
                 onClick={() => setStep(step - 1)}
               >
-                Zurück
+                {t("Zurück")}
               </button>
             )}
             <button
@@ -137,7 +139,7 @@ export function WelcomeTour({ onClose }: { onClose: () => void }) {
               onClick={() => (isLast ? close() : setStep(step + 1))}
               autoFocus
             >
-              {isLast ? "Los geht's" : "Weiter"}
+              {isLast ? t("Los geht's") : t("Weiter")}
             </button>
           </div>
         </div>

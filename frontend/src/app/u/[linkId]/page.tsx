@@ -12,6 +12,7 @@ import {
   type UploadLinkInfo,
 } from "../../../lib/api";
 import { formatFileSize } from "../../../lib/format";
+import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
 
 interface QueuedFile {
@@ -23,6 +24,7 @@ interface QueuedFile {
 }
 
 export default function UploadPage() {
+  const t = useT();
   const { linkId } = useParams<{ linkId: string }>();
   const [info, setInfo] = useState<UploadLinkInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -56,13 +58,13 @@ export default function UploadPage() {
         update(item.key, {
           state: "done",
           progress: 1,
-          message: res.name !== item.file.name ? `gespeichert als „${res.name}“` : undefined,
+          message: res.name !== item.file.name ? t("gespeichert als „{name}“", { name: res.name }) : undefined,
         });
         setInfo((i) => (i && i.filesLeft !== null ? { ...i, filesLeft: Math.max(0, i.filesLeft - 1) } : i));
       } catch (err) {
         update(item.key, {
           state: "error",
-          message: err instanceof ApiError ? err.message : "Hochladen ist fehlgeschlagen.",
+          message: err instanceof ApiError ? err.message : t("Hochladen ist fehlgeschlagen."),
         });
       }
     }
@@ -81,9 +83,9 @@ export default function UploadPage() {
         progress: 0,
         state: tooBig || wrongType ? "error" : "waiting",
         message: tooBig
-          ? `Größer als ${info.maxFileMb} MB`
+          ? t("Größer als {mb} MB", { mb: info.maxFileMb })
           : wrongType
-            ? "Dateityp nicht erlaubt"
+            ? t("Dateityp nicht erlaubt")
             : undefined,
       };
     });
@@ -98,7 +100,7 @@ export default function UploadPage() {
       const res = await unlockUploadLink(linkId, password);
       setToken(res.token);
     } catch (err) {
-      setUnlockError(err instanceof ApiError ? err.message : "Das hat nicht geklappt.");
+      setUnlockError(err instanceof ApiError ? err.message : translate("Das hat nicht geklappt."));
     }
   }
 
@@ -113,10 +115,11 @@ export default function UploadPage() {
     return shell(
       <section className={styles.card}>
         <div className={styles.emptyIllustration}>🔗</div>
-        <h1 className={styles.title}>Upload-Link nicht gefunden</h1>
+        <h1 className={styles.title}>{t("Upload-Link nicht gefunden")}</h1>
         <p className={styles.subtitle}>
-          Dieser Link ist ungültig, abgelaufen oder wurde widerrufen. Bitte frag die
-          Person, die ihn dir geschickt hat, nach einem neuen.
+          {t(
+            "Dieser Link ist ungültig, abgelaufen oder wurde widerrufen. Bitte frag die Person, die ihn dir geschickt hat, nach einem neuen."
+          )}
         </p>
       </section>
     );
@@ -129,27 +132,28 @@ export default function UploadPage() {
 
   return shell(
     <section className={styles.card}>
-      <div className={styles.eyebrow}>Dateien senden</div>
-      <h1 className={styles.title}>{info.label ?? `An ${info.ownerName}`}</h1>
+      <div className={styles.eyebrow}>{t("Dateien senden")}</div>
+      <h1 className={styles.title}>{info.label ?? t("An {name}", { name: info.ownerName })}</h1>
       <p className={styles.subtitle}>
-        Deine Dateien landen bei <strong>{info.ownerName}</strong> im Ordner „{info.folderName}“.
-        Du siehst dabei nichts, was dort schon liegt.
+        {t("Deine Dateien landen bei")} <strong>{info.ownerName}</strong>{" "}
+        {t("im Ordner „{folder}“.", { folder: info.folderName })}{" "}
+        {t("Du siehst dabei nichts, was dort schon liegt.")}
       </p>
 
       {locked ? (
         <form onSubmit={handleUnlock}>
-          {unlockError && <div className={styles.errorBox} style={{ marginBottom: 16 }}>{unlockError}</div>}
+          {unlockError && <div className={styles.errorBox} style={{ marginBottom: 16 }}>{t(unlockError)}</div>}
           <div className={styles.field} style={{ marginBottom: 16 }}>
             <label className={styles.label} htmlFor="uploadPassword">
-              Dieser Upload-Link ist mit einem Passwort geschützt
+              {t("Dieser Upload-Link ist mit einem Passwort geschützt")}
             </label>
             <input id="uploadPassword" className={styles.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus required />
           </div>
-          <button className={styles.button} type="submit">Weiter</button>
+          <button className={styles.button} type="submit">{t("Weiter")}</button>
         </form>
       ) : full && doneCount === 0 ? (
         <div className={styles.warningBox}>
-          Über diesen Link wurden schon alle erlaubten Dateien hochgeladen.
+          {t("Über diesen Link wurden schon alle erlaubten Dateien hochgeladen.")}
         </div>
       ) : (
         <>
@@ -173,10 +177,11 @@ export default function UploadPage() {
             }}
           >
             <div style={{ fontSize: 36, marginBottom: 6 }}>📥</div>
-            <strong>{full ? "Limit erreicht" : "Dateien hierher ziehen oder tippen zum Auswählen"}</strong>
+            <strong>{full ? t("Limit erreicht") : t("Dateien hierher ziehen oder tippen zum Auswählen")}</strong>
             <div className={styles.hint} style={{ marginTop: 4 }}>
-              PDF, Bilder, GoodNotes-Dateien · bis {info.maxFileMb} MB pro Datei
-              {info.filesLeft !== null && ` · noch ${info.filesLeft} ${info.filesLeft === 1 ? "Datei" : "Dateien"}`}
+              {t("PDF, Bilder, GoodNotes-Dateien · bis {mb} MB pro Datei", { mb: info.maxFileMb })}
+              {info.filesLeft !== null &&
+                ` · ${t(info.filesLeft === 1 ? t("noch {n} Datei") : t("noch {n} Dateien"), { n: info.filesLeft })}`}
             </div>
             <input
               ref={inputRef}
@@ -203,8 +208,8 @@ export default function UploadPage() {
                     <span className={styles.fileMeta} style={item.state === "error" ? { color: "var(--danger)" } : undefined}>
                       {formatFileSize(item.file.size)}
                       {item.state === "uploading" && ` · ${Math.round(item.progress * 100)} %`}
-                      {item.state === "waiting" && " · wartet …"}
-                      {item.state === "done" && ` · angekommen${item.message ? ` (${item.message})` : ""}`}
+                      {item.state === "waiting" && ` · ${t("wartet …")}`}
+                      {item.state === "done" && ` · ${t("angekommen")}${item.message ? ` (${item.message})` : ""}`}
                       {item.state === "error" && ` · ${item.message}`}
                     </span>
                     {item.state === "uploading" && (
@@ -219,7 +224,13 @@ export default function UploadPage() {
           )}
           {doneCount > 0 && (
             <p className={styles.hint} style={{ marginTop: 12 }}>
-              ✓ {doneCount} {doneCount === 1 ? "Datei ist" : "Dateien sind"} bei {info.ownerName} angekommen.
+              ✓{" "}
+              {t(
+                doneCount === 1
+                  ? t("{n} Datei ist bei {name} angekommen.")
+                  : t("{n} Dateien sind bei {name} angekommen."),
+                { n: doneCount, name: info.ownerName }
+              )}
             </p>
           )}
         </>

@@ -12,9 +12,11 @@ import {
   unlockShareLink,
   type ShareInfo,
 } from "../../../lib/api";
+import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
 
 export default function SharePage() {
+  const t = useT();
   const params = useParams<{ linkId: string }>();
   const linkId = params.linkId;
 
@@ -45,7 +47,7 @@ export default function SharePage() {
       setToken(res.token);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Passwort konnte nicht geprüft werden."
+        err instanceof ApiError ? err.message : translate("Passwort konnte nicht geprüft werden.")
       );
     } finally {
       setUnlocking(false);
@@ -60,13 +62,13 @@ export default function SharePage() {
           <section className={styles.card}>
             <div className={styles.emptyIllustration}>{limitReached ? "⛔" : "🔗"}</div>
             <h1 className={styles.title}>
-              {limitReached ? "Download-Limit erreicht" : "Link nicht gefunden"}
+              {limitReached ? t("Download-Limit erreicht") : t("Link nicht gefunden")}
             </h1>
             <p className={styles.subtitle}>
               {limitReached
-                ? "Dieser Link wurde schon so oft abgerufen, wie die Person, die ihn geteilt hat, erlaubt hat."
-                : "Dieser Link ist ungültig oder bereits abgelaufen."}{" "}
-              Bitte frage die Person, die ihn dir geschickt hat, um einen neuen.
+                ? t("Dieser Link wurde schon so oft abgerufen, wie die Person, die ihn geteilt hat, erlaubt hat.")
+                : t("Dieser Link ist ungültig oder bereits abgelaufen.")}{" "}
+              {t("Bitte frage die Person, die ihn dir geschickt hat, um einen neuen.")}
             </p>
           </section>
         </main>
@@ -95,16 +97,16 @@ export default function SharePage() {
       <PageHeader />
       <main className={styles.main}>
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Geteilt</div>
+          <div className={styles.eyebrow}>{t("Geteilt")}</div>
           <h1 className={styles.title}>
             {info.type === "folder" ? "📁" : info.type === "bundle" ? "🗂️" : "📄"} {info.name}
           </h1>
           <p className={styles.subtitle}>
             {info.type === "folder"
-              ? "Dieser Ordner wurde mit dir geteilt und lässt sich als ZIP-Datei herunterladen."
+              ? t("Dieser Ordner wurde mit dir geteilt und lässt sich als ZIP-Datei herunterladen.")
               : info.type === "bundle"
-                ? "Diese Objekte wurden mit dir geteilt und lassen sich als ZIP-Datei herunterladen."
-                : "Diese Datei wurde mit dir geteilt."}
+                ? t("Diese Objekte wurden mit dir geteilt und lassen sich als ZIP-Datei herunterladen.")
+                : t("Diese Datei wurde mit dir geteilt.")}
           </p>
 
           {info.type === "bundle" && info.items.length > 0 && (
@@ -121,12 +123,12 @@ export default function SharePage() {
             <form onSubmit={handleUnlock} style={{ marginBottom: 20 }}>
               {error && (
                 <div className={styles.errorBox} style={{ marginBottom: 16 }}>
-                  {error}
+                  {t(error)}
                 </div>
               )}
               <div className={styles.field} style={{ marginBottom: 16 }}>
                 <label className={styles.label} htmlFor="sharePassword">
-                  Dieser Link ist mit einem Passwort geschützt
+                  {t("Dieser Link ist mit einem Passwort geschützt")}
                 </label>
                 <input
                   id="sharePassword"
@@ -139,29 +141,31 @@ export default function SharePage() {
                 />
               </div>
               <button className={styles.button} type="submit" disabled={unlocking}>
-                {unlocking ? "Wird geprüft …" : "Anzeigen"}
+                {unlocking ? t("Wird geprüft …") : t("Anzeigen")}
               </button>
             </form>
           )}
 
           {canDownload && info.downloadsLeft !== null && (
             <p className={styles.hint} style={{ marginBottom: 12 }}>
-              Noch {info.downloadsLeft} {info.downloadsLeft === 1 ? "Abruf" : "Abrufe"} möglich
-              {isViewablePdf ? " (Ansehen zählt auch)" : ""}.
+              {t(info.downloadsLeft === 1 ? t("Noch {n} Abruf möglich") : t("Noch {n} Abrufe möglich"), {
+                n: info.downloadsLeft,
+              })}
+              {isViewablePdf ? ` ${t("(Ansehen zählt auch)")}` : ""}.
             </p>
           )}
           {canDownload && (
             <div className={styles.actionRowInline}>
               {isViewablePdf && (
                 <button className={styles.button} onClick={() => setViewing(true)}>
-                  Ansehen
+                  {t("Ansehen")}
                 </button>
               )}
               <a
                 className={isViewablePdf ? styles.buttonSecondary : styles.button}
                 href={shareDownloadUrl(linkId, token ?? undefined)}
               >
-                {info.type === "file" ? "Herunterladen" : "Als ZIP herunterladen"}
+                {info.type === "file" ? t("Herunterladen") : t("Als ZIP herunterladen")}
               </a>
             </div>
           )}

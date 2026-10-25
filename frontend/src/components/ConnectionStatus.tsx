@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchWebdavStatus, type WebdavConnectionStatus } from "../lib/api";
 import { formatRelative } from "../lib/format";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 const FAST_POLL_MS = 4000;
@@ -13,6 +14,7 @@ const SLOW_POLL_MS = 30000;
 // says whether GoodNotes has signed in, failed (and why), or delivered
 // its first backup — the step where new users most often get stuck.
 export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: () => void }) {
+  const t = useT();
   const [status, setStatus] = useState<WebdavConnectionStatus | null>(null);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
     return (
       <div className={styles.connectionBox}>
         <span className={styles.spinner} />
-        <span>Verbindungsstatus wird geprüft …</span>
+        <span>{t("Verbindungsstatus wird geprüft …")}</span>
       </div>
     );
   }
@@ -52,22 +54,34 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
     (!status.lastSuccessAt || status.lastErrorAt > status.lastSuccessAt);
 
   if (status.fileCount > 0) {
+    // Split around {format} so "PDF" can stay bold in either language.
+    const formatSwitch = t("Stell in GoodNotes das Backup-Format auf {format} um.").split("{format}");
     return (
       <div className={styles.connectionBoxSuccess}>
         <span className={styles.connectionIcon}>✓</span>
         <div style={{ flex: 1 }}>
-          <strong>Verbunden!</strong> {status.fileCount}{" "}
-          {status.fileCount === 1 ? "Datei ist" : "Dateien sind"} angekommen
-          {status.lastSuccessAt ? ` · zuletzt ${formatRelative(status.lastSuccessAt)}` : ""}.
+          <strong>{t("Verbunden!")}</strong>{" "}
+          {t(status.fileCount === 1 ? t("{n} Datei ist angekommen") : t("{n} Dateien sind angekommen"), {
+            n: status.fileCount,
+          })}
+          {status.lastSuccessAt
+            ? ` · ${t("zuletzt {when}", { when: formatRelative(status.lastSuccessAt) })}`
+            : ""}
+          .
           {status.goodnotesFormatCount > 0 && (
             <div className={styles.connectionNote}>
-              ⚠️ {status.goodnotesFormatCount} davon im GoodNotes-Format — die lassen sich hier
-              nicht ansehen. Stell in GoodNotes das Backup-Format auf <strong>PDF</strong> um.
+              ⚠️{" "}
+              {t("{n} davon im GoodNotes-Format — die lassen sich hier nicht ansehen.", {
+                n: status.goodnotesFormatCount,
+              })}{" "}
+              {formatSwitch[0]}
+              <strong>{t("PDF")}</strong>
+              {formatSwitch[1]}
             </div>
           )}
         </div>
         <Link href="/dashboard" className={styles.smallButtonAccent}>
-          Zu den Notizen
+          {t("Zu den Notizen")}
         </Link>
       </div>
     );
@@ -76,25 +90,27 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
   if (errorIsNewer) {
     const message =
       status.lastError === "wrong_password"
-        ? "GoodNotes hat sich gemeldet, aber das Passwort stimmt nicht."
+        ? t("GoodNotes hat sich gemeldet, aber das Passwort stimmt nicht.")
         : status.lastError === "unknown_user"
-          ? "GoodNotes hat sich gemeldet, aber der Benutzername stimmt nicht."
+          ? t("GoodNotes hat sich gemeldet, aber der Benutzername stimmt nicht.")
           : status.lastError === "quota_exceeded"
-            ? "Dein Speicherplatz ist voll — GoodNotes konnte nicht alles sichern."
-            : "GoodNotes hat sich gemeldet, aber dein Konto ist noch nicht freigeschaltet.";
+            ? t("Dein Speicherplatz ist voll — GoodNotes konnte nicht alles sichern.")
+            : t("GoodNotes hat sich gemeldet, aber dein Konto ist noch nicht freigeschaltet.");
     return (
       <div className={styles.connectionBoxError}>
         <span className={styles.connectionIcon}>!</span>
         <div style={{ flex: 1 }}>
           <strong>{message}</strong>
           <div className={styles.connectionNote}>
-            Versuch {formatRelative(status.lastErrorAt!)}. Prüfe die Angaben in GoodNotes
+            {t("Versuch {when}. Prüfe die Angaben in GoodNotes", {
+              when: formatRelative(status.lastErrorAt!),
+            })}
             {status.lastError === "wrong_password" && onPasswordProblem && (
               <>
                 {" "}
-                — oder{" "}
+                — {t("oder")}{" "}
                 <button type="button" className={styles.inlineLink} onClick={onPasswordProblem}>
-                  erzeuge ein neues Passwort
+                  {t("erzeuge ein neues Passwort")}
                 </button>
               </>
             )}
@@ -110,9 +126,9 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
       <div className={styles.connectionBox}>
         <span className={styles.statusDot} />
         <div>
-          <strong>GoodNotes ist angemeldet</strong> — warte auf die ersten Dateien …
+          <strong>{t("GoodNotes ist angemeldet")}</strong> {t("— warte auf die ersten Dateien …")}
           <div className={styles.connectionNote}>
-            Tippe in GoodNotes auf „Jetzt sichern“, falls das Backup nicht von selbst startet.
+            {t("Tippe in GoodNotes auf „Jetzt sichern“, falls das Backup nicht von selbst startet.")}
           </div>
         </div>
       </div>
@@ -123,10 +139,11 @@ export function ConnectionStatus({ onPasswordProblem }: { onPasswordProblem?: ()
     <div className={styles.connectionBox}>
       <span className={styles.statusDot} />
       <div>
-        <strong>Warte auf GoodNotes …</strong>
+        <strong>{t("Warte auf GoodNotes …")}</strong>
         <div className={styles.connectionNote}>
-          Sobald du die Angaben in GoodNotes eingetragen hast, siehst du hier automatisch, ob es
-          geklappt hat.
+          {t(
+            "Sobald du die Angaben in GoodNotes eingetragen hast, siehst du hier automatisch, ob es geklappt hat."
+          )}
         </div>
       </div>
     </div>

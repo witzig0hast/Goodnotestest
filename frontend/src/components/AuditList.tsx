@@ -3,11 +3,13 @@
 import type { AuditEntry } from "../lib/api";
 import { auditLabel } from "../lib/audit-labels";
 import { formatDateTime } from "../lib/format";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 export function AuditList({ entries, showAccount = false }: { entries: AuditEntry[]; showAccount?: boolean }) {
+  const t = useT();
   if (entries.length === 0) {
-    return <div className={styles.emptyState}>Noch keine Einträge.</div>;
+    return <div className={styles.emptyState}>{t("Noch keine Einträge.")}</div>;
   }
   return (
     <div className={styles.auditList}>
@@ -18,7 +20,7 @@ export function AuditList({ entries, showAccount = false }: { entries: AuditEntr
             <span className={styles.auditIcon}>{icon}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className={styles.auditLabel}>
-                {label}
+                {t(label)}
                 {showAccount && e.repositoryName && (
                   <span className={styles.auditAccount}> · {e.repositoryName}</span>
                 )}

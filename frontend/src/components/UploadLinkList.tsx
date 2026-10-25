@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { ApiError, fetchMyUploadLinks, revokeUploadLink, type MyUploadLink } from "../lib/api";
 import { formatDate } from "../lib/format";
 import { LoadingState } from "./LoadingState";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 export function UploadLinkList() {
+  const t = useT();
   const [links, setLinks] = useState<MyUploadLink[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -18,13 +20,13 @@ export function UploadLinkList() {
   }, []);
 
   async function handleRevoke(id: string) {
-    if (!window.confirm("Diesen Upload-Link widerrufen? Danach kann niemand mehr darüber hochladen.")) return;
+    if (!window.confirm(t("Diesen Upload-Link widerrufen? Danach kann niemand mehr darüber hochladen."))) return;
     setBusyId(id);
     try {
       await revokeUploadLink(id);
       setLinks((l) => l?.filter((x) => x.id !== id) ?? null);
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "Widerrufen ist fehlgeschlagen.");
+      window.alert(err instanceof ApiError ? err.message : t("Widerrufen ist fehlgeschlagen."));
     } finally {
       setBusyId(null);
     }
@@ -44,7 +46,7 @@ export function UploadLinkList() {
   if (links.length === 0) {
     return (
       <div className={styles.emptyState}>
-        Noch keine Upload-Links. Erstelle einen über „⋯“ an einem Ordner → „Upload-Link erstellen“.
+        {t("Noch keine Upload-Links. Erstelle einen über „⋯“ an einem Ordner → „Upload-Link erstellen“.")}
       </div>
     );
   }
@@ -56,28 +58,34 @@ export function UploadLinkList() {
           <div className={styles.fileIcon}>📥</div>
           <div className={styles.fileMain}>
             <span className={styles.fileNameText}>
-              {link.label ?? `In „${link.relativePath || "Meine Notizen"}“`}
+              {link.label ?? t("In „{folder}“", { folder: link.relativePath || t("Meine Notizen") })}
             </span>
             <span className={styles.fileMeta}>
-              📁 {link.relativePath || "Meine Notizen"} · {link.uploadCount}
-              {link.maxFiles !== null ? ` von ${link.maxFiles}` : ""}{" "}
-              {link.uploadCount === 1 ? "Datei" : "Dateien"} erhalten ·{" "}
-              {link.requiresPassword ? "Passwortgeschützt · " : ""}
+              📁 {link.relativePath || t("Meine Notizen")} ·{" "}
+              {link.maxFiles !== null
+                ? link.uploadCount === 1
+                  ? t("{n} von {max} Datei erhalten", { n: link.uploadCount, max: link.maxFiles })
+                  : t("{n} von {max} Dateien erhalten", { n: link.uploadCount, max: link.maxFiles })
+                : link.uploadCount === 1
+                  ? t("{n} Datei erhalten", { n: link.uploadCount })
+                  : t("{n} Dateien erhalten", { n: link.uploadCount })}{" "}
+              ·{" "}
+              {link.requiresPassword ? `${t("Passwortgeschützt")} · ` : ""}
               {link.expired
-                ? "Abgelaufen"
+                ? t("Abgelaufen")
                 : link.full
-                  ? "Voll"
+                  ? t("Voll")
                   : link.expiresAt
-                    ? `gültig bis ${formatDate(link.expiresAt)}`
-                    : "unbegrenzt gültig"}
+                    ? t("gültig bis {date}", { date: formatDate(link.expiresAt) })
+                    : t("unbegrenzt gültig")}
             </span>
           </div>
           <div className={styles.fileActions}>
             <button className={styles.smallButton} onClick={() => copy(link.id)}>
-              {copiedId === link.id ? "Kopiert" : "Link kopieren"}
+              {copiedId === link.id ? t("Kopiert") : t("Link kopieren")}
             </button>
             <button className={styles.smallButton} onClick={() => handleRevoke(link.id)} disabled={busyId === link.id}>
-              Widerrufen
+              {t("Widerrufen")}
             </button>
           </div>
         </div>

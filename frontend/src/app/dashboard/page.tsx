@@ -10,6 +10,7 @@ import { hasSeenTour, openTour } from "../../components/WelcomeTour";
 import { ApiError, fetchCurrentRepository } from "../../lib/api";
 import { isOfflineEnabled } from "../../lib/offline";
 import { OfflineView } from "../../components/OfflineView";
+import { useT } from "../../lib/i18n";
 import styles from "../ui.module.css";
 
 function greeting(): string {
@@ -20,6 +21,7 @@ function greeting(): string {
 }
 
 export default function DashboardPage() {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
@@ -65,7 +67,7 @@ export default function DashboardPage() {
       <main className={styles.main}>
         <div style={{ padding: "0 4px" }}>
           <div className={styles.eyebrow} style={{ marginBottom: 4 }}>
-            {hello}
+            {t(hello)}
           </div>
           <h1 className={styles.title} style={{ marginBottom: 0 }}>
             {name}
@@ -75,7 +77,7 @@ export default function DashboardPage() {
         <GettingStarted />
 
         <section className={styles.card}>
-          <Suspense fallback={<LoadingState text="Notizen werden geladen …" />}>
+          <Suspense fallback={<LoadingState text={t("Notizen werden geladen …")} />}>
             <FileBrowser />
           </Suspense>
         </section>

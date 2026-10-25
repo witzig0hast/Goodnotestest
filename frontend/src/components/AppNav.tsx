@@ -7,9 +7,11 @@ import { fetchCurrentRepository, logout } from "../lib/api";
 import { clearOffline } from "../lib/offline";
 import { SettingsMenu } from "./SettingsMenu";
 import { OPEN_TOUR_EVENT, WelcomeTour } from "./WelcomeTour";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 export function AppNav() {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -42,17 +44,17 @@ export function AppNav() {
       <Link
         href="/dashboard"
         className={pathname === "/dashboard" ? styles.navLinkActive : styles.navLink}
-        title="Meine Notizen"
+        title={t("Meine Notizen")}
       >
-        📒 <span className={styles.navLabel}>Notizen</span>
+        📒 <span className={styles.navLabel}>{t("Notizen")}</span>
       </Link>
       <button
         type="button"
         className={styles.navLink}
         onClick={() => setTourOpen(true)}
-        title="Kurze Einführung anzeigen"
+        title={t("Kurze Einführung anzeigen")}
       >
-        💡 <span className={styles.navLabel}>Hilfe</span>
+        💡 <span className={styles.navLabel}>{t("Hilfe")}</span>
       </button>
       <SettingsMenu isAdmin={isAdmin} onLogout={handleLogout} />
       {tourOpen && <WelcomeTour onClose={() => setTourOpen(false)} />}

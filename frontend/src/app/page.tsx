@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { PageHeader } from "../components/PageHeader";
+import { useT } from "../lib/i18n";
 import styles from "./ui.module.css";
 
 const FEATURES = [
@@ -41,28 +44,29 @@ const STEPS = [
 ];
 
 export default function LandingPage() {
+  const t = useT();
   return (
     <div className={styles.shellWide}>
       <PageHeader />
       <main className={styles.main} style={{ gap: 28 }}>
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>✍️ Für GoodNotes-Nutzer</div>
+          <div className={styles.heroBadge}>✍️ {t("Für GoodNotes-Nutzer")}</div>
           <h1 className={styles.heroTitle}>
-            Deine handschriftlichen Notizen,
+            {t("Deine handschriftlichen Notizen,")}
             <br />
-            <span className={styles.heroAccent}>jederzeit griffbereit.</span>
+            <span className={styles.heroAccent}>{t("jederzeit griffbereit.")}</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            GoodShare nimmt die automatischen Backups von GoodNotes entgegen und
-            zeigt sie dir auf einer einfachen, geschützten Seite — in genau der
-            Ordnerstruktur wie in der App.
+            {t(
+              "GoodShare nimmt die automatischen Backups von GoodNotes entgegen und zeigt sie dir auf einer einfachen, geschützten Seite — in genau der Ordnerstruktur wie in der App."
+            )}
           </p>
           <div className={styles.heroActions}>
             <Link href="/erstellen" className={styles.button}>
-              Kostenlos loslegen →
+              {t("Kostenlos loslegen →")}
             </Link>
             <Link href="/login" className={styles.buttonSecondary}>
-              Ich habe schon ein Konto
+              {t("Ich habe schon ein Konto")}
             </Link>
           </div>
         </section>
@@ -75,38 +79,38 @@ export default function LandingPage() {
               style={{ animationDelay: `${0.08 + i * 0.05}s` }}
             >
               <div className={styles.featureIcon}>{f.icon}</div>
-              <div className={styles.featureTitle}>{f.title}</div>
-              <div className={styles.featureText}>{f.text}</div>
+              <div className={styles.featureTitle}>{t(f.title)}</div>
+              <div className={styles.featureText}>{t(f.text)}</div>
             </div>
           ))}
         </section>
 
         <section className={styles.card}>
-          <div className={styles.eyebrow}>In drei Schritten</div>
+          <div className={styles.eyebrow}>{t("In drei Schritten")}</div>
           <h2 className={styles.title} style={{ fontSize: 24 }}>
-            So funktioniert es
+            {t("So funktioniert es")}
           </h2>
           <div className={styles.stepList}>
             {STEPS.map((step, i) => (
               <div key={step.title} className={styles.step}>
                 <div className={styles.stepNumber}>{i + 1}</div>
                 <div className={styles.stepText}>
-                  <strong>{step.title}</strong>
+                  <strong>{t(step.title)}</strong>
                   <br />
-                  <span style={{ color: "var(--muted)" }}>{step.text}</span>
+                  <span style={{ color: "var(--muted)" }}>{t(step.text)}</span>
                 </div>
               </div>
             ))}
           </div>
           <div className={styles.actionRowInline} style={{ marginTop: 24 }}>
             <Link href="/erstellen" className={styles.button}>
-              Konto erstellen
+              {t("Konto erstellen")}
             </Link>
           </div>
         </section>
 
         <p className={styles.footerNote}>
-          Deine Daten liegen auf diesem Server — nicht bei einem Dritten.
+          {t("Deine Daten liegen auf diesem Server — nicht bei einem Dritten.")}
         </p>
       </main>
     </div>

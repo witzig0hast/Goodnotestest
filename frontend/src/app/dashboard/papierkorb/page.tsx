@@ -13,6 +13,7 @@ import {
   type TrashItem,
 } from "../../../lib/api";
 import { formatDateTime, formatFileSize } from "../../../lib/format";
+import { translate, useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
 
 function daysLeft(expiresAt: string): number {
@@ -20,6 +21,7 @@ function daysLeft(expiresAt: string): number {
 }
 
 function TrashList() {
+  const t = useT();
   const [items, setItems] = useState<TrashItem[] | null>(null);
   const [retentionDays, setRetentionDays] = useState(30);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -32,7 +34,7 @@ function TrashList() {
         setItems(res.items);
         setRetentionDays(res.retentionDays);
       })
-      .catch(() => setError("Der Papierkorb konnte nicht geladen werden."));
+      .catch(() => setError(translate("Der Papierkorb konnte nicht geladen werden.")));
   }, []);
 
   async function handleRestore(item: TrashItem) {
@@ -45,38 +47,41 @@ function TrashList() {
       setMessage({
         text:
           path === item.originalPath
-            ? `„${item.name}“ ist wieder da.`
-            : `„${item.name}“ ist wieder da — als „${path.split("/").pop()}“, weil der Name inzwischen vergeben war.`,
+            ? t("„{name}“ ist wieder da.", { name: item.name })
+            : t("„{name}“ ist wieder da — als „{newName}“, weil der Name inzwischen vergeben war.", {
+                name: item.name,
+                newName: path.split("/").pop() ?? "",
+              }),
         href: folder ? `/dashboard?path=${encodeURIComponent(folder)}` : "/dashboard",
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Wiederherstellen ist fehlgeschlagen.");
+      setError(err instanceof ApiError ? err.message : t("Wiederherstellen ist fehlgeschlagen."));
     } finally {
       setBusyId(null);
     }
   }
 
   async function handleDelete(item: TrashItem) {
-    if (!window.confirm(`„${item.name}“ endgültig löschen? Das lässt sich nicht rückgängig machen.`)) return;
+    if (!window.confirm(t("„{name}“ endgültig löschen? Das lässt sich nicht rückgängig machen.", { name: item.name }))) return;
     setBusyId(item.id);
     try {
       await deleteTrashItem(item.id);
       setItems((current) => current?.filter((i) => i.id !== item.id) ?? null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Löschen ist fehlgeschlagen.");
+      setError(err instanceof ApiError ? err.message : t("Löschen ist fehlgeschlagen."));
     } finally {
       setBusyId(null);
     }
   }
 
   async function handleEmpty() {
-    if (!window.confirm("Den ganzen Papierkorb endgültig leeren? Das lässt sich nicht rückgängig machen.")) return;
+    if (!window.confirm(t("Den ganzen Papierkorb endgültig leeren? Das lässt sich nicht rückgängig machen."))) return;
     setBusyId("all");
     try {
       await emptyTrash();
       setItems([]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Leeren ist fehlgeschlagen.");
+      setError(err instanceof ApiError ? err.message : t("Leeren ist fehlgeschlagen."));
     } finally {
       setBusyId(null);
     }
@@ -86,18 +91,20 @@ function TrashList() {
     <section className={styles.card}>
       <div className={styles.toolbar} style={{ alignItems: "flex-start" }}>
         <div>
-          <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>Papierkorb</h1>
+          <div className={styles.eyebrow}>{t("Einstellungen")}</div>
+          <h1 className={styles.title}>{t("Papierkorb")}</h1>
         </div>
         {items && items.length > 0 && (
           <button className={styles.smallButton} onClick={handleEmpty} disabled={busyId !== null}>
-            Papierkorb leeren
+            {t("Papierkorb leeren")}
           </button>
         )}
       </div>
       <p className={styles.subtitle}>
-        Gelöschte Notizen und Ordner bleiben hier {retentionDays} Tage, bevor sie
-        endgültig verschwinden — auch das, was du direkt in GoodNotes löschst.
+        {t(
+          "Gelöschte Notizen und Ordner bleiben hier {n} Tage, bevor sie endgültig verschwinden — auch das, was du direkt in GoodNotes löschst.",
+          { n: retentionDays }
+        )}
       </p>
 
       {message && (
@@ -106,7 +113,7 @@ function TrashList() {
           <span style={{ flex: 1 }}>{message.text}</span>
           {message.href && (
             <Link href={message.href} className={styles.smallButtonAccent}>
-              Anzeigen
+              {t("Anzeigen")}
             </Link>
           )}
         </div>
@@ -118,7 +125,7 @@ function TrashList() {
       ) : items.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIllustration}>🗑</div>
-          Der Papierkorb ist leer.
+          {t("Der Papierkorb ist leer.")}
         </div>
       ) : (
         <div className={styles.fileList}>
@@ -132,11 +139,19 @@ function TrashList() {
                 <div className={styles.fileMain}>
                   <span className={styles.fileNameText}>{item.name}</span>
                   <span className={styles.fileMeta}>
-                    {item.originalPath.includes("/") ? `aus ${item.originalPath.slice(0, item.originalPath.lastIndexOf("/"))} · ` : ""}
-                    {item.deletedBy === "goodnotes" ? "in GoodNotes gelöscht" : "hier gelöscht"} am{" "}
-                    {formatDateTime(item.deletedAt)} · {formatFileSize(item.size)} ·{" "}
+                    {item.originalPath.includes("/")
+                      ? `${t("aus {folder}", { folder: item.originalPath.slice(0, item.originalPath.lastIndexOf("/")) })} · `
+                      : ""}
+                    {item.deletedBy === "goodnotes"
+                      ? t("in GoodNotes gelöscht am {date}", { date: formatDateTime(item.deletedAt) })
+                      : t("hier gelöscht am {date}", { date: formatDateTime(item.deletedAt) })}{" "}
+                    · {formatFileSize(item.size)} ·{" "}
                     <span style={left <= 3 ? { color: "var(--danger)", fontWeight: 600 } : undefined}>
-                      {left === 0 ? "wird heute gelöscht" : `noch ${left} ${left === 1 ? "Tag" : "Tage"}`}
+                      {left === 0
+                        ? t("wird heute gelöscht")
+                        : left === 1
+                          ? t("noch {n} Tag", { n: left })
+                          : t("noch {n} Tage", { n: left })}
                     </span>
                   </span>
                 </div>
@@ -146,14 +161,14 @@ function TrashList() {
                     onClick={() => handleRestore(item)}
                     disabled={busyId !== null}
                   >
-                    Wiederherstellen
+                    {t("Wiederherstellen")}
                   </button>
                   <button
                     className={styles.iconButton}
                     onClick={() => handleDelete(item)}
                     disabled={busyId !== null}
-                    title="Endgültig löschen"
-                    aria-label="Endgültig löschen"
+                    title={t("Endgültig löschen")}
+                    aria-label={t("Endgültig löschen")}
                   >
                     🗑
                   </button>

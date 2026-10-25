@@ -17,8 +17,10 @@ import {
   type NextcloudStatus,
 } from "../../../lib/api";
 import styles from "../../ui.module.css";
+import { translate, useT } from "../../../lib/i18n";
 
 export default function NextcloudSettingsPage() {
+  const t = useT();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [status, setStatus] = useState<NextcloudStatus | null>(null);
@@ -83,7 +85,7 @@ export default function NextcloudSettingsPage() {
       setPassword("");
     } catch (err) {
       setConnectError(
-        err instanceof ApiError ? err.message : "Verbindung ist fehlgeschlagen."
+        err instanceof ApiError ? err.message : translate("Verbindung ist fehlgeschlagen.")
       );
     } finally {
       setConnecting(false);
@@ -98,7 +100,7 @@ export default function NextcloudSettingsPage() {
       const result = await pullFromNextcloud();
       setPullResult(result);
     } catch (err) {
-      setPullError(err instanceof ApiError ? err.message : "Abruf ist fehlgeschlagen.");
+      setPullError(err instanceof ApiError ? err.message : translate("Abruf ist fehlgeschlagen."));
     } finally {
       setPulling(false);
     }
@@ -119,7 +121,7 @@ export default function NextcloudSettingsPage() {
       setSyncResult(result);
     } catch (err) {
       setSyncError(
-        err instanceof ApiError ? err.message : "Export ist fehlgeschlagen."
+        err instanceof ApiError ? err.message : translate("Export ist fehlgeschlagen.")
       );
     } finally {
       setSyncing(false);
@@ -132,7 +134,7 @@ export default function NextcloudSettingsPage() {
         <PageHeader app />
         <main className={styles.main}>
           <Link href="/dashboard" className={styles.backLink}>
-            ← Zurück zu meinen Notizen
+            {t("← Zurück zu meinen Notizen")}
           </Link>
           <section className={styles.card}>
             <LoadingState />
@@ -147,24 +149,23 @@ export default function NextcloudSettingsPage() {
       <PageHeader app />
       <main className={styles.main}>
         <Link href="/dashboard" className={styles.backLink}>
-          ← Zurück zu meinen Notizen
+          {t("← Zurück zu meinen Notizen")}
         </Link>
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>Nextcloud-Export</h1>
+          <div className={styles.eyebrow}>{t("Einstellungen")}</div>
+          <h1 className={styles.title}>{t("Nextcloud-Export")}</h1>
           <p className={styles.subtitle}>
-            Verbinde deine eigene Nextcloud, um deine Notizen zusätzlich dort zu
-            spiegeln — mit derselben Ordnerstruktur wie hier.
+            {t("Verbinde deine eigene Nextcloud, um deine Notizen zusätzlich dort zu spiegeln — mit derselben Ordnerstruktur wie hier.")}
           </p>
 
           {status.connected ? (
             <>
               <div className={styles.statusBadge} style={{ marginBottom: 16 }}>
                 <span className={styles.statusDot} />
-                Verbunden mit {status.url}
+                {t("Verbunden mit")} {status.url}
               </div>
               <p className={styles.hint} style={{ marginBottom: 16 }}>
-                Angemeldet als {status.username}
+                {t("Angemeldet als")} {status.username}
               </p>
 
               {syncError && (
@@ -174,53 +175,48 @@ export default function NextcloudSettingsPage() {
               )}
               {syncResult && (
                 <div className={styles.sharePanel} style={{ marginBottom: 16 }}>
-                  {syncResult.uploaded} Datei(en) übertragen
+                  {syncResult.uploaded} {t("Datei(en) übertragen")}
                   {syncResult.failed > 0 && `, ${syncResult.failed} fehlgeschlagen`}.
                 </div>
               )}
 
               <div className={styles.actionRowInline}>
                 <button className={styles.button} onClick={handleSync} disabled={syncing}>
-                  {syncing ? "Wird exportiert …" : "Jetzt nach Nextcloud exportieren"}
+                  {syncing ? t("Wird exportiert …") : t("Jetzt nach Nextcloud exportieren")}
                 </button>
                 <button className={styles.smallButton} onClick={handleDisconnect}>
-                  Verbindung trennen
+                  {t("Verbindung trennen")}
                 </button>
               </div>
 
               <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
 
               <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-                Nur einen bestimmten Ordner abgleichen
+                {t("Nur einen bestimmten Ordner abgleichen")}
               </h2>
               <p className={styles.hint} style={{ marginBottom: 12 }}>
-                Leer lassen, um wie bisher alles zu spiegeln — oder einen
-                Ordnernamen eintragen (z. B. „Uni“), um Export und Abruf auf
-                diesen Ordner zu beschränken.
+                {t("Leer lassen, um wie bisher alles zu spiegeln — oder einen Ordnernamen eintragen (z. B. „Uni“), um Export und Abruf auf diesen Ordner zu beschränken.")}
               </p>
               <form onSubmit={handleSaveSyncPath} className={styles.actionRowInline}>
                 <input
                   className={styles.input}
-                  placeholder="Alles (kein bestimmter Ordner)"
+                  placeholder={t("Alles (kein bestimmter Ordner)")}
                   value={syncPath}
                   onChange={(e) => setSyncPath(e.target.value)}
                   style={{ width: 240 }}
                 />
                 <button className={styles.smallButton} type="submit" disabled={syncPathSaving}>
-                  {syncPathSaving ? "Wird gespeichert …" : syncPathSaved ? "Gespeichert" : "Speichern"}
+                  {syncPathSaving ? t("Wird gespeichert …") : syncPathSaved ? t("Gespeichert") : t("Speichern")}
                 </button>
               </form>
 
               <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
 
               <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-                Von Nextcloud abrufen
+                {t("Von Nextcloud abrufen")}
               </h2>
               <p className={styles.hint} style={{ marginBottom: 12 }}>
-                Holt Dateien, die in deiner Nextcloud liegen, aber hier noch
-                fehlen — z. B. wenn du dort direkt etwas hinzugefügt hast.
-                Bestehende Dateien hier werden dabei nie verändert oder
-                gelöscht.
+                {t("Holt Dateien, die in deiner Nextcloud liegen, aber hier noch fehlen — z. B. wenn du dort direkt etwas hinzugefügt hast. Bestehende Dateien hier werden dabei nie verändert oder gelöscht.")}
               </p>
               {pullError && (
                 <div className={styles.errorBox} style={{ marginBottom: 12 }}>
@@ -229,12 +225,12 @@ export default function NextcloudSettingsPage() {
               )}
               {pullResult && (
                 <div className={styles.sharePanel} style={{ marginBottom: 12 }}>
-                  {pullResult.downloaded} Datei(en) abgeholt
+                  {pullResult.downloaded} {t("Datei(en) abgeholt")}
                   {pullResult.failed > 0 && `, ${pullResult.failed} fehlgeschlagen`}.
                 </div>
               )}
               <button className={styles.smallButton} onClick={handlePull} disabled={pulling}>
-                {pulling ? "Wird abgerufen …" : "Jetzt von Nextcloud abrufen"}
+                {pulling ? t("Wird abgerufen …") : t("Jetzt von Nextcloud abrufen")}
               </button>
             </>
           ) : (
@@ -247,7 +243,7 @@ export default function NextcloudSettingsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="ncUrl">
-                    Nextcloud-Adresse
+                    {t("Nextcloud-Adresse")}
                   </label>
                   <input
                     id="ncUrl"
@@ -260,7 +256,7 @@ export default function NextcloudSettingsPage() {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="ncUser">
-                    Benutzername
+                    {t("Benutzername")}
                   </label>
                   <input
                     id="ncUser"
@@ -272,7 +268,7 @@ export default function NextcloudSettingsPage() {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="ncPass">
-                    App-Passwort
+                    {t("App-Passwort")}
                   </label>
                   <input
                     id="ncPass"
@@ -283,14 +279,12 @@ export default function NextcloudSettingsPage() {
                     required
                   />
                   <span className={styles.hint}>
-                    Erstelle in Nextcloud unter Einstellungen → Sicherheit ein
-                    eigenes App-Passwort, statt dein normales Passwort zu
-                    verwenden.
+                    {t("Erstelle in Nextcloud unter Einstellungen → Sicherheit ein eigenes App-Passwort, statt dein normales Passwort zu verwenden.")}
                   </span>
                 </div>
               </div>
               <button className={styles.button} type="submit" disabled={connecting}>
-                {connecting ? "Wird geprüft …" : "Verbinden"}
+                {connecting ? t("Wird geprüft …") : t("Verbinden")}
               </button>
             </form>
           )}

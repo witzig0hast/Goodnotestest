@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchBackupDays, type BackupDay } from "../lib/api";
 import { formatDate, formatRelative } from "../lib/format";
 import { LoadingState } from "./LoadingState";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 const WEEKS = 26;
@@ -25,6 +26,7 @@ function level(uploads: number): number {
 // darker the more files GoodNotes uploaded — gaps in the backup routine
 // jump out immediately.
 export function BackupCalendar() {
+  const t = useT();
   const [days, setDays] = useState<BackupDay[] | null>(null);
 
   useEffect(() => {
@@ -77,24 +79,24 @@ export function BackupCalendar() {
           <div className={styles.statTileValue}>
             {summary?.last ? formatRelative(summary.last.lastUploadAt) : "—"}
           </div>
-          <div className={styles.statTileLabel}>Letztes Backup</div>
+          <div className={styles.statTileLabel}>{t("Letztes Backup")}</div>
         </div>
         <div className={styles.statTile}>
           <div className={styles.statTileValue}>{summary?.activeDays ?? 0}</div>
-          <div className={styles.statTileLabel}>Tage mit Backup (½ Jahr)</div>
+          <div className={styles.statTileLabel}>{t("Tage mit Backup (½ Jahr)")}</div>
         </div>
         <div className={styles.statTile}>
           <div className={styles.statTileValue}>
-            {summary && summary.activeDays > 1 ? `${summary.longestGap} Tage` : "—"}
+            {summary && summary.activeDays > 1 ? t(summary.longestGap === 1 ? "{n} Tag" : "{n} Tage", { n: summary.longestGap }) : "—"}
           </div>
-          <div className={styles.statTileLabel}>Längste Lücke</div>
+          <div className={styles.statTileLabel}>{t("Längste Lücke")}</div>
         </div>
       </div>
       <div className={styles.calendarScroll}>
         <div className={styles.calendar}>
           <div className={styles.calendarWeekdays}>
             {WEEKDAYS.map((d, i) => (
-              <span key={i}>{d}</span>
+              <span key={i}>{d ? t(d) : d}</span>
             ))}
           </div>
           {grid.map((week, w) => (
@@ -109,8 +111,10 @@ export function BackupCalendar() {
                       ? ""
                       : `${formatDate(cell.day)}: ${
                           cell.uploads === 0
-                            ? "kein Backup"
-                            : `${cell.uploads} ${cell.uploads === 1 ? "Datei" : "Dateien"} gesichert`
+                            ? t("kein Backup")
+                            : cell.uploads === 1
+                              ? t("{n} Datei gesichert", { n: cell.uploads })
+                              : t("{n} Dateien gesichert", { n: cell.uploads })
                         }`
                   }
                 />
@@ -120,15 +124,15 @@ export function BackupCalendar() {
         </div>
       </div>
       <div className={styles.calendarLegend}>
-        weniger
+        {t("weniger")}
         {[0, 1, 2, 3, 4].map((l) => (
           <span key={l} className={styles.calendarCell} data-level={l} />
         ))}
-        mehr
+        {t("mehr")}
       </div>
       {days.length === 0 && (
         <p className={styles.hint} style={{ marginTop: 12 }}>
-          Noch keine Backups aufgezeichnet. Sobald GoodNotes Dateien schickt, füllt sich der Kalender.
+          {t("Noch keine Backups aufgezeichnet. Sobald GoodNotes Dateien schickt, füllt sich der Kalender.")}
         </p>
       )}
     </div>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { fetchCurrentRepository, type SessionResponse } from "../lib/api";
 import { LoadingState } from "./LoadingState";
 import { PageHeader } from "./PageHeader";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 /**
@@ -22,6 +23,7 @@ export function AuthedPage({
   requireAdmin?: boolean;
   children: (session: SessionResponse) => React.ReactNode;
 }) {
+  const t = useT();
   const router = useRouter();
   const [session, setSession] = useState<SessionResponse | null>(null);
 
@@ -39,7 +41,7 @@ export function AuthedPage({
       <PageHeader app />
       <main className={styles.main}>
         <Link href="/dashboard" className={styles.backLink}>
-          ← Zurück zu meinen Notizen
+          ← {t("Zurück zu meinen Notizen")}
         </Link>
         {session ? (
           children(session)

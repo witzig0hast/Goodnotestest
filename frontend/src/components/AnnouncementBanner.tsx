@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchAnnouncements, type Announcement } from "../lib/api";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 const DISMISSED_KEY = "goodshare_dismissed_announcements";
@@ -26,6 +27,7 @@ function rememberDismissed(ids: Set<string>) {
 }
 
 export function AnnouncementBanner() {
+  const t = useT();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
@@ -79,7 +81,7 @@ export function AnnouncementBanner() {
           <span style={{ flex: 1 }}>{a.message}</span>
           <button
             onClick={() => dismiss(a.id)}
-            aria-label="Nachricht ausblenden"
+            aria-label={t("Nachricht ausblenden")}
             style={{
               background: "none",
               border: "none",

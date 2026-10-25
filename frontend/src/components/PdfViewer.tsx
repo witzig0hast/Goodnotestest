@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import styles from "../app/ui.module.css";
+import { translate, useT } from "../lib/i18n";
 
 // pdf.js is large — load it only when someone actually opens a PDF.
 // The "legacy" build also runs on older iPad/iPhone Safari versions.
@@ -194,6 +195,7 @@ export function PdfViewer({
   initialPage?: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState(1.414);
@@ -237,7 +239,7 @@ export function PdfViewer({
       } catch {
         if (!cancelled) {
           setError(
-            "Diese Datei konnte nicht als PDF geöffnet werden. Vielleicht ist sie beschädigt oder kein PDF."
+            translate("Diese Datei konnte nicht als PDF geöffnet werden. Vielleicht ist sie beschädigt oder kein PDF.")
           );
         }
       }
@@ -313,8 +315,8 @@ export function PdfViewer({
             type="button"
             className={styles.iconButton}
             onClick={() => setShowThumbs((v) => !v)}
-            title="Seitenübersicht"
-            aria-label="Seitenübersicht ein-/ausblenden"
+            title={t("Seitenübersicht")}
+            aria-label={t("Seitenübersicht ein-/ausblenden")}
             disabled={!doc}
           >
             ▤
@@ -331,8 +333,8 @@ export function PdfViewer({
             type="button"
             className={styles.iconButton}
             onClick={zoomOut}
-            aria-label="Verkleinern"
-            title="Verkleinern (−)"
+            aria-label={t("Verkleinern")}
+            title={t("Verkleinern (−)")}
           >
             −
           </button>
@@ -340,7 +342,7 @@ export function PdfViewer({
             type="button"
             className={`${styles.pdfZoomLabel} ${styles.hideOnMobile}`}
             onClick={() => setZoom(1)}
-            title="Auf Breite einpassen"
+            title={t("Auf Breite einpassen")}
           >
             {Math.round(zoom * 100)} %
           </button>
@@ -348,8 +350,8 @@ export function PdfViewer({
             type="button"
             className={styles.iconButton}
             onClick={zoomIn}
-            aria-label="Vergrößern"
-            title="Vergrößern (+)"
+            aria-label={t("Vergrößern")}
+            title={t("Vergrößern (+)")}
           >
             +
           </button>
@@ -357,8 +359,8 @@ export function PdfViewer({
             <a
               className={styles.iconButton}
               href={downloadUrl}
-              title="Herunterladen"
-              aria-label="Herunterladen"
+              title={t("Herunterladen")}
+              aria-label={t("Herunterladen")}
             >
               ⬇
             </a>
@@ -367,8 +369,8 @@ export function PdfViewer({
             type="button"
             className={styles.iconButton}
             onClick={onClose}
-            aria-label="Schließen"
-            title="Schließen (Esc)"
+            aria-label={t("Schließen")}
+            title={t("Schließen (Esc)")}
             style={{ fontSize: 22 }}
           >
             ×
@@ -397,14 +399,14 @@ export function PdfViewer({
               <p style={{ marginBottom: 16 }}>{error}</p>
               {downloadUrl && (
                 <a href={downloadUrl} className={styles.button}>
-                  Stattdessen herunterladen
+                  {t("Stattdessen herunterladen")}
                 </a>
               )}
             </div>
           ) : !doc ? (
             <div className={styles.pdfMessage}>
               <span className={styles.spinner} style={{ width: 28, height: 28 }} />
-              <p style={{ marginTop: 12 }}>PDF wird geladen …</p>
+              <p style={{ marginTop: 12 }}>{t("PDF wird geladen …")}</p>
             </div>
           ) : (
             containerWidth > 0 &&

@@ -16,9 +16,11 @@ import {
   type NotificationSettings,
   type SessionResponse,
 } from "../../../lib/api";
+import { useT } from "../../../lib/i18n";
 import styles from "../../ui.module.css";
 
 export default function BenachrichtigungenPage() {
+  const t = useT();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<SessionResponse | null>(null);
@@ -58,7 +60,7 @@ export default function BenachrichtigungenPage() {
         weeklyDigestEnabled: prev?.weeklyDigestEnabled ?? false,
       }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Speichern ist fehlgeschlagen.");
+      setError(err instanceof ApiError ? err.message : t("Speichern ist fehlgeschlagen."));
     } finally {
       setSaving(false);
     }
@@ -73,7 +75,7 @@ export default function BenachrichtigungenPage() {
       setTestSent(true);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Testmail konnte nicht gesendet werden."
+        err instanceof ApiError ? err.message : t("Testmail konnte nicht gesendet werden.")
       );
     } finally {
       setTesting(false);
@@ -109,7 +111,7 @@ export default function BenachrichtigungenPage() {
         <PageHeader app />
         <main className={styles.main}>
           <Link href="/dashboard" className={styles.backLink}>
-            ← Zurück zu meinen Notizen
+            {t("← Zurück zu meinen Notizen")}
           </Link>
           <section className={styles.card}>
             <LoadingState />
@@ -124,22 +126,20 @@ export default function BenachrichtigungenPage() {
       <PageHeader app />
       <main className={styles.main}>
         <Link href="/dashboard" className={styles.backLink}>
-          ← Zurück zu meinen Notizen
+          {t("← Zurück zu meinen Notizen")}
         </Link>
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>Backup-Erinnerung</h1>
+          <div className={styles.eyebrow}>{t("Einstellungen")}</div>
+          <h1 className={styles.title}>{t("Backup-Erinnerung")}</h1>
           <p className={styles.subtitle}>
-            Wir schicken eine E-Mail an <strong>{session.email}</strong>, falls
-            seit einer Weile kein neues GoodNotes-Backup mehr angekommen ist —
-            praktisch, wenn WLAN oder Zugangsdaten mal kaputtgehen und du es
-            sonst erst spät bemerkst.
+            {t("Wir schicken eine E-Mail an")} <strong>{session.email}</strong>
+            {t(", falls seit einer Weile kein neues GoodNotes-Backup mehr angekommen ist — praktisch, wenn WLAN oder Zugangsdaten mal kaputtgehen und du es sonst erst spät bemerkst.")}
           </p>
 
           {settings.enabled && (
             <div className={styles.statusBadge} style={{ marginBottom: 16 }}>
               <span className={styles.statusDot} />
-              Aktiv — Erinnerung nach {settings.notifyAfterDays} Tagen ohne Backup
+              {t("Aktiv — Erinnerung nach {n} Tagen ohne Backup", { n: settings.notifyAfterDays ?? "" })}
             </div>
           )}
 
@@ -150,14 +150,14 @@ export default function BenachrichtigungenPage() {
           )}
           {testSent && (
             <div className={styles.sharePanel} style={{ marginBottom: 16 }}>
-              Testmail gesendet — schau in deinem Postfach nach.
+              {t("Testmail gesendet — schau in deinem Postfach nach.")}
             </div>
           )}
 
           <form onSubmit={handleSave}>
             <div className={styles.field} style={{ marginBottom: 20 }}>
               <label className={styles.label} htmlFor="days">
-                Erinnern nach wie vielen Tagen ohne neues Backup?
+                {t("Erinnern nach wie vielen Tagen ohne neues Backup?")}
               </label>
               <input
                 id="days"
@@ -173,7 +173,7 @@ export default function BenachrichtigungenPage() {
             </div>
             <div className={styles.actionRowInline}>
               <button className={styles.button} type="submit" disabled={saving}>
-                {saving ? "Wird gespeichert …" : "Speichern"}
+                {saving ? t("Wird gespeichert …") : t("Speichern")}
               </button>
               <button
                 type="button"
@@ -181,11 +181,11 @@ export default function BenachrichtigungenPage() {
                 onClick={handleTest}
                 disabled={testing}
               >
-                {testing ? "Wird gesendet …" : "Testmail senden"}
+                {testing ? t("Wird gesendet …") : t("Testmail senden")}
               </button>
               {settings.enabled && (
                 <button type="button" className={styles.smallButton} onClick={handleDisable}>
-                  Deaktivieren
+                  {t("Deaktivieren")}
                 </button>
               )}
             </div>
@@ -193,13 +193,12 @@ export default function BenachrichtigungenPage() {
         </section>
 
         <section className={styles.card}>
-          <div className={styles.eyebrow}>Einstellungen</div>
-          <h1 className={styles.title}>Wöchentlicher Backup-Digest</h1>
+          <div className={styles.eyebrow}>{t("Einstellungen")}</div>
+          <h1 className={styles.title}>{t("Wöchentlicher Backup-Digest")}</h1>
           <p className={styles.subtitle}>
-            Einmal pro Woche einen Link per E-Mail an{" "}
-            <strong>{session.email}</strong> schicken, mit dem du (oder wer
-            auch immer den Link bekommt) alle Notizen als ZIP herunterladen
-            kann — eine einfache zusätzliche Sicherung außerhalb von GoodShare.
+            {t("Einmal pro Woche einen Link per E-Mail an")}{" "}
+            <strong>{session.email}</strong>{" "}
+            {t("schicken, mit dem du (oder wer auch immer den Link bekommt) alle Notizen als ZIP herunterladen kann — eine einfache zusätzliche Sicherung außerhalb von GoodShare.")}
           </p>
           <button
             type="button"
@@ -208,8 +207,8 @@ export default function BenachrichtigungenPage() {
             disabled={digestSaving}
           >
             {settings.weeklyDigestEnabled
-              ? "Digest deaktivieren"
-              : "Digest aktivieren"}
+              ? t("Digest deaktivieren")
+              : t("Digest aktivieren")}
           </button>
         </section>
 

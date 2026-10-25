@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchMyShareLinks, fetchPasskeyCount, fetchStats } from "../lib/api";
 import { hasSeenTour, openTour, TOUR_CLOSED_EVENT } from "./WelcomeTour";
+import { useT } from "../lib/i18n";
 import styles from "../app/ui.module.css";
 
 const DISMISSED_KEY = "goodshare.gettingStartedDismissed";
@@ -27,6 +28,7 @@ interface Progress {
 // what's left to set up, ticks items off from real account state (not
 // just clicks), and goes away once everything's done or it's dismissed.
 export function GettingStarted() {
+  const t = useT();
   const [dismissed, setDismissed] = useState(true);
   const [progress, setProgress] = useState<Progress | null>(null);
 
@@ -88,14 +90,14 @@ export function GettingStarted() {
       <div className={styles.toolbar} style={{ marginBottom: 0 }}>
         <div>
           <div className={styles.eyebrow} style={{ marginBottom: 4 }}>
-            Erste Schritte
+            {t("Erste Schritte")}
           </div>
           <h2 className={styles.sectionTitle}>
-            {doneCount} von {items.length} erledigt
+            {t("{done} von {total} erledigt", { done: doneCount, total: items.length })}
           </h2>
         </div>
         <button type="button" className={styles.smallButton} onClick={dismiss}>
-          Ausblenden
+          {t("Ausblenden")}
         </button>
       </div>
       <div className={styles.progressTrack}>
@@ -112,7 +114,7 @@ export function GettingStarted() {
                 {item.done ? "✓" : ""}
               </span>
               <span className={item.done ? styles.checklistTextDone : styles.checklistText}>
-                {item.label}
+                {t(item.label)}
               </span>
               {!item.done && (item.href || item.action) && (
                 <span className={styles.checklistArrow}>→</span>

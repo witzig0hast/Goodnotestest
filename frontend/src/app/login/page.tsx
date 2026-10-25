@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
 import { ApiError, fetchSsoStatus, loginWithPassword, ssoStartUrl } from "../../lib/api";
 import { browserSupportsWebAuthn, loginWithPasskey } from "../../lib/passkeys";
+import { translate, useT } from "../../lib/i18n";
 import styles from "../ui.module.css";
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
@@ -18,6 +19,7 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
 const noopSubscribe = () => () => {};
 
 function LoginPageInner() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -60,7 +62,7 @@ function LoginPageInner() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal."
+          : translate("Der Server ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.")
       );
     } finally {
       setLoading(false);
@@ -74,7 +76,7 @@ function LoginPageInner() {
       await loginWithPasskey();
       router.push("/dashboard");
     } catch {
-      setError("Passkey-Anmeldung hat nicht geklappt. Versuch es nochmal oder nutze dein Passwort.");
+      setError(translate("Passkey-Anmeldung hat nicht geklappt. Versuch es nochmal oder nutze dein Passwort."));
     } finally {
       setPasskeyLoading(false);
     }
@@ -85,12 +87,12 @@ function LoginPageInner() {
       <PageHeader />
       <main className={styles.main}>
         <form className={styles.card} onSubmit={handleSubmit}>
-          <div className={styles.eyebrow}>Willkommen zurück</div>
-          <h1 className={styles.title}>Anmelden</h1>
+          <div className={styles.eyebrow}>{t("Willkommen zurück")}</div>
+          <h1 className={styles.title}>{t("Anmelden")}</h1>
 
           {error && (
             <div className={styles.errorBox} style={{ marginBottom: 16 }}>
-              {error}
+              {t(error)}
             </div>
           )}
 
@@ -101,7 +103,7 @@ function LoginPageInner() {
                 className={styles.button}
                 style={{ width: "100%", marginBottom: 20, display: "block", textAlign: "center" }}
               >
-                Mit {sso.providerName ?? "SSO"} anmelden
+                {t("Mit {provider} anmelden", { provider: sso.providerName ?? t("SSO") })}
               </a>
               <div
                 style={{
@@ -114,7 +116,7 @@ function LoginPageInner() {
                 }}
               >
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                oder
+                {t("oder")}
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
               </div>
             </>
@@ -129,7 +131,7 @@ function LoginPageInner() {
                 disabled={passkeyLoading}
                 style={{ width: "100%", marginBottom: 20 }}
               >
-                {passkeyLoading ? "Wird geprüft …" : "Mit Passkey anmelden"}
+                {passkeyLoading ? t("Wird geprüft …") : t("Mit Passkey anmelden")}
               </button>
               <div
                 style={{
@@ -142,7 +144,7 @@ function LoginPageInner() {
                 }}
               >
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                oder
+                {t("oder")}
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
               </div>
             </>
@@ -151,14 +153,14 @@ function LoginPageInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="email">
-                E-Mail-Adresse
+                {t("E-Mail-Adresse")}
               </label>
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
                 className={styles.input}
-                placeholder="du@beispiel.de"
+                placeholder={t("du@beispiel.de")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -167,7 +169,7 @@ function LoginPageInner() {
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="password">
-                Passwort
+                {t("Passwort")}
               </label>
               <input
                 id="password"
@@ -183,16 +185,16 @@ function LoginPageInner() {
 
           <div className={styles.actionRowInline}>
             <button className={styles.button} type="submit" disabled={loading}>
-              {loading ? "Wird geprüft …" : "Anmelden"}
+              {loading ? t("Wird geprüft …") : t("Anmelden")}
             </button>
             <Link href="/erstellen" className={styles.buttonSecondary}>
-              Noch kein Konto?
+              {t("Noch kein Konto?")}
             </Link>
           </div>
 
           <p className={styles.hint} style={{ marginTop: 20, textAlign: "center" }}>
             <Link href="/login/code" style={{ color: "var(--accent)", fontWeight: 600 }}>
-              Kein Zugriff auf E-Mail oder Passkey?
+              {t("Kein Zugriff auf E-Mail oder Passkey?")}
             </Link>
           </p>
         </form>
