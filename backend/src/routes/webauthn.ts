@@ -148,7 +148,7 @@ webauthnRouter.post("/login-verify", loginLimiter, async (req, res) => {
     }
 
     updateCredentialCounter(stored.id, result.authenticationInfo.newCounter);
-    issueSession(res, repo.id);
+    issueSession(res, repo.id, req, "passkey");
     logAudit(req, "login.passkey", null, repo.id);
     res.json(toSessionJson(repo));
   } catch {

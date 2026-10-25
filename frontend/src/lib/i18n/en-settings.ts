@@ -133,4 +133,48 @@ export const enSettings: Record<string, string> = {
     ", so you immediately see the finished link or have it in your clipboard.",
   "Nutze dafür genau die WebDAV-Zugangsdaten, die du auch in GoodNotes eingerichtet hast (Benutzername + Passwort von der Einrichtungsseite). Der Kurzbefehl legt die Datei automatisch im Ordner „Direkt geteilt“ ab und der Link läuft nach 30 Tagen ab.":
     "Use exactly the WebDAV credentials you set up in GoodNotes (username + password from the setup page). The shortcut automatically stores the file in the “Direkt geteilt” folder and the link expires after 30 days.",
+  "Unbekanntes Gerät":
+    "Unknown device",
+  "{browser} auf {os}":
+    "{browser} on {os}",
+  "Alle anderen Geräte abmelden? Dort musst du dich danach neu anmelden.":
+    "Sign out all other devices? You'll have to sign in again there.",
+  "{n} Geräte abgemeldet.":
+    "{n} devices signed out.",
+  "Angemeldete Geräte":
+    "Signed-in devices",
+  "Hier bist du gerade angemeldet. Ein Gerät, das du nicht kennst? Melde es ab und ändere dein Passwort.":
+    "You're currently signed in here. Don't recognise a device? Sign it out and change your password.",
+  "Alle anderen abmelden":
+    "Sign out all others",
+  "Dieses Gerät":
+    "This device",
+  "zuletzt aktiv {when}":
+    "last active {when}",
+  "Bestätigungscode":
+    "Verification code",
+  "Zwei-Faktor-Anmeldung":
+    "Two-factor sign-in",
+  "Aktiv":
+    "Active",
+  "Zusätzlich zum Passwort fragt GoodShare nach einem 6-stelligen Code aus einer Authenticator-App (z. B. Google Authenticator, 1Password, Aegis). Anmelden per Passkey bleibt ohne Code möglich.":
+    "In addition to your password, GoodShare asks for a 6-digit code from an authenticator app (e.g. Google Authenticator, 1Password, Aegis). Signing in with a passkey still works without a code.",
+  "Zum Ausschalten den aktuellen Code eingeben:":
+    "Enter the current code to turn it off:",
+  "Zwei-Faktor-Anmeldung ausschalten":
+    "Turn off two-factor sign-in",
+  "QR-Code für die Authenticator-App":
+    "QR code for the authenticator app",
+  "Scanne den QR-Code mit deiner Authenticator-App.":
+    "Scan the QR code with your authenticator app.",
+  "Oder gib den Schlüssel von Hand ein:":
+    "Or enter the key manually:",
+  "Tippe den Code ein, den die App jetzt anzeigt:":
+    "Type the code the app shows right now:",
+  "Zwei-Faktor-Anmeldung einrichten":
+    "Set up two-factor sign-in",
+  "Gib den 6-stelligen Code aus deiner Authenticator-App ein.":
+    "Enter the 6-digit code from your authenticator app.",
+  "Kein Zugriff auf die App? Melde dich mit Konto-Kennung und Notfall-Code an und schalte die Zwei-Faktor-Anmeldung danach neu ein.":
+    "No access to the app? Sign in with your account ID and emergency code, then set up two-factor sign-in again.",
 };

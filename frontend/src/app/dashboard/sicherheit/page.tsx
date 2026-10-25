@@ -18,6 +18,7 @@ import {
 } from "../../../lib/api";
 import { browserSupportsWebAuthn, registerPasskey } from "../../../lib/passkeys";
 import styles from "../../ui.module.css";
+import { SessionsCard, TwoFactorCard } from "../../../components/SecurityCards";
 import { translate, useT } from "../../../lib/i18n";
 
 const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
@@ -264,6 +265,13 @@ function SicherheitPageInner() {
           )}
         </section>
 
+
+        <TwoFactorCard
+          enabled={Boolean(session.totpEnabled)}
+          onChange={(on) => setSession((s) => (s ? { ...s, totpEnabled: on } : s))}
+        />
+
+        <SessionsCard />
 
         <section className={`${styles.card} ${styles.dangerZone}`}>
           <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: "var(--danger)" }}>

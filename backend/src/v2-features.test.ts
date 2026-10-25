@@ -612,3 +612,91 @@ describe("reading position and bookmarks", () => {
     expect((await api(repo.cookie, `/api/reading/bookmarks/${created.id}`, { method: "DELETE" })).status).toBe(204);
   });
 });
+
+describe("signed-in devices", () => {
+  async function login(email: string, agent: string) {
+    const res = await fetch(`${baseUrl}/api/auth/login-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": agent },
+      body: JSON.stringify({ email, password: "sicheres-passwort" }),
+    });
+    return res.headers.get("set-cookie")!.split(";")[0];
+  }
+
+  it("lists sessions and signs other devices out", async () => {
+    const repo = await createRepository("Geräte");
+    const phone = await login(repo.email, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari");
+    const laptop = await login(repo.email, "Mozilla/5.0 (Macintosh) Firefox/130.0");
+
+    const { sessions } = await (await api(laptop, "/api/auth/sessions")).json();
+    expect(sessions.length).toBeGreaterThanOrEqual(2);
+    expect(sessions.filter((s: { current: boolean }) => s.current)).toHaveLength(1);
+    expect(sessions.some((s: { userAgent: string }) => s.userAgent.includes("iPhone"))).toBe(true);
+
+    const del = await (await api(laptop, "/api/auth/sessions", { method: "DELETE" })).json();
+    expect(del.signedOut).toBeGreaterThanOrEqual(1);
+    expect((await api(phone, "/api/auth/me")).status).toBe(401);
+    expect((await api(laptop, "/api/auth/me")).status).toBe(200);
+  });
+
+  it("logging out ends only that session", async () => {
+    const repo = await createRepository("Abmelden");
+    const a = await login(repo.email, "A");
+    const b = await login(repo.email, "B");
+    await api(a, "/api/auth/logout", { method: "POST" });
+    expect((await api(a, "/api/auth/me")).status).toBe(401);
+    expect((await api(b, "/api/auth/me")).status).toBe(200);
+  });
+});
+
+describe("two-factor sign-in", () => {
+  it("matches the RFC 6238 test vector", async () => {
+    const { totpCode, base32Encode } = await import("./lib/totp.js");
+    const secret = base32Encode(Buffer.from("12345678901234567890"));
+    expect(totpCode(secret, 59_000)).toBe("287082");
+    expect(totpCode(secret, 1_111_111_109_000)).toBe("081804");
+  });
+
+  it("requires the authenticator code after the password once enabled", async () => {
+    const { totpCode } = await import("./lib/totp.js");
+    const repo = await createRepository("Zwei Faktoren");
+    const setup = await (await api(repo.cookie, "/api/auth/totp/setup", { method: "POST" })).json();
+    expect(setup.otpauthUrl).toContain("otpauth://totp/");
+
+    expect(
+      (await api(repo.cookie, "/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ setupToken: setup.setupToken, code: "000000" }) })).status
+    ).toBe(400);
+    const enable = await api(repo.cookie, "/api/auth/totp/enable", {
+      method: "POST",
+      body: JSON.stringify({ setupToken: setup.setupToken, code: totpCode(setup.secret) }),
+    });
+    expect(enable.status).toBe(200);
+    expect((await (await api(repo.cookie, "/api/auth/me")).json()).totpEnabled).toBe(true);
+
+    const step1 = await fetch(`${baseUrl}/api/auth/login-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: repo.email, password: "sicheres-passwort" }),
+    });
+    expect(step1.headers.get("set-cookie")).toBeNull();
+    const { totpRequired, ticket } = await step1.json();
+    expect(totpRequired).toBe(true);
+
+    const wrong = await fetch(`${baseUrl}/api/auth/login-totp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket, code: "123456" }),
+    });
+    expect(wrong.status).toBe(401);
+    const right = await fetch(`${baseUrl}/api/auth/login-totp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket, code: totpCode(setup.secret) }),
+    });
+    expect(right.status).toBe(200);
+    expect(right.headers.get("set-cookie")).toContain("goodshare_session=");
+
+    await api(repo.cookie, "/api/auth/totp/disable", { method: "POST", body: JSON.stringify({ code: totpCode(setup.secret) }) });
+    expect((await (await api(repo.cookie, "/api/auth/me")).json()).totpEnabled).toBe(false);
+  });
+});

@@ -145,7 +145,7 @@ ssoRouter.get("/callback", ssoLimiter, async (req, res) => {
       return;
     }
 
-    issueSession(res, repo.id);
+    issueSession(res, repo.id, req, "sso");
     logAudit(req, "login.sso", null, repo.id);
     res.redirect(`${frontendOrigin}/dashboard`);
   } catch {

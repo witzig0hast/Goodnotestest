@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "../../components/PageHeader";
+import { TotpLoginStep } from "../../components/TotpLoginStep";
 import { ApiError, fetchSsoStatus, loginWithPassword, ssoStartUrl } from "../../lib/api";
 import { browserSupportsWebAuthn, loginWithPasskey } from "../../lib/passkeys";
 import { translate, useT } from "../../lib/i18n";
@@ -51,12 +52,18 @@ function LoginPageInner() {
     }
   }, [searchParams]);
 
+  const [totpTicket, setTotpTicket] = useState<string | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await loginWithPassword(email.trim(), password);
+      const res = await loginWithPassword(email.trim(), password);
+      if ("totpRequired" in res) {
+        setTotpTicket(res.ticket);
+        return;
+      }
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -80,6 +87,24 @@ function LoginPageInner() {
     } finally {
       setPasskeyLoading(false);
     }
+  }
+
+  if (totpTicket) {
+    return (
+      <div className={styles.shell}>
+        <PageHeader />
+        <main className={styles.main}>
+          <TotpLoginStep
+            ticket={totpTicket}
+            onDone={() => router.push("/dashboard")}
+            onCancel={() => {
+              setTotpTicket(null);
+              setPassword("");
+            }}
+          />
+        </main>
+      </div>
+    );
   }
 
   return (

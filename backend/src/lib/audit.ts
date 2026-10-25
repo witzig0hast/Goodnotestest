@@ -34,7 +34,10 @@ export type AuditAction =
   | "passkey.added"
   | "admin.approve"
   | "admin.reject"
-  | "admin.quota";
+  | "admin.quota"
+  | "session.revoke"
+  | "totp.enabled"
+  | "totp.disabled";
 
 export function logAuditFor(
   repositoryId: string | null,

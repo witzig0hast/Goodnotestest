@@ -1,10 +1,13 @@
 import { parse, serialize } from "cookie";
-import type { Response } from "express";
+import type { Request, Response } from "express";
+import { createSession, type SessionMethod } from "./sessions.js";
 import jwt from "jsonwebtoken";
 import { config } from "./config.js";
 
 export interface SessionPayload {
   repositoryId: string;
+  /** Server-side session row (see sessions.ts); absent on cookies from older versions. */
+  sid?: string;
 }
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days: signing in shouldn't be a weekly chore
@@ -25,8 +28,14 @@ export const SESSION_COOKIE_NAME = "goodshare_session";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-export function issueSession(res: Response, repositoryId: string): void {
-  const token = signSessionToken({ repositoryId });
+export function issueSession(
+  res: Response,
+  repositoryId: string,
+  req?: Request,
+  method: SessionMethod = "password"
+): string {
+  const sid = createSession(repositoryId, req, method);
+  const token = signSessionToken({ repositoryId, sid });
   res.setHeader(
     "Set-Cookie",
     serialize(SESSION_COOKIE_NAME, token, {
@@ -37,6 +46,7 @@ export function issueSession(res: Response, repositoryId: string): void {
       maxAge: SESSION_TTL_SECONDS,
     })
   );
+  return sid;
 }
 
 export function clearSession(res: Response): void {
@@ -159,6 +169,35 @@ export function verifyUploadUnlockToken(token: string): UploadUnlockPayload | nu
   try {
     const payload = jwt.verify(token, config.jwtSecret) as Partial<UploadUnlockPayload>;
     return typeof payload.uploadLinkId === "string" ? { uploadLinkId: payload.uploadLinkId } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Short-lived tokens for the two-factor flow: one carries a not yet
+// confirmed TOTP secret during setup, the other proves "password was
+// correct" between the password step and the code step of a sign-in.
+export function signTotpSetupToken(repositoryId: string, secret: string): string {
+  return jwt.sign({ purpose: "totp-setup", repositoryId, secret }, config.jwtSecret, { expiresIn: "15m" });
+}
+
+export function verifyTotpSetupToken(token: string): { repositoryId: string; secret: string } | null {
+  try {
+    const p = jwt.verify(token, config.jwtSecret) as { purpose?: string; repositoryId: string; secret: string };
+    return p.purpose === "totp-setup" ? { repositoryId: p.repositoryId, secret: p.secret } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function signTotpLoginTicket(repositoryId: string): string {
+  return jwt.sign({ purpose: "totp-login", repositoryId }, config.jwtSecret, { expiresIn: "5m" });
+}
+
+export function verifyTotpLoginTicket(token: string): string | null {
+  try {
+    const p = jwt.verify(token, config.jwtSecret) as { purpose?: string; repositoryId: string };
+    return p.purpose === "totp-login" ? p.repositoryId : null;
   } catch {
     return null;
   }

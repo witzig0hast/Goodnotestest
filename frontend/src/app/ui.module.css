@@ -2048,3 +2048,24 @@ button.checklistItem {
   height: 100%;
   background: var(--accent);
 }
+
+.currentBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.inlineCode {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  background: var(--accent-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+  word-break: break-all;
+}

@@ -45,7 +45,7 @@ repositoriesRouter.post("/", registrationLimiter, (req, res) => {
   // get signed in yet (and its WebDAV credentials won't work either) until
   // the admin approves it — see requireSession and webdav-server.ts.
   if (secrets.approvalStatus === "approved") {
-    issueSession(res, secrets.id);
+    issueSession(res, secrets.id, req, "signup");
   }
 
   res.status(201).json({

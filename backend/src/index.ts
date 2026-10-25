@@ -3,6 +3,7 @@ import { config } from "./lib/config.js";
 import { runBackupChecks } from "./lib/backup-check.js";
 import { purgeExpiredTrash } from "./lib/trash.js";
 import { pruneAuditLog } from "./lib/audit.js";
+import { pruneSessions } from "./lib/sessions.js";
 import { startOcrSweeps } from "./lib/ocr.js";
 
 const app = createApp();
@@ -20,6 +21,7 @@ const ONE_HOUR = 60 * 60 * 1000;
 function housekeeping() {
   purgeExpiredTrash().catch(() => {});
   pruneAuditLog();
+  pruneSessions();
 }
 setTimeout(housekeeping, 30 * 1000);
 setInterval(housekeeping, ONE_HOUR);

@@ -74,10 +74,12 @@ export interface SessionResponse {
   isAdmin: boolean;
   webdavUsername: string;
   hasPassword: boolean;
+  totpEnabled?: boolean;
 }
 
+/** Either signs in right away, or asks for the authenticator code first. */
 export function loginWithPassword(email: string, password: string) {
-  return request<SessionResponse>("/api/auth/login-password", {
+  return request<SessionResponse | { totpRequired: true; ticket: string }>("/api/auth/login-password", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -741,4 +743,55 @@ export function addBookmark(path: string, page: number, note?: string) {
 
 export function deleteBookmark(id: string) {
   return request<void>(`/api/reading/bookmarks/${id}`, { method: "DELETE" });
+}
+
+// --- Signed-in devices and two-factor sign-in ---
+
+export interface SessionInfo {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  method: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+}
+
+export function fetchSessions() {
+  return request<{ sessions: SessionInfo[] }>("/api/auth/sessions");
+}
+
+export function revokeSession(id: string) {
+  return request<void>(`/api/auth/sessions/${id}`, { method: "DELETE" });
+}
+
+export function revokeOtherSessions() {
+  return request<{ signedOut: number }>("/api/auth/sessions", { method: "DELETE" });
+}
+
+export function loginWithTotp(ticket: string, code: string) {
+  return request<SessionResponse>("/api/auth/login-totp", {
+    method: "POST",
+    body: JSON.stringify({ ticket, code }),
+  });
+}
+
+export function startTotpSetup() {
+  return request<{ secret: string; otpauthUrl: string; setupToken: string }>("/api/auth/totp/setup", {
+    method: "POST",
+  });
+}
+
+export function enableTotp(setupToken: string, code: string) {
+  return request<{ enabled: true }>("/api/auth/totp/enable", {
+    method: "POST",
+    body: JSON.stringify({ setupToken, code }),
+  });
+}
+
+export function disableTotp(code: string) {
+  return request<{ enabled: false }>("/api/auth/totp/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
 }
