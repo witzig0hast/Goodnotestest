@@ -19,6 +19,7 @@ import { trashRouter } from "./routes/trash.js";
 import { activityRouter } from "./routes/activity.js";
 import { uploadLinksRouter } from "./routes/upload-links.js";
 import { tagsRouter } from "./routes/tags.js";
+import { studySheetsRouter } from "./routes/study-sheets.js";
 import { readingRouter } from "./routes/reading.js";
 
 export function createApp() {
@@ -84,6 +85,7 @@ export function createApp() {
   api.use("/upload-links", uploadLinksRouter);
   api.use("/tags", tagsRouter);
   api.use("/reading", readingRouter);
+  api.use("/study-sheets", studySheetsRouter);
 
   app.use("/api", api);
 

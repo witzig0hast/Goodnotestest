@@ -14,6 +14,7 @@ const PATH_REFERENCING_TABLES = [
   "recent_views",
   "page_bookmarks",
   "file_issues",
+  "study_sheet_pages",
 ] as const;
 
 export function deletePathReferences(repositoryId: string, relativePath: string): void {

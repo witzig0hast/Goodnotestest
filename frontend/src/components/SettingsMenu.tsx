@@ -10,6 +10,7 @@ import { Icon, type IconName } from "./Icon";
 const ITEMS = [
   { href: "/dashboard/webdav", label: "GoodNotes verbinden", icon: "link" as IconName },
   { href: "/dashboard/sicherheit", label: "Anmeldung & Sicherheit", icon: "lock" as IconName },
+  { href: "/dashboard/lernzettel", label: "Lernzettel", icon: "layers" as IconName },
   { href: "/dashboard/freigaben", label: "Meine Freigaben", icon: "share" as IconName },
   { href: "/dashboard/papierkorb", label: "Papierkorb", icon: "trash" as IconName },
   { href: "/dashboard/aktivitaet", label: "Aktivität & Backups", icon: "activity" as IconName },

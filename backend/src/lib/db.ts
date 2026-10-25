@@ -372,6 +372,25 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS study_sheets (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS study_sheet_pages (
+    id TEXT PRIMARY KEY,
+    sheet_id TEXT NOT NULL REFERENCES study_sheets(id) ON DELETE CASCADE,
+    repository_id TEXT NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    relative_path TEXT NOT NULL,
+    page INTEGER NOT NULL,
+    position INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS study_sheet_pages_idx ON study_sheet_pages (sheet_id, position);
+
   CREATE TABLE IF NOT EXISTS server_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

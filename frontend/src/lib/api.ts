@@ -795,3 +795,67 @@ export function disableTotp(code: string) {
     body: JSON.stringify({ code }),
   });
 }
+
+// --- Study sheets (Lernzettel) ---
+
+export interface StudySheetPage {
+  id: string;
+  path: string;
+  page: number;
+}
+
+export interface StudySheet {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  pages: StudySheetPage[];
+}
+
+export function fetchStudySheets() {
+  return request<{ sheets: StudySheet[] }>("/api/study-sheets");
+}
+
+export function createStudySheet(name: string, pages: { path: string; page: number }[] = []) {
+  return request<StudySheet>("/api/study-sheets", {
+    method: "POST",
+    body: JSON.stringify({ name, pages }),
+  });
+}
+
+export function updateStudySheet(id: string, changes: { name?: string; order?: string[] }) {
+  return request<StudySheet>(`/api/study-sheets/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export function deleteStudySheet(id: string) {
+  return request<void>(`/api/study-sheets/${id}`, { method: "DELETE" });
+}
+
+export function addStudySheetPages(id: string, pages: { path: string; page: number }[]) {
+  return request<StudySheet>(`/api/study-sheets/${id}/pages`, {
+    method: "POST",
+    body: JSON.stringify({ pages }),
+  });
+}
+
+export function removeStudySheetPage(id: string, pageId: string) {
+  return request<StudySheet>(`/api/study-sheets/${id}/pages/${pageId}`, { method: "DELETE" });
+}
+
+export function saveStudySheet(id: string) {
+  return request<{ path: string; name: string; skipped: number }>(`/api/study-sheets/${id}/save`, {
+    method: "POST",
+  });
+}
+
+export function studySheetPdfUrl(sheet: StudySheet, download = false): string {
+  // Changes to the page list must bust the viewer's cache, even several
+  // within the same second (updatedAt only has second resolution).
+  let hash = 0;
+  for (const ch of sheet.pages.map((p) => p.id).join(",")) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  const version = `${encodeURIComponent(sheet.updatedAt)}-${(hash >>> 0).toString(36)}`;
+  return `${API_BASE_URL}/api/study-sheets/${sheet.id}/pdf?v=${version}${download ? "&download=1" : ""}`;
+}

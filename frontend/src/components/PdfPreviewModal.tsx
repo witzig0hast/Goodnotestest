@@ -2,6 +2,7 @@
 
 import { downloadFileUrl, previewFileUrl } from "../lib/api";
 import { PdfViewer } from "./PdfViewer";
+import { AddToSheetButton } from "./AddToSheetButton";
 
 // The previous version embedded the PDF with <object>, which never worked:
 // the page's CSP has object-src 'none', the API serves files as
@@ -25,7 +26,12 @@ export function PdfPreviewModal({
       downloadUrl={downloadFileUrl(path)}
       initialPage={initialPage}
       filePath={path}
-      extraActions={extraActions}
+      extraActions={(page) => (
+        <>
+          <AddToSheetButton path={path} page={page} />
+          {extraActions?.(page)}
+        </>
+      )}
       onClose={onClose}
     />
   );

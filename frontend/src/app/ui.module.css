@@ -759,6 +759,7 @@
 }
 
 .chip {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2068,4 +2069,128 @@ button.checklistItem {
   padding: 2px 6px;
   border-radius: 6px;
   word-break: break-all;
+}
+
+/* --- Lernzettel --- */
+
+.sheetMenu {
+  width: 290px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 460px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sheetMenuForm {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.sheetMenuForm .input {
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.sheetMenuForm .input,
+.sheetNewForm .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheetNewForm {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sheetMenuNote {
+  padding: 6px 12px 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sheetMenuCount {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheetLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheetListItem,
+.sheetListItemActive {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.sheetListItem:hover {
+  background: var(--surface-muted, var(--accent-soft));
+}
+
+.sheetListItemActive {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sheetPageRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sheetPageNumber {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .sheetLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

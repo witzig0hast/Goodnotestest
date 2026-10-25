@@ -762,6 +762,9 @@ export function FileBrowser() {
         >
           <Icon name="bookmark" size={14} /> {t("Lesezeichen")}
         </button>
+        <Link href="/dashboard/lernzettel" className={styles.chip}>
+          <Icon name="layers" size={14} /> {t("Lernzettel")}
+        </Link>
         {tags.map((tag) => {
           const active = mode === "tag" && activeTagId === tag.id;
           return (

@@ -700,3 +700,76 @@ describe("two-factor sign-in", () => {
     expect((await (await api(repo.cookie, "/api/auth/me")).json()).totpEnabled).toBe(false);
   });
 });
+
+describe("study sheets", () => {
+  async function multiPagePdf(pages: number): Promise<Buffer> {
+    const doc = await PDFDocument.create();
+    for (let i = 0; i < pages; i++) doc.addPage([200 + i, 200]);
+    return Buffer.from(await doc.save());
+  }
+
+  it("composes pages from several notebooks into one PDF and saves it", async () => {
+    const repo = await createRepository("Lernzettel");
+    const client = webdavClientFor(repo);
+    await client.createDirectory("/Uni");
+    await client.putFileContents("/Uni/Analysis.pdf", await multiPagePdf(5));
+    await client.putFileContents("/Statistik.pdf", await multiPagePdf(3));
+
+    const sheet = await (
+      await api(repo.cookie, "/api/study-sheets", {
+        method: "POST",
+        body: JSON.stringify({ name: "Klausur", pages: [{ path: "Uni/Analysis.pdf", page: 4 }] }),
+      })
+    ).json();
+    expect(sheet.pages).toHaveLength(1);
+
+    const added = await (
+      await api(repo.cookie, `/api/study-sheets/${sheet.id}/pages`, {
+        method: "POST",
+        body: JSON.stringify({ pages: [{ path: "Statistik.pdf", page: 2 }, { path: "Uni/Analysis.pdf", page: 1 }] }),
+      })
+    ).json();
+    expect(added.pages.map((p: { page: number }) => p.page)).toEqual([4, 2, 1]);
+    expect(
+      (
+        await api(repo.cookie, `/api/study-sheets/${sheet.id}/pages`, {
+          method: "POST",
+          body: JSON.stringify({ pages: [{ path: "Gibts-nicht.pdf", page: 1 }] }),
+        })
+      ).status
+    ).toBe(400);
+
+    // reorder: last first
+    const order = [added.pages[2].id, added.pages[0].id, added.pages[1].id];
+    await api(repo.cookie, `/api/study-sheets/${sheet.id}`, { method: "PATCH", body: JSON.stringify({ order }) });
+
+    const pdfRes = await api(repo.cookie, `/api/study-sheets/${sheet.id}/pdf`);
+    expect(pdfRes.headers.get("content-type")).toContain("application/pdf");
+    const composed = await PDFDocument.load(new Uint8Array(await pdfRes.arrayBuffer()));
+    // page widths encode the source page: Analysis p1 = 200, p4 = 203, Statistik p2 = 201
+    expect(composed.getPages().map((p) => Math.round(p.getWidth()))).toEqual([200, 203, 201]);
+
+    // a renamed source keeps working
+    await api(repo.cookie, "/api/files/rename", { method: "POST", body: JSON.stringify({ path: "Uni", newName: "Studium" }) });
+    const renamed = await (await api(repo.cookie, `/api/study-sheets/${sheet.id}`)).json();
+    expect(renamed.pages[0].path).toBe("Studium/Analysis.pdf");
+
+    const saved = await (await api(repo.cookie, `/api/study-sheets/${sheet.id}/save`, { method: "POST" })).json();
+    expect(saved).toMatchObject({ path: "Lernzettel/Klausur.pdf", skipped: 0 });
+    const again = await (await api(repo.cookie, `/api/study-sheets/${sheet.id}/save`, { method: "POST" })).json();
+    expect(again.path).toBe("Lernzettel/Klausur (2).pdf");
+  });
+
+  it("keeps sheets private to their account", async () => {
+    const a = await createRepository("Lernzettel A");
+    const b = await createRepository("Lernzettel B");
+    const sheet = await (
+      await api(a.cookie, "/api/study-sheets", { method: "POST", body: JSON.stringify({ name: "Privat" }) })
+    ).json();
+    expect((await api(b.cookie, `/api/study-sheets/${sheet.id}`)).status).toBe(404);
+    expect((await api(b.cookie, `/api/study-sheets/${sheet.id}/pdf`)).status).toBe(404);
+    expect((await (await api(b.cookie, "/api/study-sheets")).json()).sheets).toEqual([]);
+    expect((await api(b.cookie, `/api/study-sheets/${sheet.id}`, { method: "DELETE" })).status).toBe(404);
+    expect((await api(a.cookie, `/api/study-sheets/${sheet.id}`, { method: "DELETE" })).status).toBe(204);
+  });
+});

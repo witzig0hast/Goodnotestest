@@ -1,4 +1,4 @@
-import { mkdirSync, promises as fs } from "node:fs";
+import { existsSync, mkdirSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
 
@@ -74,4 +74,18 @@ export async function removeAllRepositoryData(repositoryId: string): Promise<voi
     fs.rm(repositoryThumbnailsDir(repositoryId), { recursive: true, force: true }),
     fs.rm(repositoryTrashDir(repositoryId), { recursive: true, force: true }),
   ]);
+}
+
+/**
+ * First relative path in `folder` named `name` that isn't taken yet,
+ * appending " (2)", " (3)" … before the extension as needed.
+ */
+export async function freePath(repositoryId: string, folder: string, name: string): Promise<string> {
+  const ext = path.extname(name);
+  const base = path.basename(name, ext);
+  for (let n = 1; ; n++) {
+    const candidateName = n === 1 ? name : `${base} (${n})${ext}`;
+    const candidate = folder ? `${folder}/${candidateName}` : candidateName;
+    if (!existsSync(resolveSafePath(repositoryId, candidate))) return candidate;
+  }
 }

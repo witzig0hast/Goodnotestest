@@ -118,4 +118,18 @@ export const enServer: Record<string, string> = {
     "The operator of this server hasn't set up sending email yet.",
   "Testmail konnte nicht gesendet werden.": "Couldn't send the test email.",
   "SMTP ist auf diesem Server nicht eingerichtet.": "SMTP isn't set up on this server.",
+  "Lernzettel nicht gefunden.":
+    "Study sheet not found.",
+  "Ungültige Seite.":
+    "Invalid page.",
+  "Seite nicht gefunden.":
+    "Page not found.",
+  "Ein Lernzettel kann höchstens 300 Seiten haben.":
+    "A study sheet can have at most 300 pages.",
+  "Der Lernzettel enthält noch keine Seiten.":
+    "The study sheet doesn't contain any pages yet.",
+  "Dein Speicherplatz ist voll.":
+    "Your storage is full.",
+  "Bitte gib einen Namen ein.":
+    "Please enter a name.",
 };

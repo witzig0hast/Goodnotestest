@@ -8,7 +8,7 @@ import { sendNotificationEmail } from "../lib/backup-check.js";
 import { config, smtpConfig } from "../lib/config.js";
 import { noteUpload, wouldExceedQuota } from "../lib/quota.js";
 import { findRepositoryById } from "../lib/repositories.js";
-import { isValidSegmentName, resolveSafePath } from "../lib/storage.js";
+import { freePath, isValidSegmentName, resolveSafePath } from "../lib/storage.js";
 import {
   createUploadLink,
   deleteUploadLink,
@@ -142,16 +142,6 @@ uploadLinksRouter.post("/:id/unlock", shareUnlockLimiter, (req, res) => {
   }
   res.json({ token: signUploadUnlockToken({ uploadLinkId: link.id }) });
 });
-
-async function freePath(repositoryId: string, folder: string, name: string): Promise<string> {
-  const ext = path.extname(name);
-  const base = path.basename(name, ext);
-  for (let n = 1; ; n++) {
-    const candidateName = n === 1 ? name : `${base} (${n})${ext}`;
-    const candidate = folder ? `${folder}/${candidateName}` : candidateName;
-    if (!existsSync(resolveSafePath(repositoryId, candidate))) return candidate;
-  }
-}
 
 function notifyOwner(link: UploadLinkRecord, fileName: string): void {
   if (!link.notifyOwner || !smtpConfig) return;

@@ -203,4 +203,52 @@ export const enBrowser: Record<string, string> = {
   "Zuletzt angesehen": "Recently viewed",
   "Seite {page} von {count}": "Page {page} of {count}",
   "Noch keine Lesezeichen — setze eins im Viewer über das Lesezeichen-Symbol oben.": "No bookmarks yet — set one in the viewer with the bookmark icon at the top.",
+  "Die Lernzettel konnten nicht geladen werden.":
+    "Your study sheets couldn't be loaded.",
+  "Neuer Name für den Lernzettel:":
+    "New name for the study sheet:",
+  "Lernzettel „{name}“ löschen? Deine Notizen bleiben unverändert.":
+    "Delete study sheet “{name}”? Your notes stay unchanged.",
+  "Lernen":
+    "Study",
+  "Lernzettel":
+    "Study sheets",
+  "Stell einzelne Seiten aus verschiedenen Notizen zu einem PDF zusammen — etwa alle Formeln für die Klausur. Öffne dazu eine Notiz und tippe oben auf das Stapel-Symbol.":
+    "Combine single pages from different notes into one PDF — say, every formula for the exam. Open a note and tap the stack icon at the top.",
+  "Neuer Lernzettel":
+    "New study sheet",
+  "Name für neuen Lernzettel":
+    "Name for new study sheet",
+  "Anlegen":
+    "Create",
+  "Noch kein Lernzettel. Leg links einen an oder öffne eine Notiz und füge eine Seite hinzu.":
+    "No study sheets yet. Create one on the left, or open a note and add a page.",
+  "Dieser Lernzettel ist noch leer. Öffne eine Notiz, blättere zur gewünschten Seite und tippe oben auf das Stapel-Symbol.":
+    "This study sheet is still empty. Open a note, go to the page you want and tap the stack icon at the top.",
+  "Originalseite öffnen":
+    "Open original page",
+  "Nach oben":
+    "Move up",
+  "Nach unten":
+    "Move down",
+  "Seite entfernen":
+    "Remove page",
+  "Als PDF herunterladen":
+    "Download as PDF",
+  "In meinen Notizen speichern":
+    "Save to my notes",
+  "Gespeichert als „{name}“ im Ordner „{folder}“ — von dort kannst du ihn wie jede Notiz teilen.":
+    "Saved as “{name}” in the “{folder}” folder — you can share it from there like any note.",
+  "Seite {page} liegt jetzt auf „{name}“.":
+    "Page {page} is now on “{name}”.",
+  "Seite zum Lernzettel hinzufügen":
+    "Add page to a study sheet",
+  "Seite {page} hinzufügen zu …":
+    "Add page {page} to …",
+  "Lädt …":
+    "Loading …",
+  "Neuer Lernzettel, z. B. „Klausur Analysis“":
+    "New study sheet, e.g. “Calculus exam”",
+  "Alle Lernzettel ansehen":
+    "View all study sheets",
 };
